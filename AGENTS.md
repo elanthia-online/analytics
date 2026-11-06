@@ -27,6 +27,7 @@ npm run vendor -- --check
 npm run serve            # http://localhost:8000
 npm run mock -- --demo   # stand-in script API on 127.0.0.1:8080
 npm run screenshots      # README images (docs/images/) and site/img/og.png
+npm run sample           # rebuild site/demo/sample.db from the fixture (-- --check to verify)
 ```
 
 Run `npm test` and `npm run e2e` before saying a change works. A static read is not
@@ -68,9 +69,15 @@ verification.
   each against a direct SQL query of the fixture, or against a small database built in the
   test (the post-cap character). Every table and column they read is optional, so an older
   database shows an empty section rather than an error.
-- **The sample data is the fixture.** `site/demo/sample.db` is a byte copy of
-  `test/fixtures/afternoon.db` (`test/demo.test.js` checks it). Regenerate both together.
-  The demo is never remembered as a reader's source, and the page labels it on every view.
+- **The sample data is built from the fixture.** `npm run sample` (`tools/build-sample.js`)
+  writes `site/demo/sample.db`: every row of `test/fixtures/afternoon.db` unchanged, plus
+  more made-up characters (Karai past the level cap, Casey around level 38) and a week of
+  history for Bebop and Leonardo. `test/demo.test.js` checks that the file is exactly what
+  the tool makes, that no fixture row changed, and that the additions belong only to those
+  characters. Rerun it after any change to the fixture. New sample characters go in the
+  tool, never in the parity fixtures, whose golden JSON can't be made again. The mock's
+  `--demo`, the e2e live checks and the screenshots all use the sample. The demo is never
+  remembered as a reader's source, and the page labels it on every view.
 - **No inline script, no CDN, no new runtime dependency.** The CSP in `site/index.html` is
   `script-src 'self' 'wasm-unsafe-eval'`. If a change needs a looser CSP, that's a design
   discussion, not a fix.

@@ -24,8 +24,8 @@ there. What's planned is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Screenshots
 
-From the sample data in `test/fixtures/`: made-up characters, served live by the mock
-API. Click one for the whole page. `npm run screenshots` regenerates them.
+From the site's sample data (`site/demo/sample.db`, built by `npm run sample` from the test
+fixture): seven made-up characters, served live by the mock API. Click one for the whole page. `npm run screenshots` regenerates them.
 
 <table>
   <tr>

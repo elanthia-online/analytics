@@ -2,6 +2,28 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: More sample characters, built on top of the fixture
+
+**Decision.** The sample data is no longer a byte copy of the parity fixture.
+`tools/build-sample.js` (`npm run sample`) builds it from the fixture plus:
+- **Karai**, past the level cap (training points and ascension), hunting at the sample's moment;
+- **Casey**, around level 38, with a death in the week;
+- **a week of history** for Bebop and Leonardo, ending where their own data starts.
+
+All of it comes from a seeded PRNG, with fictional names. `test/demo.test.js` checks three
+things: the file is exactly what the tool makes, every fixture row is in it unchanged, and
+the added rows belong only to those four characters. The mock's `--demo` (and so the e2e
+live checks and the screenshots) serves the sample.
+
+The fixtures lost one row each from `progress`: a level-0 row. It came from a Leonardo cycle
+whose total experience reads 1, which the golden figures keep, but no golden figure reads
+`progress`.
+
+**Why not add them to the fixtures.** The golden JSON came from the script's old Ruby
+dashboard, which no longer exists. New characters there would change the overview's figures
+with nothing left to check them against. Filling them in from the JS port itself would
+make parity circular.
+
 ## 2026-11-06: Compare, longer ranges, sortable tables, bank checks, targets
 
 **Decision.**
