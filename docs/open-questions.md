@@ -11,8 +11,12 @@ Things that need a decision or a check this repo can't do on its own. Move an it
    Safari users have the file source only, and the source chooser should say so.
 2. **Chromium's Local Network Access prompt.** Check the wording and when it appears:
    the first connect from the Pages origin to `127.0.0.1`. The e2e check runs the page
-   from `localhost`, which is itself local, so it never sees the prompt. Try it once on the
-   published site, and add a line to the README about allowing it.
+   from `localhost`, which is itself local, so it never sees the prompt. Partly checked:
+   with the permission not granted, headless Chromium refuses the fetch with "Permission
+   was denied for this request to access the `loopback` address space", which the page can
+   only see as a failed fetch, so its error now mentions the permission. The guide
+   (`#connect`) tells players to choose Allow. Still to see: the prompt itself, on the
+   published site.
 3. **Folder source on Windows** with Lich running. The design expects reads to work
    while SQLite holds its locks: Windows byte-range locks sit at the 1 GB offset, which a
    smaller file doesn't reach, and WAL-mode locks live in `-shm`, which the page never
@@ -27,20 +31,12 @@ Things that need a decision or a check this repo can't do on its own. Move an it
 5. **License.** The repo has no license yet, so by default nobody may reuse it.
    elanthia-online/lich-5 is GPL-2.0; elanthia-online/scripts has no license file at the
    root. The vendored sql.js is MIT, and its license ships beside it either way.
-6. **LAN mode.** The hosted page can't reach `http://192.168.x.y` (mixed content), and the
-   database API would expose everything to the network. Options:
-   - drop it (proposed in script-changes.md)
-   - the script serves a copy of `site/` itself in LAN mode, which brings back a page in
-     the script or a download of release files
-   - an opt-in LAN mode protected by a random token in the URL, still needing an http copy
-     of the page
-
-   Is anyone actually using `--lan`?
+6. ~~LAN mode~~: settled, see decisions.md (dropped).
 7. ~~Shared `elanthia-online.github.io` origin~~: settled, see decisions.md (own domain).
 8. **Database size.** `/api/db` re-sends the whole database after every change, which
    while hunting can mean every few seconds. 0.4 MB is nothing; at 50 MB on localhost it's
    still fast but wasteful. Two ways to go past that:
-   - a retention policy (the script's own TODO list mentions one)
+   - a retention policy (on the [roadmap](roadmap.md))
    - an incremental API (`/api/rows?table=…&since=…`, append-only tables only).
 
    Measure real databases first. Ask a heavy user for `;analytics maintenance stats`.

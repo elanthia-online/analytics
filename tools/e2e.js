@@ -89,8 +89,31 @@ try {
   const deadPage = await fileContext.newPage();
   await deadPage.goto(`http://localhost:${SITE_PORT}/?live=1`);
   await deadPage.waitForSelector('#sourceError:not([hidden])', { timeout: 15_000 });
-  check(/Could not reach analytics\.lic/.test(await deadPage.textContent('#sourceError')), 'unreachable: the chooser explains the script is not answering');
+  const deadText = await deadPage.textContent('#sourceError');
+  check(/Could not reach analytics\.lic/.test(deadText), 'unreachable: the chooser explains the script is not answering');
+  check(/Local network access/.test(deadText), 'unreachable: and mentions the browser permission, which looks the same to the page');
+  check(await deadPage.$('#source a[href="guide/"]') !== null, 'unreachable: the chooser links to the guide');
   await fileContext.close();
+
+  // ---- the guide -------------------------------------------------------
+  const guideContext = await browser.newContext({ viewport: { width: 1320, height: 900 } });
+  const guide = await guideContext.newPage();
+  const guideProblems = [];
+  guide.on('pageerror', (e) => guideProblems.push(e.message));
+  guide.on('console', (m) => { if (m.type() === 'error') guideProblems.push(m.text()); });
+  const guideResponse = await guide.goto(`http://localhost:${SITE_PORT}/guide/`);
+  check(guideResponse.ok(), `guide: served (${guideResponse.status()})`);
+  const sections = await guide.$$eval('main section[id]', (els) => els.map((el) => el.id));
+  const tocTargets = await guide.$$eval('.toc a', (els) => els.map((a) => a.getAttribute('href').slice(1)));
+  check(sections.length >= 10 && JSON.stringify(sections) === JSON.stringify(tocTargets), `guide: every section is in the contents (${sections.length})`);
+  const anchors = await guide.$$eval('a[href^="#"]', (els) => els.map((a) => a.getAttribute('href').slice(1)));
+  const missing = [];
+  for (const id of anchors) if (!(await guide.$(`[id="${id}"]`))) missing.push(id);
+  check(missing.length === 0, `guide: every in-page link has a target${missing.length ? ` (missing ${missing.join(', ')})` : ''}`);
+  for (const id of ['connect', 'lan', 'settings']) check((await guide.$(`[id="${id}"]`)) !== null, `guide: #${id} exists, the script and the page link to it`);
+  check(guideProblems.length === 0, `guide: no console errors or CSP violations${guideProblems.length ? `: ${guideProblems.join(' | ')}` : ''}`);
+  if (shots) await guide.screenshot({ path: `${shots}/guide.png`, fullPage: true });
+  await guideContext.close();
 } finally {
   await browser.close();
   mock.kill();

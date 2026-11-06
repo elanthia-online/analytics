@@ -1,6 +1,25 @@
 # Changes analytics.lic needs
 
-Status: **proposed, not made.** Written against `scripts/analytics.lic` at
+Status: **done** in elanthia-online/scripts@0b41f063, the commit after `63fcad62`, on PR
+elanthia-online/scripts#2556. The parity fixtures were generated from `63fcad62`, the
+last commit with the Ruby figures (`test/fixtures/source.json` has its hash), so they are
+the frozen baseline from here on.
+
+Where the change differs from the plan below:
+- The module kept the name `Dashboard`.
+- `/index.html` redirects as well as `/`.
+- A second `Origin` header gets a 400, like a second `Host`.
+- The `VACUUM INTO` fallback is real code, used when the sqlite3 gem has no
+  `Database#serialize`, and a spec covers it.
+- All API reads share one `Monitor`, so the API connection's pool only ever makes one
+  connection (`data_version` is only comparable on one connection).
+- `VERSION` is a constant, and a spec keeps it equal to the header's `version:` line.
+- The header and the settings file's comment now point to the guide (`site/guide/`), and
+  the TODO list moved to [roadmap.md](roadmap.md).
+
+The plan as written follows.
+
+Written against `scripts/analytics.lic` at
 `63fcad62` on the `feat/analytics-script` branch (elanthia-online/scripts#2556, still a
 draft). Line numbers below are at that commit.
 

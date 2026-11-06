@@ -2,6 +2,43 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: The player guide lives on the site; ideas live in docs/roadmap.md
+
+**Decision.** How to install, run and configure analytics.lic is `site/guide/index.html`,
+published at `https://analytics.elanthia.online/guide/`. The script's header is cut to what
+it does, the fields the scripts repo reads (author, game, tags, required, version), a
+three-line quick start, links to the guide and this repo, and its changelog. The settings
+file the script writes keeps one line per setting and a link. The TODO list that sat
+after the header is [roadmap.md](roadmap.md).
+
+**Why.** The header had grown to hold the manual. A web page can be read before installing,
+linked to, searched and kept current without a script release. The one-line settings list
+stays in the YAML because people read it while editing, often offline.
+
+**Rejected.**
+- *Keep the manual in the header as well.* Two copies drift.
+- *GitHub issues for every TODO item.* Issues notify watchers and imply someone is on it.
+  The roadmap says where each item lives; open an issue when one is picked up.
+
+## 2026-11-06: LAN mode is dropped
+
+**Decision.** `;analytics --lan`, `serve ... lan` and `dashboard.lan` are refused with one
+line pointing to the guide (`#lan`), and the server binds 127.0.0.1 only.
+
+**Why.**
+- The hosted page is https. Browsers block its fetches to `http://192.168.x.y` as mixed
+  content, and only loopback is exempt.
+- The API hands out the whole database. On the network, that's the whole database to anyone
+  on it, where LAN mode used to expose only computed figures.
+
+**Rejected.**
+- *The script serves a copy of `site/` in LAN mode.* That brings back a page inside the
+  script.
+- *A LAN mode with a random token in the URL.* It still needs an http copy of the page,
+  and a token in a URL ends up in histories and screenshots.
+
+To see another computer's data, open a copy of its database as a file.
+
 ## 2026-11-06: The site has its own domain, analytics.elanthia.online
 
 **Decision.** Pages serves the site at `https://analytics.elanthia.online/`, and the

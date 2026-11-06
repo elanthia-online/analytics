@@ -9,10 +9,14 @@ The page runs entirely in your browser. It opens your `analytics.db` with
 [sql.js](https://github.com/sql-js/sql.js) (SQLite compiled to WebAssembly) and works out
 every figure locally. Your data is never uploaded anywhere.
 
-> **Status:** the site is built and tested against a stand-in for the script
-> (`tools/mock-server.js`). analytics.lic still serves its own built-in dashboard; the
-> changes it needs to serve this one instead are written up in
+> **Status:** analytics.lic serves this page its database as of
+> elanthia-online/scripts@0b41f063 (PR elanthia-online/scripts#2556, not merged yet). The
+> script no longer has a dashboard of its own. What changed is in
 > [docs/script-changes.md](docs/script-changes.md).
+
+**How to install, run and configure analytics.lic is in the guide:
+https://analytics.elanthia.online/guide/** (`site/guide/`). The script's header points
+there. What's planned is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Using it
 
@@ -35,6 +39,8 @@ device*. Allow it, because that's how the page reaches analytics.lic on `127.0.0
 ```
 site/                 the published site, served as is (no build step)
   index.html          page shell and Content-Security-Policy
+  guide/index.html    the player guide: install, commands, reports, settings, FAQ
+  css/guide.css       the guide's reading layout (on dashboard.css's tokens)
   css/dashboard.css   styles (from the script's page)
   js/app.js           UI (from the script's page) + source chooser
   js/data.js          sources (live API, folder, file) and the open database

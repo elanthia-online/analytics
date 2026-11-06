@@ -51,7 +51,11 @@ async function getJson(url) {
   try {
     response = await fetch(url, { cache: 'no-store' });
   } catch {
-    throw new Error('Could not reach analytics.lic. Is it running with --dashboard (or ;analytics serve)?');
+    // A refused local-network permission looks the same to the page as nothing listening
+    throw new Error('Could not reach analytics.lic. Check that it is running with ;analytics --dashboard (or ;analytics serve), ' +
+      'and that your browser let this site reach this computer: Chrome and Edge ask once, and the answer is under ' +
+      'site settings, Local network access. See the guide: guide/#connect');
+
   }
   if (!response.ok) throw new Error(`analytics.lic answered ${response.status}`);
   return response.json();

@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- A static page: no scripts but the shared theme loader, no data. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="How to install, run and configure analytics.lic, the Lich5 hunting analytics script for GemStone IV, and how to use its web dashboard.">
+<title>analytics.lic guide</title>
+<script src="../js/theme-init.js"></script>
+<link rel="stylesheet" href="../css/dashboard.css">
+<link rel="stylesheet" href="../css/guide.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="../" title="Open the dashboard">
+      <span class="logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="9" width="3" height="7" rx="1.2" fill="#fff" opacity=".75"/><rect x="7.5" y="5" width="3" height="11" rx="1.2" fill="#fff" opacity=".9"/><rect x="13" y="2" width="3" height="14" rx="1.2" fill="#fff"/></svg></span>
+      <span><h1>GS4 Analytics</h1><small>Guide to analytics.lic</small></span>
+    </a>
+    <span class="spacer"></span>
+    <nav class="controls" aria-label="Site">
+      <a class="tool" href="../">Open the dashboard</a>
+      <a class="tool" href="https://github.com/elanthia-online/analytics">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="page-head"><div><h2>analytics.lic guide</h2>
+    <p>Hunting analytics for GemStone IV in Lich5: what it records, how to run it, every setting, and the dashboard.</p></div></div>
+
+  <div class="guide">
+    <nav class="toc card" aria-label="On this page">
+      <div class="eyebrow">On this page</div>
+      <ol>
+        <li><a href="#what">What it does</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#first-run">First run</a></li>
+        <li><a href="#commands">Commands</a></li>
+        <li><a href="#reports">Text reports</a></li>
+        <li><a href="#dashboard">The dashboard</a></li>
+        <li><a href="#settings">Settings</a></li>
+        <li><a href="#alerts">Alerts and Discord</a></li>
+        <li><a href="#data">What is recorded</a></li>
+        <li><a href="#accuracy">How the numbers work</a></li>
+        <li><a href="#hooks">For script authors</a></li>
+        <li><a href="#maintenance">Maintenance and backups</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ol>
+    </nav>
+
+    <main class="doc">
+      <section id="what" class="card">
+        <h3>What it does</h3>
+        <p><code>analytics.lic</code> runs alongside your hunting scripts and records, for every character you run it on:</p>
+        <ul>
+          <li><b>Cycles</b>: each stretch of hunting, resting, being dead or sitting idle, with why the hunt ended, and how long each step of a rest took (travel, looting, the bounty turn-in, healing...).</li>
+          <li><b>Kills</b> by creature, with the silver on each corpse and the boxes found.</li>
+          <li><b>Silver</b>: bank balances (the figure every "silver per hour" uses), plus box silver, vendor sales, bounty rewards, and what you spend at the locksmith, the locksmith pool and the priestess.</li>
+          <li><b>Bounties</b>: every task the taskmaster offers, whether you keep it, remove it or used an expedite voucher; progress (7/11), time taken and the rewards.</li>
+          <li><b>Experience, fame, mind and encumbrance</b> at the start and end of each cycle, and each login's totals.</li>
+        </ul>
+        <p>Everything goes into one SQLite database on your computer, shared by all your characters and both games. You see it three ways:
+          text reports in the game window, <a href="#alerts">alerts and a daily digest</a> in the game and on Discord, and the
+          <a href="../">web dashboard</a>, which reads your database in your browser. Nothing is uploaded anywhere.</p>
+      </section>
+
+      <section id="install" class="card">
+        <h3>Install</h3>
+        <h4>You need</h4>
+        <ul>
+          <li><b>Lich 5.23.0 or newer.</b> The <code>sequel</code> and <code>sqlite3</code> gems it needs ship with Lich.</li>
+          <li><b>bigshot</b> for hunting, or your own script (see <code>hunt_script</code> in <a href="#settings">Settings</a>). Rests are detected from bigshot's own status.</li>
+          <li>Optional: <b>discordhook</b>, for alerts on Discord.</li>
+        </ul>
+        <h4>Get the script</h4>
+        <pre><code>;repository download analytics.lic</code></pre>
+        <p>or copy <code>analytics.lic</code> from <a href="https://github.com/elanthia-online/scripts">elanthia-online/scripts</a> into your Lich <code>scripts</code> folder.</p>
+        <h4>Start it on every login</h4>
+        <p>Run it on each character you want tracked. To have it start by itself:</p>
+        <pre><code>;autostart add analytics</code></pre>
+        <p>Add <code>--dashboard</code> on one character (<code>;autostart add analytics --dashboard</code>) if you want the dashboard to update live; one per computer is enough.</p>
+      </section>
+
+      <section id="first-run" class="card">
+        <h3>First run</h3>
+        <ol>
+          <li>Type <code>;analytics</code>. It prints where the database is, which scripts it watches, and <i>Ready</i>.</li>
+          <li>A few seconds later it sends one quiet <code>BANK ACCOUNT</code>, so silver can be tracked from the start. That happens once per character, not every login.</li>
+          <li>It writes your settings file with every setting at its default. <code>;analytics help</code> prints where it is. Change what you want, then restart the script (<code>;kill analytics</code>, then <code>;analytics</code>).</li>
+          <li>Hunt as usual. Reports and the dashboard fill in as you go; the "typical" baselines need about five days of hunting.</li>
+        </ol>
+        <p class="note">Where things live: the database is <code>analytics.db</code> in Lich's data folder, shared by all characters. Each character's settings are in <code>&lt;Lich data&gt;/&lt;game&gt;/&lt;character&gt;/analytics.yaml</code>. <code>;analytics help</code> shows both full paths for the character you are on.</p>
+      </section>
+
+      <section id="commands" class="card">
+        <h3>Commands</h3>
+        <div class="scroll"><table class="ref">
+          <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>;analytics</code></td><td>Collect data for this character. Run it on each one.</td></tr>
+            <tr><td><code>;analytics --dashboard[=PORT]</code></td><td>Collect, and feed the <a href="#dashboard">web dashboard</a> live (port 8080 unless you give one).</td></tr>
+            <tr><td><code>;analytics serve [PORT]</code></td><td>Feed the dashboard without collecting, or start feeding it inside a running collector.</td></tr>
+            <tr><td><code>;analytics report &lt;name&gt; [range]</code></td><td>A <a href="#reports">text report</a> in the game window.</td></tr>
+            <tr><td><code>;analytics status</code></td><td>What the collector is doing: state, cycle, scripts watched, the dashboard link, the database.</td></tr>
+            <tr><td><code>;analytics maintenance &lt;task&gt;</code></td><td><code>compact</code>, <code>vacuum</code>, <code>stats</code> or <code>backup</code>. See <a href="#maintenance">Maintenance</a>.</td></tr>
+            <tr><td><code>;analytics help</code></td><td>The command list, and where this character's settings file and the database are.</td></tr>
+          </tbody>
+        </table></div>
+        <p>While the collector runs, type the other commands as usual (<code>;analytics report exp weekly</code>). Lich won't start a second copy of a running script, so the collector catches them and runs them itself.</p>
+      </section>
+
+      <section id="reports" class="card">
+        <h3>Text reports</h3>
+        <p><code>;analytics report &lt;name&gt; [range]</code>. Ranges are <code>daily</code> (the default), <code>weekly</code>, <code>monthly</code>, <code>ytd</code> and <code>total</code>.</p>
+        <div class="scroll"><table class="ref">
+          <thead><tr><th>Report</th><th>Shows</th></tr></thead>
+          <tbody>
+            <tr><td><code>character</code></td><td>Every character side by side over today, the week, the month and the year: silver and exp per hour, bounties per hunting hour, kills, uptime, deaths, bank balances, idle time, encumbrance and item-limit rests.</td></tr>
+            <tr><td><code>exp</code></td><td>Experience and fame per character.</td></tr>
+            <tr><td><code>bounty</code></td><td>This character's bounties: completed, abandoned, success rate, average time and rewards; by type and creature; value per hour; and the <b>task offers</b> section: offered, removed, expedited, vouchers left, and what you removed.</td></tr>
+            <tr><td><code>cycle</code></td><td>Hunt, rest, dead and idle time: counts, averages, longest and shortest; exp and fame; encumbrance; rest reasons; deaths and the time between them.</td></tr>
+            <tr><td><code>silver</code></td><td>Where silver came from (corpses, boxes, sales, bounties) and went (locksmith, locksmith pool, priestess), the net, the bank change, and sales by vendor.</td></tr>
+            <tr><td><code>kills</code></td><td>Kills, boxes, box rate and silver per kill by creature.</td></tr>
+            <tr><td><code>session</code></td><td>This <b>login</b> next to today, the week, the month, the year and lifetime: silver, silver per hour and per hunting hour, exp and its rates, deaths, time logged in and hunting. A login lasts from when Lich connected to the game until you log out, even if that's days.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="dashboard" class="card">
+        <h3>The dashboard</h3>
+        <p>The dashboard is this website: <a href="../">analytics.elanthia.online</a>. It runs in your browser and reads your own database; it never uploads it.
+          It has an overview of every character (today's totals, each character's state and pace, the day's activity, alerts) and a page per character
+          (performance and trends by day, week or month; rests; mind and load; hunting grounds; bounties and task offers).</p>
+
+        <h4 id="connect">Live from analytics.lic</h4>
+        <ol>
+          <li>Start the script with <code>;analytics --dashboard</code> (or type <code>;analytics serve</code> while it runs).</li>
+          <li>It prints a link like <code>https://analytics.elanthia.online/?live=8080</code>. Open it, or open the site and choose <i>Connect</i>.</li>
+          <li><b>Chrome and Edge ask once</b> whether this site may access other apps and devices on your computer. Choose <b>Allow</b>: that is how the page reaches analytics.lic on <code>127.0.0.1</code>. If you chose Block, change it under the site settings (the icon left of the address), <i>Local network access</i>.</li>
+        </ol>
+        <p>The page then updates every five seconds. The script answers only this computer, and only this site (or pages served from your own computer) may read it.</p>
+
+        <h4>Other ways to open your data</h4>
+        <ul>
+          <li><b>Database folder</b> (Chrome and Edge): pick Lich's data folder, the one with <code>analytics.db</code>. It stays live with no server running.</li>
+          <li><b>A file</b> (any browser): pick a copy or a backup of <code>analytics.db</code>. Shown as of when it was saved.</li>
+        </ul>
+
+        <h4 id="lan">Other computers on your network</h4>
+        <p>Older versions could open the dashboard to your whole network (<code>lan</code>). That is gone: the dashboard is now an https page, which browsers
+          won't let talk to another computer over plain http, and serving the database to your network would hand all of it to anyone there. To view
+          another computer's data, copy its <code>analytics.db</code> (or a <a href="#maintenance">backup</a>) and open it as a file.</p>
+
+        <h4>A fork, or your own copy of the site</h4>
+        <p>Pages served from your own computer (<code>http://localhost:...</code>) can always connect. For a copy hosted somewhere else, add its origin to
+          <code>dashboard.allowed_origins</code> and point <code>dashboard.site_url</code> at it (see <a href="#settings">Settings</a>).</p>
+      </section>
+
+      <section id="settings" class="card">
+        <h3>Settings</h3>
+        <p>Each character has its own <code>analytics.yaml</code>, written with the defaults the first time the collector runs. Keep only the lines you change:
+          anything left out uses the default. Restart the script after editing. Indent with spaces, never tabs; <code>null</code> (or an empty value) means off.
+          A mistake in the file is reported once in the game window and the defaults are used instead.</p>
+
+        <h4>The cycle: hunting, resting, dead</h4>
+        <div class="scroll"><table class="ref">
+          <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>hunt_script</code></td><td><code>bigshot</code></td><td>The script whose running means "hunting". A list works too: <code>hunt_script: [bigshot, my_hunter]</code>.</td></tr>
+            <tr><td><code>bigshot_status</code></td><td><code>true</code></td><td>Read bigshot's own resting status, so its rests are detected without a <code>rest_script</code>. Only read while bigshot runs (it goes stale otherwise). Set <code>false</code> if you hunt with something else.</td></tr>
+            <tr><td><code>rest_script</code></td><td>none</td><td>Your own rest script (sell, loot, bank, return). While it runs, the cycle is a rest. Also what idle recovery starts.</td></tr>
+            <tr><td><code>death_script</code></td><td>none</td><td>Your death-recovery script; while it runs, the cycle is "dead". Death is also read from the game, so this can stay unset.</td></tr>
+            <tr><td><code>rest_steps</code></td><td>go2 travel, eloot eloot, ebounty bounty, eherbs healing, ewaggle spells</td><td><code>script: label</code> pairs that time a rest: time goes to the first listed script that's running, and time with none running is "waiting". Add your own, e.g. <code>my_sell: selling</code>. These also mark a trip as a rest when another script stopped the hunt (ebounty turning in a bounty).</td></tr>
+          </tbody>
+        </table></div>
+
+        <h4>What is read from the game text</h4>
+        <div class="scroll"><table class="ref">
+          <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>parse_sales</code></td><td><code>true</code></td><td>Record vendor sales (including promissory notes, gem pouches and containers) and spending at the locksmith, the locksmith pool and the priestess, so your selling scripts need no changes.</td></tr>
+            <tr><td><code>parse_bank</code></td><td><code>true</code></td><td>Record <code>BANK ACCOUNT</code> listings, and move the tracked total by every deposit, withdrawal and note. With no total yet, one <code>BANK ACCOUNT</code> is sent quietly a few seconds after starting.</td></tr>
+          </tbody>
+        </table></div>
+
+        <h4>Hunt limits and recovery (off unless set)</h4>
+        <div class="scroll"><table class="ref">
+          <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>max_hunt_minutes</code></td><td>off</td><td>Ask bigshot to rest after one hunt has lasted this long.</td></tr>
+            <tr><td><code>idle_warn_minutes</code></td><td><code>8</code></td><td>Alert after this long with none of your scripts running.</td></tr>
+            <tr><td><code>idle_recover_minutes</code></td><td>off</td><td>After this long idle, walk to the room in <code>profile_room_map</code> and start <code>rest_script</code>. Needs a rest_script.</td></tr>
+            <tr><td><code>profile_room_map</code></td><td>empty</td><td>Where idle recovery walks to, by bigshot profile name (with or without the leading <code>&lt;character&gt;_</code>):<br><code>profile_room_map: { crags: 1234, torvek_cliffs: 5678 }</code></td></tr>
+            <tr><td><code>weapon_loadout</code></td><td>off</td><td>A re-arm check while hunting. If your hands don't match, hunting pauses while it tries; after several failures you get an alert and a rest.<br><code>{ right: scepter, left: shield, gird: true, get_right: get my scepter, get_left: get my shield }</code></td></tr>
+          </tbody>
+        </table></div>
+
+        <h4>Alerts, Discord and the dashboard</h4>
+        <div class="scroll"><table class="ref">
+          <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>alerts.no_kill_minutes</code></td><td><code>10</code></td><td>Alert after hunting this long with no kills.</td></tr>
+            <tr><td><code>alerts.silver_drop_pct</code></td><td><code>50</code></td><td>Alert when today's silver per hunting hour is this many percent below the last seven days' average...</td></tr>
+            <tr><td><code>alerts.silver_check_after_hours</code></td><td><code>2</code></td><td>...once you've hunted this many hours today.</td></tr>
+            <tr><td><code>alerts.daily_digest</code></td><td><code>true</code></td><td>Send yesterday's summary once a day.</td></tr>
+            <tr><td><code>alerts.death</code></td><td><code>true</code></td><td>Alert when this character dies.</td></tr>
+            <tr><td><code>discord</code></td><td><code>true</code></td><td>Also send alerts through discordhook (see <a href="#alerts">Alerts</a>).</td></tr>
+            <tr><td><code>dashboard.port</code></td><td><code>8080</code></td><td>The port <code>--dashboard</code> and <code>serve</code> use. <code>;analytics --dashboard=9000</code> overrides it.</td></tr>
+            <tr><td><code>dashboard.site_url</code></td><td><code>https://analytics.elanthia.online/</code></td><td>The page the script's link opens. Change it only for a fork or your own copy of the site.</td></tr>
+            <tr><td><code>dashboard.allowed_origins</code></td><td><code>[]</code></td><td>Extra sites allowed to read the script, as exact origins such as <code>https://someone.github.io</code>. The project site and pages on your own computer are always allowed.</td></tr>
+            <tr><td><code>verbose</code></td><td><code>false</code></td><td>Extra log lines, for tracking down a problem.</td></tr>
+          </tbody>
+        </table></div>
+        <p class="note"><code>dashboard.lan</code> is no longer used; see <a href="#lan">why</a>.</p>
+        <h4>Example</h4>
+<pre><code>hunt_script: [bigshot, my_hunter]
+rest_steps:
+  go2: travel
+  my_sell: selling
+  eloot: eloot
+alerts:
+  no_kill_minutes: 15
+  daily_digest: false
+dashboard:
+  port: 9000</code></pre>
+      </section>
+
+      <section id="alerts" class="card">
+        <h3>Alerts and Discord</h3>
+        <p>Alerts show in the game window, and on Discord when <code>discord</code> is on and <b>discordhook</b> is running: start <code>;discordhook</code>
+          (with its webhook set up as that script describes) before <code>;analytics</code>. With discordhook not running, alerts appear in the game only.</p>
+        <ul>
+          <li><b>No kills</b> for <code>alerts.no_kill_minutes</code> while hunting.</li>
+          <li><b>Silver drop</b>: today's silver per hunting hour well below the last seven days' average.</li>
+          <li><b>Idle</b> for <code>idle_warn_minutes</code>, and <b>idle recovery</b> starting a rest.</li>
+          <li><b>Death.</b></li>
+          <li><b>Missing armaments</b>, when the <code>weapon_loadout</code> check couldn't re-arm.</li>
+          <li><b>Item limit</b>: a rest because bigshot hit its item limit.</li>
+          <li>The <b>daily digest</b>: yesterday's hunting time and uptime, exp, kills, deaths, bounties and bank change.</li>
+        </ul>
+      </section>
+
+      <section id="data" class="card">
+        <h3>What is recorded</h3>
+        <p>One SQLite database, <code>analytics.db</code> in Lich's data folder. Every row carries its game and character, so the same name in GS4 and Shattered stays separate.</p>
+        <div class="scroll"><table class="ref">
+          <thead><tr><th>Table</th><th>Holds</th></tr></thead>
+          <tbody>
+            <tr><td><code>cycles</code></td><td>Each hunt, rest, dead and idle stretch: start, end, reason, profile, exp, fame, mind and encumbrance at both ends.</td></tr>
+            <tr><td><code>rest_steps</code></td><td>Time per rest step.</td></tr>
+            <tr><td><code>kill_stats</code></td><td>Kills, corpse silver and boxes, per character, day, profile and creature.</td></tr>
+            <tr><td><code>bounties</code></td><td>Bounties you worked: type, target, area, count done of required, outcome, rewards.</td></tr>
+            <tr><td><code>bounty_offers</code></td><td>Every task offered, kept or not: what it was, how it ended, expedited or not.</td></tr>
+            <tr><td><code>bank_snapshots</code></td><td>Bank listings and teller moves, with the tracked total.</td></tr>
+            <tr><td><code>silver_events</code>, <code>item_sales</code></td><td>Box silver, sales, bounty silver and spending; each item sold.</td></tr>
+            <tr><td><code>sessions</code>, <code>logins</code></td><td>Each character's days, and each game login.</td></tr>
+            <tr><td><code>vendor_visits</code></td><td>Only filled by your own scripts through the <a href="#hooks">hooks</a>.</td></tr>
+          </tbody>
+        </table></div>
+        <p>You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
+      </section>
+
+      <section id="accuracy" class="card">
+        <h3>How the numbers work</h3>
+        <ul>
+          <li><b>Silver per hour</b> comes from your bank balance, so it counts everything you deposit, whatever its source. Per hour means per hour logged in with the script running; per hunting hour divides by hunting time only.</li>
+          <li><b>Creature silver</b> counts what a corpse had when you searched it. Coins picked up off the floor show up only in the bank balance.</li>
+          <li><b>Fame</b> is only as fresh as the last <code>EXPERIENCE</code> output Lich saw. To see fame per hunt and rest, have your rest script run <code>EXPERIENCE</code>.</li>
+          <li><b>Bounties</b> are stored once hunting starts on them; a task you remove at the taskmaster still shows in <b>task offers</b>. Progress follows the game's "N more" text.</li>
+          <li><b>Typical</b> on the dashboard is the average of your own recent hours or days with real hunting (20 minutes in an hour, 2 hours in a day), so it needs about five of them before it means anything.</li>
+          <li><b>A login</b> starts when Lich connected to the game. Restarting the script keeps the same login.</li>
+        </ul>
+      </section>
+
+      <section id="hooks" class="card">
+        <h3>For script authors</h3>
+        <p>Sales and bank balances are read from the game text, so selling and resting scripts need no changes. These hooks exist for anything the text doesn't cover.
+          The module exists only once <code>;analytics</code> has started in that Lich session, so guard the calls:</p>
+<pre><code>if defined?(GS4Analytics::SilverManager)
+  GS4Analytics::SilverManager.take_snapshot          # a bank listing now
+  GS4Analytics::SilverManager.record_vendor_silver(amount, vendor_type, vendor_name = nil)  # only with parse_sales: false
+  GS4Analytics::SilverManager.record_vendor_visit(vendor, start_time, end_time, silver)
+end</code></pre>
+        <p>While <code>parse_sales</code> is on, <code>record_vendor_silver</code> is ignored so a sale isn't counted twice.</p>
+      </section>
+
+      <section id="maintenance" class="card">
+        <h3>Maintenance and backups</h3>
+        <div class="scroll"><table class="ref">
+          <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>;analytics maintenance stats</code></td><td>Rows per table and the file size.</td></tr>
+            <tr><td><code>;analytics maintenance backup</code></td><td>A consistent copy in <code>analytics-backups/</code> next to the database, safe while other sessions write. The newest seven are kept.</td></tr>
+            <tr><td><code>;analytics maintenance compact</code></td><td>Removes bank rows that recorded no change.</td></tr>
+            <tr><td><code>;analytics maintenance vacuum</code></td><td>Rewrites the file to reclaim space.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="troubleshooting" class="card">
+        <h3>Troubleshooting</h3>
+        <dl class="qa">
+          <dt>The dashboard says it could not reach analytics.lic</dt>
+          <dd>Check the script is running with <code>--dashboard</code> (<code>;analytics status</code> shows the link), and that the port matches. In Chrome or Edge, check the site's <i>Local network access</i> permission is Allow (the icon left of the address).</dd>
+          <dt>"Port 8080 is already in use"</dt>
+          <dd>Another program has it. Use another: <code>;analytics --dashboard=9000</code>, or set <code>dashboard.port</code>.</dd>
+          <dt>Rests show as idle</dt>
+          <dd>If you don't hunt with bigshot, set <code>rest_script</code> to the script that rests, and add the scripts that run during a rest to <code>rest_steps</code>.</dd>
+          <dt>Silver per hour is zero or jumps</dt>
+          <dd>Silver is measured at the bank. Until the first <code>BANK ACCOUNT</code> listing there is nothing to measure from; after that, it moves when you deposit.</dd>
+          <dt>Fame never changes</dt>
+          <dd>Have your rest script run <code>EXPERIENCE</code> (see <a href="#accuracy">How the numbers work</a>).</dd>
+          <dt>My settings change did nothing</dt>
+          <dd>Restart the script after editing. If the file has a mistake, the game window said so once, and the defaults are in use.</dd>
+        </dl>
+      </section>
+
+      <section id="faq" class="card">
+        <h3>FAQ</h3>
+        <dl class="qa">
+          <dt>Is my data sent anywhere?</dt>
+          <dd>No. The database stays on your computer. The dashboard page is downloaded from this site, but it reads your data inside your browser.</dd>
+          <dt>Can I run it on several characters at once?</dt>
+          <dd>Yes, one copy per Lich session, all sharing one database. Feed the dashboard from any one of them.</dd>
+          <dt>Does it work in Shattered?</dt>
+          <dd>Yes. Every row records its game, so GS4 and Shattered characters with the same name stay separate.</dd>
+          <dt>Where do I report a problem or suggest something?</dt>
+          <dd>Dashboard and ideas: <a href="https://github.com/elanthia-online/analytics/issues">elanthia-online/analytics</a>. The script itself: <a href="https://github.com/elanthia-online/scripts/issues">elanthia-online/scripts</a>. What's planned is in the <a href="https://github.com/elanthia-online/analytics/blob/main/docs/roadmap.md">roadmap</a>.</dd>
+        </dl>
+      </section>
+    </main>
+  </div>
+  <footer class="foot"><a href="../">Dashboard</a> &middot; <a href="https://github.com/elanthia-online/analytics">Source</a> &middot; <a href="https://github.com/elanthia-online/analytics/blob/main/docs/roadmap.md">Roadmap</a></footer>
+</div>
+</body>
+</html>
