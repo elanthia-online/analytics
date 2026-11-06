@@ -10,13 +10,34 @@ The page runs entirely in your browser. It opens your `analytics.db` with
 every figure locally. Your data is never uploaded anywhere.
 
 > **Status:** analytics.lic serves this page its database as of
-> elanthia-online/scripts@0b41f063 (PR elanthia-online/scripts#2556, not merged yet). The
+> elanthia-online/scripts@0b41f063, schema 7 as of 55d7ba92 (PR
+> elanthia-online/scripts#2556, not merged yet). The
 > script no longer has a dashboard of its own. What changed is in
 > [docs/script-changes.md](docs/script-changes.md).
 
 **How to install, run and configure analytics.lic is in the guide:
 https://analytics.elanthia.online/guide/** (`site/guide/`). The script's header points
 there. What's planned is in [docs/roadmap.md](docs/roadmap.md).
+
+## Screenshots
+
+From the sample data in `test/fixtures/`: made-up characters, served live by the mock
+API (`npm run screenshots` regenerates them).
+
+**Overview**: today across every character, each character's state and pace against
+their typical day, the day's activity, alerts.
+
+![The overview: today's silver, experience, bounties, kills and hunting time for all characters, a card per character, the day's activity timeline and alerts](docs/images/overview.png)
+
+**A character**: right now, performance and trends for a day, week or month, rests,
+hunting grounds, bounties and task offers. Shown here for the week, and in dark mode.
+
+<p>
+  <img src="docs/images/character.png" alt="One character's page for the week: right-now tiles, performance figures, six trend charts against typical, rest steps, hunting grounds, recent bounties and task offers" width="66%">
+  <img src="docs/images/character-dark.png" alt="The top of the same character page in dark mode" width="32%">
+</p>
+
+**On a phone**: <img src="docs/images/phone.png" alt="The overview on a phone" width="240" align="top">
 
 ## Using it
 
@@ -69,6 +90,8 @@ Then open http://localhost:8000/?live=8080.
 
 - `npm run e2e` needs Playwright's Chromium (`npx playwright install chromium` if you don't
   have it).
+- `npm run screenshots` retakes the README's screenshots (`docs/images/`) from the sample
+  data, through the mock API in demo mode. Retake them when the UI changes.
 - `npm run vendor` refreshes `site/vendor/sql.js` after a sql.js version bump. Dependabot
   (`.github/dependabot.yml`, weekly) proposes bumps for the workflow actions and the npm dev
   dependencies. A sql.js bump fails CI's vendor check until `npm run vendor` is run and committed
@@ -84,7 +107,8 @@ after the tests pass. The repository's Pages source must be set to **GitHub Acti
 (Settings → Pages). The custom domain `analytics.elanthia.online` is set there as
 well, not with a `CNAME` file: an Actions deploy ignores one. DNS is a CNAME record to
 `elanthia-online.github.io`, and the domain is verified for the organisation.
-`https://elanthia-online.github.io/analytics/` redirects to it.
+`https://elanthia-online.github.io/analytics/` redirects to it. The certificate is issued and
+**Enforce HTTPS** is on, so `http://` requests redirect to `https://`.
 
 ## License
 

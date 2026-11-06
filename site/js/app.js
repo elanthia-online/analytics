@@ -157,7 +157,8 @@ function U(code) { return String.fromCharCode(code); }
     return list.filter(function (c) { return pinned(c.id); }).concat(list.filter(function (c) { return !pinned(c.id); }));
   }
   function paceKpi(lab, m) {
-    var sub = m.pct == null ? 'no baseline yet' : delta(m.pct, false, ' vs typical');
+    // Three to a card leaves no room for words beside the number: the tooltip says what it compares
+    var sub = m.pct == null ? 'no baseline yet' : '<span title="vs typical by now">' + delta(m.pct, false, '') + '</span>';
     return stat(lab, short(m.so_far), sub);
   }
   function card(c) {
@@ -214,7 +215,7 @@ function U(code) { return String.fromCharCode(code); }
       '<section class="grid g-split">' +
         '<div class="card"><div class="card-head"><h3>Alerts</h3></div>' + alerts + '</div>' +
         '<div class="card"><div class="card-head"><h3>Side by side</h3><span class="note">today</span></div><div class="scroll"><table><thead><tr><th>Character</th><th>Silver</th><th>Exp</th><th>Bounties</th>' +
-        '<th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th><th>Crashes</th><th>Item limit</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
+        '<th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th><th>Crashes</th><th title="Rests for the item limit">Items</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
       '</section>';
     bindWho($('overview'));
     Array.prototype.forEach.call($('overview').querySelectorAll('[data-pin]'), function (el) {

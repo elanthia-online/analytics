@@ -54,14 +54,14 @@ try {
   await page.waitForFunction((old) => document.querySelector('.hero-fig')?.textContent !== old, before, { timeout: 25_000 }).catch(() => {});
   check((await page.textContent('.hero-fig')) !== before, `live: the page picked up a new write by itself (${before} -> ${await page.textContent('.hero-fig')})`);
 
-  await page.click('.card[data-who="GS3:Torvek"]');
+  await page.click('.card[data-who="GS3:Splinter"]');
   await page.waitForSelector('#tabs');
   const charts = await page.$$eval('.chart', (els) => els.length);
   check(charts === 5, `detail: five trend charts for Today (${charts})`);
   await page.click('#tabs button[data-r="weekly"]');
   await page.waitForFunction(() => document.querySelectorAll('.chart').length === 6);
   check(true, 'detail: the This Week tab adds the kills chart');
-  check((await page.evaluate(() => location.hash)) === '#GS3%3ATorvek', 'detail: the URL hash names the character');
+  check((await page.evaluate(() => location.hash)) === '#GS3%3ASplinter', 'detail: the URL hash names the character');
   if (shots) await page.screenshot({ path: `${shots}/detail-live.png`, fullPage: true });
   check(problems.length === 0, `live: no console errors or CSP violations${problems.length ? `: ${problems.join(' | ')}` : ''}`);
   await context.close();

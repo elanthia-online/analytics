@@ -84,7 +84,7 @@ select { padding: 7px 30px 7px 12px; border-radius: 9px; border: 1px solid var(-
 .grid { display: grid; gap: 16px; }
 .g-cards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); }
 .g-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
-.g-split { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+.g-split { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
 @media (max-width: 980px) { .g-split { grid-template-columns: minmax(0, 1fr); } }
 .g-charts { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
 section { margin-top: 16px; }

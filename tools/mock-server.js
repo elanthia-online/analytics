@@ -38,11 +38,11 @@ if (DEMO) {
   image = db.export();
   setInterval(() => {
     const now = Math.floor(Date.now() / 1000);
-    const last = db.exec("SELECT balance FROM bank_snapshots WHERE game = 'GS3' AND character = 'Torvek' AND bank_name = '__total__' ORDER BY timestamp DESC LIMIT 1");
+    const last = db.exec("SELECT balance FROM bank_snapshots WHERE game = 'GS3' AND character = 'Splinter' AND bank_name = '__total__' ORDER BY timestamp DESC LIMIT 1");
     const balance = (last[0]?.values[0][0] ?? 0) + 2500;
-    db.run("INSERT INTO bank_snapshots (snapshot_id, game, character, timestamp, bank_name, balance, delta_silver, snapshot_type) VALUES (?, 'GS3', 'Torvek', ?, '__total__', ?, 2500, 'deposit')",
+    db.run("INSERT INTO bank_snapshots (snapshot_id, game, character, timestamp, bank_name, balance, delta_silver, snapshot_type) VALUES (?, 'GS3', 'Splinter', ?, '__total__', ?, 2500, 'deposit')",
       [`b-demo-${now}`, now, balance]);
-    db.run("UPDATE logins SET last_seen = ? WHERE game = 'GS3' AND character = 'Torvek' AND started_at = (SELECT MAX(started_at) FROM logins WHERE game = 'GS3' AND character = 'Torvek')", [now]);
+    db.run("UPDATE logins SET last_seen = ? WHERE game = 'GS3' AND character = 'Splinter' AND started_at = (SELECT MAX(started_at) FROM logins WHERE game = 'GS3' AND character = 'Splinter')", [now]);
     image = db.export();
     version++;
   }, 10_000).unref();
