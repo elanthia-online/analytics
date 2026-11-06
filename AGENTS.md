@@ -25,6 +25,7 @@ npm run e2e              # after any change under site/ (Chromium + mock API)
 npm run vendor -- --check
 npm run serve            # http://localhost:8000
 npm run mock -- --demo   # stand-in script API on 127.0.0.1:8080
+npm run screenshots      # README images (docs/images/) and site/img/og.png
 ```
 
 Run `npm test` and `npm run e2e` before saying a change works. A static read is not
@@ -43,10 +44,20 @@ verification.
   `sort_by`) have helpers in `aggregate/ruby.js`. Use them; see
   [docs/porting-notes.md](docs/porting-notes.md). On database values, write `x != null`,
   never `x ||` or `x &&`.
-- **The UI is the script's page.** `site/js/app.js` and `site/css/dashboard.css` are
-  ported from analytics.lic's `PAGE`. Keep its style: ES5-ish functions, string-built
-  HTML. Pass everything from the database through `esc()`, since game text is
-  player-controlled.
+- **The UI is its own design now** (no longer the script's `PAGE`; see decisions.md).
+  `site/js/ui/views.js` and `charts.js` turn the aggregation's JSON into HTML strings, and
+  `app.js` owns the shell, the sources and the state. Pass everything from the database
+  through `esc()`, since game text is player-controlled. Write views through `setHtml`, so a
+  refresh that changes nothing leaves hover and focus alone. Keep SVG ids derived from the
+  data, never a counter, for the same reason. Clicks are delegated from `document`,
+  because views are redrawn as the data changes.
+- **Colours come from the tokens** in `dashboard.css`. Data colours are the validated
+  palette: categorical slots `--k1..--k8` in a fixed order, activity states `--st-*`, and
+  status colours that always come with an icon or a label. A new data colour needs the
+  dataviz validator run again in both themes.
+- **The sample data is the fixture.** `site/demo/sample.db` is a byte copy of
+  `test/fixtures/afternoon.db` (`test/demo.test.js` checks it). Regenerate both together.
+  The demo is never remembered as a reader's source, and the page labels it on every view.
 - **No inline script, no CDN, no new runtime dependency.** The CSP in `site/index.html` is
   `script-src 'self' 'wasm-unsafe-eval'`. If a change needs a looser CSP, that's a design
   discussion, not a fix.

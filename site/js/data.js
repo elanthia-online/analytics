@@ -6,8 +6,11 @@
 //   folder - the folder holding analytics.db, re-read every few seconds
 //            (Chromium's File System Access API; WAL applied in wal.js)
 //   file   - a single file picked once (a backup, or a copy someone sent)
+//   demo   - the sample database shipped with the site (made-up characters),
+//            moved to today; never remembered as the reader's own source
 import { Conn } from './db.js';
 import { readLive, applyWal } from './wal.js';
+import { shiftTimes, sameTimeToday } from './shift.js';
 import { buildOverview, buildCharacter, KNOWN_SCHEMAS } from './aggregate/index.js';
 
 export const DB_NAME = 'analytics.db';
@@ -124,6 +127,38 @@ export class FileSource {
   }
 }
 
+// The site's sample database (site/demo/, a copy of the synthetic test
+// fixture), moved so its afternoon is today's. A snapshot: its clock stands
+// at the sample's moment, so the day always looks the same.
+export class DemoSource {
+  constructor(SQL) {
+    this.kind = 'demo';
+    this.live = false;
+    this.SQL = SQL;
+  }
+
+  get label() { return 'sample data'; }
+
+  async load() {
+    if (this.bytes) return { bytes: this.bytes, changed: false, asOf: this.asOf };
+    const [meta, raw] = await Promise.all([
+      fetch('demo/sample.json').then((r) => { if (!r.ok) throw new Error(`The sample data is missing (${r.status})`); return r.json(); }),
+      fetch('demo/sample.db').then((r) => { if (!r.ok) throw new Error(`The sample data is missing (${r.status})`); return r.arrayBuffer(); }),
+    ]);
+    const delta = sameTimeToday(meta.now, meta.tz);
+    // Opened only to move it, then closed: sql.js memory is not garbage collected
+    const db = new this.SQL.Database(new Uint8Array(raw));
+    try {
+      shiftTimes(db, delta, meta.now);
+      this.bytes = db.export();
+    } finally {
+      db.close();
+    }
+    this.asOf = meta.now + delta;
+    return { bytes: this.bytes, changed: true, asOf: this.asOf };
+  }
+}
+
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 // ---- the open database and the views over it --------------------------------
@@ -206,6 +241,7 @@ export class Dashboard {
 const STORE = 'gs4a-source';
 
 export function rememberSource(source) {
+  if (source.kind === 'demo') return; // sample characters are never the reader's own
   try {
     if (source.kind === 'live') localStorage.setItem(STORE, JSON.stringify({ kind: 'live', port: source.port }));
     else localStorage.setItem(STORE, JSON.stringify({ kind: source.kind }));

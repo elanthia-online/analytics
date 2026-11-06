@@ -10,6 +10,7 @@
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
+import { shiftTimes } from '../site/js/shift.js';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -34,7 +35,9 @@ let image = db.export();
 
 if (DEMO) {
   const golden = JSON.parse(readFileSync(DB_PATH.replace(/\.db$/, '.json'), 'utf8'));
-  shiftToNow(golden.now);
+  // The fixture's moment becomes the real now (the page's own sample data
+  // keeps the time of day instead; see site/js/shift.js)
+  shiftTimes(db, Math.floor(Date.now() / 1000) - golden.now, golden.now);
   image = db.export();
   setInterval(() => {
     const now = Math.floor(Date.now() / 1000);
@@ -46,30 +49,6 @@ if (DEMO) {
     image = db.export();
     version++;
   }, 10_000).unref();
-}
-
-// Moves the fixture's moment to now: timestamps by the exact gap, date
-// strings by the number of calendar days between the two
-function shiftToNow(fixtureNow) {
-  const delta = Math.floor(Date.now() / 1000) - fixtureNow;
-  const day = (ts) => { const t = new Date(ts * 1000); return Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) / 86_400_000; };
-  const days = day(fixtureNow + delta) - day(fixtureNow);
-  const columns = {
-    cycles: ['start_time', 'end_time'], bounties: ['received_time', 'completed_time'], bank_snapshots: ['timestamp'],
-    rest_steps: ['rest_start'], logins: ['started_at', 'first_seen', 'last_seen'], bounty_offers: ['offered_at', 'ended_at'],
-    kill_stats: ['last_kill_at'], silver_events: ['timestamp'],
-    item_sales: ['timestamp'], vendor_visits: ['start_time', 'end_time'],
-  };
-  for (const [table, cols] of Object.entries(columns)) {
-    db.run(`UPDATE ${table} SET ${cols.map((c) => `${c} = ${c} + ${delta}`).join(', ')}`);
-  }
-  // Rewritten through a copy: shifting in place would collide with rows not yet moved
-  const by = `'${days >= 0 ? '+' : ''}${days} days'`;
-  for (const [table, col] of [['kill_stats', 'date']]) {
-    const cols = db.exec(`PRAGMA table_info(${table})`)[0].values.map((row) => row[1]);
-    db.run(`CREATE TEMP TABLE moved AS SELECT * FROM ${table}; DELETE FROM ${table};`);
-    db.run(`INSERT INTO ${table} (${cols.map((c) => `"${c}"`).join(', ')}) SELECT ${cols.map((c) => (c === col ? `date("${c}", ${by})` : `"${c}"`)).join(', ')} FROM moved; DROP TABLE moved;`);
-  }
 }
 
 function corsHeaders(origin) {
@@ -107,7 +86,7 @@ const server = http.createServer((req, res) => {
       return reply(302, 'text/plain', '', { Location: `https://analytics.elanthia.online/?live=${PORT}` });
     case '/api/meta':
       return reply(200, 'application/json', JSON.stringify({
-        app: 'analytics', api: 1, script_version: 'mock', schema_version: '6', token,
+        app: 'analytics', api: 1, script_version: 'mock', schema_version: '7', token,
         now: Math.floor(Date.now() / 1000), db_bytes: image.byteLength,
       }));
     case '/api/db':

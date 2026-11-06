@@ -2,6 +2,46 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: A redesigned dashboard, with sample data built in
+
+**Decision.** The page is no longer a port of the script's `PAGE`. It has a new shell,
+split into modules:
+- **Layout:** a sidebar with the characters (state, silver today and a flag), the data
+  source, Save image, the guide and a three-way theme switch. On narrow screens the sidebar
+  becomes a drawer.
+- **First visit:** what the dashboard does, the three ways to connect your data, and
+  *Explore sample data*.
+- **Overview:** a silver hero with each character's share, KPI cards, character cards with
+  a strip of the day's activity, alerts grouped by severity, and the comparison table.
+- **Character page:** a sticky bar with the range tabs, and trend charts with smoothed
+  lines (monotone, so they never overshoot), an area wash and a hover crosshair.
+- **Motion:** views fade in once, skeletons show while loading, and both respect
+  `prefers-reduced-motion`.
+- **Link previews:** `og:` and `twitter:` meta tags, with `site/img/og.png` as the image.
+
+The figures are unchanged: views read only the aggregation's JSON, and parity still holds.
+
+The sample (`DemoSource`, `?demo`) is the synthetic fixture copied to `site/demo/`. It is
+moved so its afternoon falls today at the same local time (`site/js/shift.js`, which the
+mock server's `--demo` shares). It is a snapshot, so its clock stands still. A banner says
+it is sample data, and the page never remembers it as the reader's source.
+
+**Why.**
+- The maintainers lifted the "keep the script's page" rule once the page left the script.
+- A first-time visitor had nothing to look at without installing the script, so they get
+  the sample to explore first.
+- A five-second refresh used to rebuild the page, which reset hover, focus and animations
+  every time. Writes are now skipped when nothing changed (`setHtml`), SVG ids come from
+  the data, and clicks are delegated from the document.
+
+**Rejected.**
+- Web fonts. The CSP's `default-src 'none'` blocks them, and system fonts render the
+  numbers well.
+- Count-up animations on the figures. They would replay on every refresh that changed a
+  number.
+- Shifting the sample by the exact gap to now, as the mock does. A visit at 2am would then
+  show a nearly empty day.
+
 ## 2026-11-06: The page says GS4; the data says GS3
 
 **Decision.** Everything the page shows calls GemStone IV "GS4": character names, alerts,
