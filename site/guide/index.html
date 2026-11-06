@@ -8,6 +8,9 @@
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="How to install, run and configure analytics.lic, the Lich5 hunting analytics script for GemStone IV, and how to use its web dashboard.">
 <title>analytics.lic guide</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <script src="../js/theme-init.js"></script>
 <link rel="stylesheet" href="../css/dashboard.css">
 <link rel="stylesheet" href="../css/guide.css">
@@ -130,7 +133,7 @@
 
       <section id="dashboard" class="card">
         <h3>The dashboard</h3>
-        <p>The dashboard is this website: <a href="../">analytics.elanthia.online</a>. It runs in your browser and reads your own database; it never uploads it.
+        <p>The dashboard is this website: <a href="../">https://analytics.elanthia.online/</a>. It runs in your browser and reads your own database; it never uploads it.
           It has an overview of every character (today's totals, each character's state and pace, the day's activity, alerts) and a page per character
           (performance and trends by day, week or month; rests; mind and load; hunting grounds; bounties and task offers).</p>
 
@@ -192,7 +195,7 @@
             <tr><td><code>max_hunt_minutes</code></td><td>off</td><td>Ask bigshot to rest after one hunt has lasted this long.</td></tr>
             <tr><td><code>idle_warn_minutes</code></td><td><code>8</code></td><td>Alert after this long with none of your scripts running.</td></tr>
             <tr><td><code>idle_recover_minutes</code></td><td>off</td><td>After this long idle, walk to the room in <code>profile_room_map</code> and start <code>rest_script</code>. Needs a rest_script.</td></tr>
-            <tr><td><code>profile_room_map</code></td><td>empty</td><td>Where idle recovery walks to, by bigshot profile name (with or without the leading <code>&lt;character&gt;_</code>):<br><code>profile_room_map: { crags: 1234, torvek_cliffs: 5678 }</code></td></tr>
+            <tr><td><code>profile_room_map</code></td><td>empty</td><td>Where idle recovery walks to, by bigshot profile name (with or without the leading <code>&lt;character&gt;_</code>):<br><code>profile_room_map: { crags: 1234, splinter_cliffs: 5678 }</code></td></tr>
             <tr><td><code>weapon_loadout</code></td><td>off</td><td>A re-arm check while hunting. If your hands don't match, hunting pauses while it tries; after several failures you get an alert and a rest.<br><code>{ right: scepter, left: shield, gird: true, get_right: get my scepter, get_left: get my shield }</code></td></tr>
           </tbody>
         </table></div>
@@ -255,11 +258,12 @@ dashboard:
             <tr><td><code>bounty_offers</code></td><td>Every task offered, kept or not: what it was, how it ended, expedited or not.</td></tr>
             <tr><td><code>bank_snapshots</code></td><td>Bank listings and teller moves, with the tracked total.</td></tr>
             <tr><td><code>silver_events</code>, <code>item_sales</code></td><td>Box silver, sales, bounty silver and spending; each item sold.</td></tr>
-            <tr><td><code>sessions</code>, <code>logins</code></td><td>Each character's days, and each game login.</td></tr>
+            <tr><td><code>logins</code></td><td>Each game login: when Lich connected, and when the script last ran in it.</td></tr>
             <tr><td><code>vendor_visits</code></td><td>Only filled by your own scripts through the <a href="#hooks">hooks</a>.</td></tr>
           </tbody>
         </table></div>
-        <p>You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
+        <p>The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
+          You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
       </section>
 
       <section id="accuracy" class="card">

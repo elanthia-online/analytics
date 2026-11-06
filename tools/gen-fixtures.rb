@@ -45,7 +45,7 @@ def pause(*) = nil
 
 module XMLData
   def self.game = 'GS3'
-  def self.name = 'Torvek'
+  def self.name = 'Splinter'
   def self.room_id = 0
 end
 
@@ -202,62 +202,62 @@ def seed(db, now)
   today = Time.at(now).to_date
   midnight = A::Util.midnight(today)
 
-  # GS3:Torvek: a month of steady hunting, and a rough today
+  # GS3:Splinter: a month of steady hunting, and a rough today
   29.downto(1) do |ago|
     next if [5, 12, 13].include?(ago) # days off
 
     start = A::Util.midnight(today - ago) + (8 * 3600) + s.rand(0..1800)
     finish = ago == 9 ? start + 5400 : start + (6 * 3600) # day 9 is too short to count as typical
-    s.day_of_hunting('GS3', 'Torvek', start, finish, profile: 'torvek_crags', reasons: ['encumbered.', 'Mind full', 'Low mana'])
+    s.day_of_hunting('GS3', 'Splinter', start, finish, profile: 'splinter_crags', reasons: ['encumbered.', 'Mind full', 'Low mana'])
   end
   if now - midnight > 3 * 3600
-    t = s.day_of_hunting('GS3', 'Torvek', midnight + (8 * 3600), [now - 1500, midnight + (8 * 3600)].max,
-                         profile: 'torvek_crags', reasons: ['Too many items', 'Too many items', 'encumbered.'], enc: 45.0)
-    s.cycle('GS3', 'Torvek', 'rest', t, now - 1500, reason: 'unhandled exit') if t < now - 1560
+    t = s.day_of_hunting('GS3', 'Splinter', midnight + (8 * 3600), [now - 1500, midnight + (8 * 3600)].max,
+                         profile: 'splinter_crags', reasons: ['Too many items', 'Too many items', 'encumbered.'], enc: 45.0)
+    s.cycle('GS3', 'Splinter', 'rest', t, now - 1500, reason: 'unhandled exit') if t < now - 1560
   end
   # hunting now, with the last kill 16 minutes ago
-  s.cycle('GS3', 'Torvek', 'hunt', now - 1500, nil, profile: 'torvek_crags', exp: [9_000_000, nil], field: [200, nil, 800], enc: 47.5)
-  s.kills('GS3', 'Torvek', today, 'torvek_crags', 'troll', 3, 400, now - 1000)
-  s.bounty('GS3', 'Torvek', 'cull', now - 7200, nil, status: 'active', creature: 'troll', need: 15)
-  s.bounty('GS3', 'Torvek', 'gem', now - (3 * 86_400), nil, status: 'abandoned', creature: 'blue sapphire', area: 'Solhaven')
-  s.bounty('GS3', 'Torvek', 'skin', now - (2 * 86_400), nil, status: 'expired')
-  s.offer('GS3', 'Torvek', now - 900, 'removed', expedited: true, vouchers: 2, type: 'gem')
-  s.login('GS3', 'Torvek', midnight - (20 * 86_400), midnight - (19 * 86_400))
-  s.login('GS3', 'Torvek', [midnight + (7 * 3600), now - 1800].min, now - 30)
+  s.cycle('GS3', 'Splinter', 'hunt', now - 1500, nil, profile: 'splinter_crags', exp: [9_000_000, nil], field: [200, nil, 800], enc: 47.5)
+  s.kills('GS3', 'Splinter', today, 'splinter_crags', 'troll', 3, 400, now - 1000)
+  s.bounty('GS3', 'Splinter', 'cull', now - 7200, nil, status: 'active', creature: 'troll', need: 15)
+  s.bounty('GS3', 'Splinter', 'gem', now - (3 * 86_400), nil, status: 'abandoned', creature: 'blue sapphire', area: 'Solhaven')
+  s.bounty('GS3', 'Splinter', 'skin', now - (2 * 86_400), nil, status: 'expired')
+  s.offer('GS3', 'Splinter', now - 900, 'removed', expedited: true, vouchers: 2, type: 'gem')
+  s.login('GS3', 'Splinter', midnight - (20 * 86_400), midnight - (19 * 86_400))
+  s.login('GS3', 'Splinter', [midnight + (7 * 3600), now - 1800].min, now - 30)
 
-  # GS3:Ashur: died today, recovered, now idle for 20 minutes
+  # GS3:April: died today, recovered, now idle for 20 minutes
   10.downto(1) do |ago|
     start = A::Util.midnight(today - ago) + (13 * 3600)
-    s.day_of_hunting('GS3', 'Ashur', start, start + (3 * 3600), profile: 'ashur_hunt', mind_start: 750)
+    s.day_of_hunting('GS3', 'April', start, start + (3 * 3600), profile: 'april_hunt', mind_start: 750)
   end
   if now - midnight > 4 * 3600
-    t = s.day_of_hunting('GS3', 'Ashur', midnight + 3600, midnight + (3 * 3600), profile: 'ashur_hunt', mind_start: 760)
-    s.cycle('GS3', 'Ashur', 'dead', t, t + 600)
-    s.cycle('GS3', 'Ashur', 'rest', t + 600, t + 900, reason: 'idle recovery')
+    t = s.day_of_hunting('GS3', 'April', midnight + 3600, midnight + (3 * 3600), profile: 'april_hunt', mind_start: 760)
+    s.cycle('GS3', 'April', 'dead', t, t + 600)
+    s.cycle('GS3', 'April', 'rest', t + 600, t + 900, reason: 'idle recovery')
   end
-  s.cycle('GS3', 'Ashur', 'idle', now - 1200, nil)
-  s.login('GS3', 'Ashur', midnight - 3600, now - 600)
+  s.cycle('GS3', 'April', 'idle', now - 1200, nil)
+  s.login('GS3', 'April', midnight - 3600, now - 600)
 
-  # GS3:Mira: little history, dead right now
-  s.day_of_hunting('GS3', 'Mira', A::Util.midnight(today - 2) + (10 * 3600), A::Util.midnight(today - 2) + (12 * 3600), profile: 'mira_ta_vaalor')
-  s.cycle('GS3', 'Mira', 'hunt', now - 2400, now - 300, profile: 'mira_ta_vaalor', exp: [1, 2000])
-  s.cycle('GS3', 'Mira', 'dead', now - 300, nil)
+  # GS3:Leonardo: little history, dead right now
+  s.day_of_hunting('GS3', 'Leonardo', A::Util.midnight(today - 2) + (10 * 3600), A::Util.midnight(today - 2) + (12 * 3600), profile: 'leonardo_ta_vaalor')
+  s.cycle('GS3', 'Leonardo', 'hunt', now - 2400, now - 300, profile: 'leonardo_ta_vaalor', exp: [1, 2000])
+  s.cycle('GS3', 'Leonardo', 'dead', now - 300, nil)
 
-  # GS3:Bren: idle for 10 minutes (amber, not red), starting hunts with a near-full mind
+  # GS3:Bebop: idle for 10 minutes (amber, not red), starting hunts with a near-full mind
   if now - midnight > 6 * 3600
-    s.day_of_hunting('GS3', 'Bren', midnight + (2 * 3600), now - 900, profile: 'bren_hunt', mind_start: 760)
+    s.day_of_hunting('GS3', 'Bebop', midnight + (2 * 3600), now - 900, profile: 'bebop_hunt', mind_start: 760)
   end
-  s.cycle('GS3', 'Bren', 'idle', now - 600, nil)
+  s.cycle('GS3', 'Bebop', 'idle', now - 600, nil)
 
-  # GSF:Torvek: the same name in another game, offline since yesterday evening
+  # GSF:Splinter: the same name in another game, offline since yesterday evening
   5.downto(1) do |ago|
     start = A::Util.midnight(today - ago) + (18 * 3600)
-    s.day_of_hunting('GSF', 'Torvek', start, start + (2 * 3600) + 600, profile: 'torvek_platinum')
+    s.day_of_hunting('GSF', 'Splinter', start, start + (2 * 3600) + 600, profile: 'splinter_platinum')
   end
-  s.login('GSF', 'Torvek', A::Util.midnight(today - 1) + (18 * 3600), A::Util.midnight(today - 1) + (20 * 3600))
+  s.login('GSF', 'Splinter', A::Util.midnight(today - 1) + (18 * 3600), A::Util.midnight(today - 1) + (20 * 3600))
 
-  # GS3:Oldtimer: only old data, so not on the overview (but in the labels)
-  s.day_of_hunting('GS3', 'Oldtimer', A::Util.midnight(today - 40) + (9 * 3600), A::Util.midnight(today - 40) + (11 * 3600), profile: 'oldtimer_x')
+  # GS3:Raphael: only old data, so not on the overview (but in the labels)
+  s.day_of_hunting('GS3', 'Raphael', A::Util.midnight(today - 40) + (9 * 3600), A::Util.midnight(today - 40) + (11 * 3600), profile: 'raphael_x')
 end
 
 SCENARIOS = {
@@ -284,7 +284,7 @@ SCENARIOS.each do |name, parts|
   dash.instance_variable_set(:@cache, {})
   overview = dash.overview
   characters = {}
-  ids = overview['names'] + ['GS3:Nobody', 'gs3:torvek']
+  ids = overview['names'] + ['GS3:Nobody', 'gs3:splinter']
   ids.each do |id|
     characters[id] = %w[daily weekly monthly bogus].to_h { |range| [range, dash.character(id, range)] }
   end

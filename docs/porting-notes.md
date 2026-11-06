@@ -7,7 +7,7 @@ The figures were ported from `GS4Analytics::Dashboard` in analytics.lic
 ## The parity harness
 
 - `tools/gen-fixtures.rb` loads the real analytics.lic, with the clock frozen and a fixed
-  `TZ`, and seeds a synthetic database through the script's own schema code (schema 6). It
+  `TZ`, and seeds a synthetic database through the script's own schema code (schema 6; the fixtures were later converted to schema 7, see `test/fixtures/source.json`). It
   then writes what the Ruby dashboard returned to `test/fixtures/<scenario>.json`, next to
   `<scenario>.db`.
 - `test/parity.test.js` opens each `.db` with sql.js and runs the JS at the same `now`.

@@ -7,8 +7,8 @@
     "day_start": 1793768400,
     "characters": [
       {
-        "id": "GS3:Ashur",
-        "name": "Ashur (GS3)",
+        "id": "GS3:April",
+        "name": "April (GS3)",
         "state": {
           "type": "idle",
           "since": 1793823420,
@@ -171,8 +171,8 @@
         }
       },
       {
-        "id": "GS3:Bren",
-        "name": "Bren (GS3)",
+        "id": "GS3:Bebop",
+        "name": "Bebop (GS3)",
         "state": {
           "type": "idle",
           "since": 1793824020,
@@ -472,8 +472,8 @@
         }
       },
       {
-        "id": "GS3:Mira",
-        "name": "Mira (GS3)",
+        "id": "GS3:Leonardo",
+        "name": "Leonardo (GS3)",
         "state": {
           "type": "dead",
           "since": 1793824320,
@@ -562,8 +562,8 @@
         }
       },
       {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,
@@ -784,8 +784,8 @@
         }
       },
       {
-        "id": "GSF:Torvek",
-        "name": "Torvek (GSF)",
+        "id": "GSF:Splinter",
+        "name": "Splinter (GSF)",
         "state": {
           "type": "offline",
           "since": 1793754155,
@@ -854,103 +854,103 @@
     ],
     "alerts": [
       {
-        "id": "GS3:Ashur",
-        "character": "Ashur (GS3)",
+        "id": "GS3:April",
+        "character": "April (GS3)",
         "level": "red",
         "text": "Idle for 20 min"
       },
       {
-        "id": "GS3:Mira",
-        "character": "Mira (GS3)",
+        "id": "GS3:Leonardo",
+        "character": "Leonardo (GS3)",
         "level": "red",
         "text": "Dead for 5 min"
       },
       {
-        "id": "GS3:Torvek",
-        "character": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "character": "Splinter (GS3)",
         "level": "red",
         "text": "No kills for 16 min while hunting"
       },
       {
-        "id": "GS3:Ashur",
-        "character": "Ashur (GS3)",
+        "id": "GS3:April",
+        "character": "April (GS3)",
         "level": "amber",
         "text": "Exp -46% vs typical by this time"
       },
       {
-        "id": "GS3:Ashur",
-        "character": "Ashur (GS3)",
+        "id": "GS3:April",
+        "character": "April (GS3)",
         "level": "amber",
         "text": "1 death today"
       },
       {
-        "id": "GS3:Ashur",
-        "character": "Ashur (GS3)",
+        "id": "GS3:April",
+        "character": "April (GS3)",
         "level": "amber",
         "text": "1 crash / idle recovery today"
       },
       {
-        "id": "GS3:Bren",
-        "character": "Bren (GS3)",
+        "id": "GS3:Bebop",
+        "character": "Bebop (GS3)",
         "level": "amber",
         "text": "Idle for 10 min"
       },
       {
-        "id": "GS3:Bren",
-        "character": "Bren (GS3)",
+        "id": "GS3:Bebop",
+        "character": "Bebop (GS3)",
         "level": "amber",
         "text": "3 item limit rests today"
       },
       {
-        "id": "GS3:Bren",
-        "character": "Bren (GS3)",
+        "id": "GS3:Bebop",
+        "character": "Bebop (GS3)",
         "level": "amber",
         "text": "Starting hunts with mind 95% full"
       },
       {
-        "id": "GS3:Mira",
-        "character": "Mira (GS3)",
+        "id": "GS3:Leonardo",
+        "character": "Leonardo (GS3)",
         "level": "amber",
         "text": "1 death today"
       },
       {
-        "id": "GS3:Torvek",
-        "character": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "character": "Splinter (GS3)",
         "level": "amber",
         "text": "6 item limit rests today"
       },
       {
-        "id": "GS3:Torvek",
-        "character": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "character": "Splinter (GS3)",
         "level": "amber",
         "text": "Bounty running 120 min (typical 30 min)"
       },
       {
-        "id": "GS3:Torvek",
-        "character": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "character": "Splinter (GS3)",
         "level": "amber",
         "text": "too many items: 6 rests today (typical 0.0 by now)"
       },
       {
-        "id": "GS3:Torvek",
-        "character": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "character": "Splinter (GS3)",
         "level": "amber",
         "text": "Starting hunts at 45% encumbrance (typical 20%)"
       }
     ],
     "names": [
-      "GS3:Ashur",
-      "GS3:Bren",
-      "GS3:Mira",
-      "GS3:Torvek",
-      "GSF:Torvek"
+      "GS3:April",
+      "GS3:Bebop",
+      "GS3:Leonardo",
+      "GS3:Splinter",
+      "GSF:Splinter"
     ]
   },
   "characters": {
-    "GS3:Ashur": {
+    "GS3:April": {
       "daily": {
-        "id": "GS3:Ashur",
-        "name": "Ashur (GS3)",
+        "id": "GS3:April",
+        "name": "April (GS3)",
         "state": {
           "type": "idle",
           "since": 1793823420,
@@ -1511,8 +1511,8 @@
         }
       },
       "weekly": {
-        "id": "GS3:Ashur",
-        "name": "Ashur (GS3)",
+        "id": "GS3:April",
+        "name": "April (GS3)",
         "state": {
           "type": "idle",
           "since": 1793823420,
@@ -2056,8 +2056,8 @@
         }
       },
       "monthly": {
-        "id": "GS3:Ashur",
-        "name": "Ashur (GS3)",
+        "id": "GS3:April",
+        "name": "April (GS3)",
         "state": {
           "type": "idle",
           "since": 1793823420,
@@ -2780,8 +2780,8 @@
         }
       },
       "bogus": {
-        "id": "GS3:Ashur",
-        "name": "Ashur (GS3)",
+        "id": "GS3:April",
+        "name": "April (GS3)",
         "state": {
           "type": "idle",
           "since": 1793823420,
@@ -3342,10 +3342,10 @@
         }
       }
     },
-    "GS3:Bren": {
+    "GS3:Bebop": {
       "daily": {
-        "id": "GS3:Bren",
-        "name": "Bren (GS3)",
+        "id": "GS3:Bebop",
+        "name": "Bebop (GS3)",
         "state": {
           "type": "idle",
           "since": 1793824020,
@@ -4058,8 +4058,8 @@
         }
       },
       "weekly": {
-        "id": "GS3:Bren",
-        "name": "Bren (GS3)",
+        "id": "GS3:Bebop",
+        "name": "Bebop (GS3)",
         "state": {
           "type": "idle",
           "since": 1793824020,
@@ -4689,8 +4689,8 @@
         }
       },
       "monthly": {
-        "id": "GS3:Bren",
-        "name": "Bren (GS3)",
+        "id": "GS3:Bebop",
+        "name": "Bebop (GS3)",
         "state": {
           "type": "idle",
           "since": 1793824020,
@@ -5481,8 +5481,8 @@
         }
       },
       "bogus": {
-        "id": "GS3:Bren",
-        "name": "Bren (GS3)",
+        "id": "GS3:Bebop",
+        "name": "Bebop (GS3)",
         "state": {
           "type": "idle",
           "since": 1793824020,
@@ -6195,10 +6195,10 @@
         }
       }
     },
-    "GS3:Mira": {
+    "GS3:Leonardo": {
       "daily": {
-        "id": "GS3:Mira",
-        "name": "Mira (GS3)",
+        "id": "GS3:Leonardo",
+        "name": "Leonardo (GS3)",
         "state": {
           "type": "dead",
           "since": 1793824320,
@@ -6572,8 +6572,8 @@
         }
       },
       "weekly": {
-        "id": "GS3:Mira",
-        "name": "Mira (GS3)",
+        "id": "GS3:Leonardo",
+        "name": "Leonardo (GS3)",
         "state": {
           "type": "dead",
           "since": 1793824320,
@@ -6880,8 +6880,8 @@
         }
       },
       "monthly": {
-        "id": "GS3:Mira",
-        "name": "Mira (GS3)",
+        "id": "GS3:Leonardo",
+        "name": "Leonardo (GS3)",
         "state": {
           "type": "dead",
           "since": 1793824320,
@@ -7349,8 +7349,8 @@
         }
       },
       "bogus": {
-        "id": "GS3:Mira",
-        "name": "Mira (GS3)",
+        "id": "GS3:Leonardo",
+        "name": "Leonardo (GS3)",
         "state": {
           "type": "dead",
           "since": 1793824320,
@@ -7724,10 +7724,10 @@
         }
       }
     },
-    "GS3:Torvek": {
+    "GS3:Splinter": {
       "daily": {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,
@@ -8364,8 +8364,8 @@
         }
       },
       "weekly": {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,
@@ -8985,8 +8985,8 @@
         }
       },
       "monthly": {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,
@@ -9767,8 +9767,8 @@
         }
       },
       "bogus": {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,
@@ -10405,10 +10405,10 @@
         }
       }
     },
-    "GSF:Torvek": {
+    "GSF:Splinter": {
       "daily": {
-        "id": "GSF:Torvek",
-        "name": "Torvek (GSF)",
+        "id": "GSF:Splinter",
+        "name": "Splinter (GSF)",
         "state": {
           "type": "offline",
           "since": 1793754155,
@@ -10844,8 +10844,8 @@
         }
       },
       "weekly": {
-        "id": "GSF:Torvek",
-        "name": "Torvek (GSF)",
+        "id": "GSF:Splinter",
+        "name": "Splinter (GSF)",
         "state": {
           "type": "offline",
           "since": 1793754155,
@@ -11251,8 +11251,8 @@
         }
       },
       "monthly": {
-        "id": "GSF:Torvek",
-        "name": "Torvek (GSF)",
+        "id": "GSF:Splinter",
+        "name": "Splinter (GSF)",
         "state": {
           "type": "offline",
           "since": 1793754155,
@@ -11819,8 +11819,8 @@
         }
       },
       "bogus": {
-        "id": "GSF:Torvek",
-        "name": "Torvek (GSF)",
+        "id": "GSF:Splinter",
+        "name": "Splinter (GSF)",
         "state": {
           "type": "offline",
           "since": 1793754155,
@@ -12262,10 +12262,10 @@
       "monthly": null,
       "bogus": null
     },
-    "gs3:torvek": {
+    "gs3:splinter": {
       "daily": {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,
@@ -12902,8 +12902,8 @@
         }
       },
       "weekly": {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,
@@ -13523,8 +13523,8 @@
         }
       },
       "monthly": {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,
@@ -14305,8 +14305,8 @@
         }
       },
       "bogus": {
-        "id": "GS3:Torvek",
-        "name": "Torvek (GS3)",
+        "id": "GS3:Splinter",
+        "name": "Splinter (GS3)",
         "state": {
           "type": "hunt",
           "since": 1793823120,

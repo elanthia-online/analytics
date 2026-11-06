@@ -2,6 +2,25 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: Schema 7: no sessions table, no migrations before release
+
+**Decision.** analytics.lic's schema 7 drops the `sessions` table (one row per character
+per day) and the `session_id` column on cycles, bounties, bounty_offers, silver_events,
+item_sales and bank_snapshots. The script has no migration code: a file with any other
+`schema_version` is refused with a message, and the reader, the reports and the API refuse
+it too (the API answers 503 with the reason). `KNOWN_SCHEMAS` is `['7']`. The parity fixtures
+were converted to schema 7 in place.
+
+**Why.**
+- Nothing read `sessions` or `session_id`, here or in the script's reports. A day is the
+  date of a row's own timestamp, and a cycle never spans midnight.
+- "Session" meant a day there, while players mean a login, which `logins` records.
+- Testers start with a fresh database before release, so this is the cheapest moment to
+  change the schema. After release, a change like this needs a migration.
+
+**Rejected.** Keeping `add_missing_columns` for pre-release databases. It only covered
+added columns, and a half-migrated file is worse than a clear refusal.
+
 ## 2026-11-06: The player guide lives on the site; ideas live in docs/roadmap.md
 
 **Decision.** How to install, run and configure analytics.lic is `site/guide/index.html`,

@@ -53,7 +53,10 @@ verification.
 - **Close sql.js databases.** WASM memory is not garbage collected. `Dashboard` in
   `data.js` owns the open image. Don't open others on a timer.
 - **No real player data in the repo**, ever. That covers fixtures, screenshots and issue
-  text. Fixtures come from `tools/gen-fixtures.rb` (seeded, synthetic).
+  text. Fixtures come from `tools/gen-fixtures.rb` (seeded, synthetic). Their characters
+  are April, Bebop, Leonardo, Raphael and Splinter; keep sample names obviously fictional,
+  never names that could be someone's character. `npm run screenshots` retakes the README
+  images (`docs/images/`) from those fixtures.
 - **The script's API is specified here.** `tools/mock-server.js` must match
   [docs/api.md](docs/api.md). Change the doc, the mock and the page together, and bump
   `API_VERSION` (`data.js`, the mock, the doc) for anything incompatible.
