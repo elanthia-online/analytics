@@ -8,10 +8,17 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels the run for the push before it. Runs
+# for main (through pages.yml) are never cancelled.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     name: Unit and parity tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -27,6 +34,7 @@ jobs:
   e2e:
     name: Browser check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -34,6 +42,27 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # The browser is cached per Playwright version, so most runs skip the
+      # download. Only the headless shell is needed (the checks never show a
+      # window), which is the smaller download when the cache misses.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright's Chromium
+        id: browser-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-shell
+      # No --with-deps: the runner image already has every library the
+      # headless shell needs (it ships Google Chrome), and --with-deps adds
+      # optional font packages from the Ubuntu mirror, which has taken over
+      # five minutes to serve them. The browser itself comes from Playwright's
+      # CDN, and only on a cache miss.
+      - name: Install Playwright's Chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
+        run: npx playwright install --only-shell chromium
       - name: Live, detail, file and error paths against the mock API
+        timeout-minutes: 5
         run: npm run e2e

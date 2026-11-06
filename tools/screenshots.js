@@ -2,18 +2,21 @@
 // served live by the mock API in demo mode so the day looks like today.
 // Each view is saved twice: <name>.png, the whole page (what the README links
 // to), and <name>-preview.png, its top at one fixed shape, so the previews line
-// up in the README's grid.
+// up in the README's grid. Also site/img/og.png, the picture a link to the
+// site shows in chat apps and social sites (og:image in site/index.html).
 //
-//   npm run screenshots        (needs Playwright's Chromium; writes docs/images/)
+//   npm run screenshots        (needs Playwright's Chromium; writes docs/images/ and site/img/og.png)
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { startDevServer } from './dev-server.js';
 
 const OUT = new URL('../docs/images/', import.meta.url).pathname;
+const OG = new URL('../site/img/og.png', import.meta.url).pathname;
 const SITE_PORT = 8775;
 const API_PORT = 8776;
 mkdirSync(OUT, { recursive: true });
+mkdirSync(new URL('../site/img/', import.meta.url).pathname, { recursive: true });
 
 const site = await startDevServer(SITE_PORT);
 const mock = spawn(process.execPath, [new URL('./mock-server.js', import.meta.url).pathname, '--port', String(API_PORT), '--demo'],
@@ -25,18 +28,24 @@ await new Promise((resolve, reject) => {
 
 const browser = await chromium.launch();
 const problems = [];
-async function shot(name, { hash = '', scheme = 'light', width = 1280, height = 800, preview = height, range = null }) {
-  const context = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, deviceScaleFactor: width < 600 ? 2 : 1.5 });
+async function shot(name, { hash = '', scheme = 'light', width = 1440, height = 900, preview = height, range = null, landing = false, path = null, scale = null }) {
+  const context = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, deviceScaleFactor: scale ?? (width < 600 ? 2 : 1.5) });
   const page = await context.newPage();
   page.on('pageerror', (e) => problems.push(`${name}: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`${name}: ${m.text()}`); });
-  await page.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}${hash}`);
-  await page.waitForSelector(hash ? '#tabs' : '.card[data-who]', { timeout: 15_000 });
+  await page.goto(landing ? `http://localhost:${SITE_PORT}/` : `http://localhost:${SITE_PORT}/?live=${API_PORT}${hash}`);
+  await page.waitForSelector(landing ? '#source:not([hidden]) #demoBtn' : hash ? '#tabs' : '.card[data-who]', { timeout: 15_000 });
   if (range) {
     await page.click(`#tabs button[data-r="${range}"]`);
     await page.waitForFunction((r) => document.querySelector('#tabs button.on')?.getAttribute('data-r') === r, range);
   }
-  await page.waitForTimeout(800); // let the 1-second timers settle
+  await page.waitForTimeout(1200); // let the 1-second timers and the entrance settle
+  if (path) {
+    await page.screenshot({ path });
+    await context.close();
+    console.log(path);
+    return;
+  }
   await page.screenshot({ path: `${OUT}${name}.png`, fullPage: true });
   await page.screenshot({ path: `${OUT}${name}-preview.png`, clip: { x: 0, y: 0, width, height: preview } });
   await context.close();
@@ -44,10 +53,12 @@ async function shot(name, { hash = '', scheme = 'light', width = 1280, height = 
 }
 
 try {
+  await shot('landing', { landing: true });
   await shot('overview', {});
   await shot('character', { hash: '#GS4%3ASplinter', range: 'weekly' });
   await shot('character-dark', { hash: '#GS4%3ASplinter', scheme: 'dark' });
   await shot('phone', { width: 390, height: 844, preview: 620 });
+  await shot('og', { scheme: 'dark', width: 1200, height: 630, scale: 1, path: OG });
 } finally {
   await browser.close();
   mock.kill();

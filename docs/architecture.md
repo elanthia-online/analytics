@@ -10,7 +10,7 @@
  │   (+ analytics.db-wal)     │   127.0.0.1:8080   │            FileSource ─► SQLite image  │
  │                      ▲     │                    │  sql.js    opens the image (WASM)      │
  │  API: serialize ─────┘     │                    │  aggregate/ figures (pure functions)   │
- └────────────────────────────┘                    │  app.js    renders (the script's page) │
+ └────────────────────────────┘                    │  ui/       renders the views           │
             ▲                                       └──────────────┬────────────────────────┘
             └──── or: the browser reads the folder / a file ───────┘
 ```
@@ -19,15 +19,15 @@
 
 | Layer | Files | Rule |
 |---|---|---|
-| Source | `site/js/data.js` (`LiveSource`, `FolderSource`, `FileSource`), `site/js/wal.js` | Produces a complete SQLite image (`Uint8Array`) and the moment it describes. Knows nothing about figures |
+| Source | `site/js/data.js` (`LiveSource`, `FolderSource`, `FileSource`, `DemoSource`), `site/js/wal.js`, `site/js/shift.js` | Produces a complete SQLite image (`Uint8Array`) and the moment it describes. Knows nothing about figures |
 | Engine | `site/vendor/sql.js/` | sql.js 1.15.2, vendored (see the decisions log). One `Database` per image. The previous one is `close()`d, because WASM memory is not garbage collected |
 | Aggregation | `site/js/aggregate/*.js` | Pure functions of `(conn, now)`. No DOM, no `fetch`, no `Date.now()`, so Node tests run them unchanged. Output JSON has exactly the shape the Ruby dashboard returned |
-| UI | `site/index.html`, `site/css/dashboard.css`, `site/js/app.js`, `site/js/theme-init.js` | The page analytics.lic served, kept as close to the original as possible. Only the data plumbing at the end of `app.js` is new |
+| UI | `site/index.html`, `site/css/dashboard.css`, `site/js/app.js` (shell, sources, state), `site/js/ui/` (`views.js`, `charts.js`, `util.js`, `icons.js`, `export.js`), `site/js/theme-init.js` | Views are functions from the aggregation's JSON to HTML strings. They never query the database. `app.js` puts them on the page through `setHtml`, which skips a write when nothing changed |
 
-The aggregation JSON stays exactly what the Ruby code produced. That keeps `app.js` an
-almost unchanged copy of the script's page, and lets the Ruby output act as the test
-oracle. Change the shape only after the parity baseline is retired (see
-[porting-notes.md](porting-notes.md)), and then change `app.js` in the same commit.
+The aggregation JSON stays exactly what the Ruby code produced, so the Ruby output stays
+the test oracle. The UI was redesigned on top of that JSON (decisions.md, 2026-11-06) and
+reads nothing else. Change the shape only after the parity baseline is retired (see
+[porting-notes.md](porting-notes.md)), and then change `site/js/ui/` in the same commit.
 
 ## Sources
 
@@ -63,8 +63,8 @@ allows.
     style attributes.
 - The script's API is the trust boundary. Its rules (Host check against DNS rebinding,
   exact-origin CORS, read-only, localhost-only) are in [api.md](api.md).
-- Everything rendered from the database goes through `esc()` in `app.js`, as in the
-  original page. Game text is attacker-influenced (other players' names, NPC speech), so
+- Everything rendered from the database goes through `esc()` (`site/js/ui/util.js`), as in
+  the original page. Game text is attacker-influenced (other players' names, NPC speech), so
   keep it that way.
 
 ## No build step

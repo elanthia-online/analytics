@@ -18,7 +18,7 @@ column listed below also needs the aggregation updated in the same change.
 Every row carries `game` and `character`; a character's id is `game:character`. GemStone IV
 is `GS3` there, as Lich and the game servers call it. The page shows it as GS4 (names, the
 URL hash, the saved image's file name) and maps back at its edges (`shown`, `shownId` and
-`storedId` in `app.js`); the figures and their ids keep `GS3`.
+`storedId` in `site/js/ui/util.js`); the figures and their ids keep `GS3`.
 
 | Table | Columns used | For |
 |---|---|---|

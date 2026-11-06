@@ -35,7 +35,7 @@ const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if
 const browser = await chromium.launch();
 try {
   // ---- live, from the mock script --------------------------------------
-  const context = await browser.newContext({ viewport: { width: 1320, height: 900 }, deviceScaleFactor: shots ? 2 : 1 });
+  const context = await browser.newContext({ viewport: { width: 1320, height: 900 }, deviceScaleFactor: shots ? 2 : 1, acceptDownloads: true });
   const page = await context.newPage();
   const problems = [];
   page.on('console', (m) => { if (m.type() === 'error') problems.push(m.text()); });
@@ -45,7 +45,7 @@ try {
   const cards = await page.$$eval('.card[data-who]', (els) => els.map((el) => el.getAttribute('data-who')));
   check(cards.length === 5, `live: five character cards (${cards.join(', ')})`);
   check(/^Live/.test(await page.textContent('#statusText')), 'live: header says Live');
-  const shownText = await page.$$eval('.ch-name, .tl-name, .alert b, #who option, tbody td b', (els) => els.map((el) => el.textContent).join('|'));
+  const shownText = await page.$$eval('.ch-name, .tl-name, .alert b, .nav-name, tbody td b', (els) => els.map((el) => el.textContent).join('|'));
   check(/\(GS4\)/.test(shownText) && !/GS3/.test(shownText) && cards.includes('GS3:Splinter'),
     'live: names show GemStone IV as GS4, while ids stay GS3 (as Lich and the database have it)');
   check(await page.isHidden('#source'), 'live: the source chooser is closed once connected');
@@ -66,8 +66,102 @@ try {
   check(true, 'detail: the This Week tab adds the kills chart');
   check((await page.evaluate(() => location.hash)) === '#GS4%3ASplinter', 'detail: the URL hash names the character');
   if (shots) await page.screenshot({ path: `${shots}/detail-live.png`, fullPage: true });
+
+  // ---- the sidebar, and saving an image -------------------------------
+  await page.click('.nav-ch[data-who="GS3:Bebop"]');
+  await page.waitForFunction(() => location.hash === '#GS4%3ABebop' && document.querySelector('.sb-name')?.textContent.startsWith('Bebop'));
+  check(await page.getAttribute('.nav-ch[data-who="GS3:Bebop"]', 'aria-current') === 'page', 'sidebar: picking a character opens it and marks it current');
+  const download = page.waitForEvent('download', { timeout: 20_000 });
+  await page.click('#export');
+  const saved = (await download).suggestedFilename();
+  check(/^gs4-analytics-GS4_Bebop-(daily|weekly|monthly)-\d{8}-\d{4}\.png$/.test(saved), `export: the character view saves as a PNG (${saved})`);
+  await page.click('#navOverview');
+  await page.waitForSelector('#overview:not([hidden]) .card[data-who]');
+  check(await page.getAttribute('#navOverview', 'aria-current') === 'page' && (await page.evaluate(() => location.hash)) === '',
+    'sidebar: Overview goes back to everyone');
+  const download2 = page.waitForEvent('download', { timeout: 20_000 });
+  await page.click('#export');
+  const saved2 = (await download2).suggestedFilename();
+  check(/^gs4-analytics-everyone-.*\.png$/.test(saved2), `export: the overview saves as a PNG (${saved2})`);
+  // A refresh that brings nothing new for this character must leave its view alone
+  // (a rewrite resets hover, focus and selection)
+  await page.click('.nav-ch[data-who="GSF:Splinter"]');
+  await page.waitForFunction(() => document.querySelector('.sb-name')?.textContent.includes('GSF'));
+  await page.waitForTimeout(1200);
+  const rewrites = await page.evaluate(() => new Promise((resolve) => {
+    let n = 0;
+    const watch = new MutationObserver(() => { n++; });
+    watch.observe(document.getElementById('detail'), { childList: true });
+    setTimeout(() => { watch.disconnect(); resolve(n); }, 16_000);
+  }));
+  check(rewrites === 0, `live: refreshes with nothing new leave the page alone (${rewrites} rewrites in three refreshes)`);
   check(problems.length === 0, `live: no console errors or CSP violations${problems.length ? `: ${problems.join(' | ')}` : ''}`);
   await context.close();
+
+  // ---- a phone ---------------------------------------------------------
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const phonePage = await phone.newPage();
+  const sideways = async (what) => {
+    const extra = await phonePage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    check(extra <= 0, `phone: nothing scrolls sideways on the ${what}${extra > 0 ? ` (${extra}px too wide)` : ''}`);
+  };
+  await phonePage.goto(`http://localhost:${SITE_PORT}/`);
+  await phonePage.waitForSelector('#source:not([hidden])');
+  await sideways('first-visit page');
+  await phonePage.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
+  await phonePage.waitForSelector('.card[data-who]', { timeout: 15_000 });
+  await sideways('overview');
+  check(await phonePage.isHidden('.side') || (await phonePage.$eval('.side', (el) => el.getBoundingClientRect().right <= 0)), 'phone: the sidebar starts closed');
+  await phonePage.click('#menuBtn');
+  await phonePage.waitForFunction(() => document.querySelector('.app').classList.contains('open'));
+  await phonePage.waitForTimeout(350);
+  check(await phonePage.$eval('.side', (el) => el.getBoundingClientRect().left >= 0), 'phone: the menu button opens the drawer');
+  await phonePage.keyboard.press('Escape');
+  check(!(await phonePage.$eval('.app', (el) => el.classList.contains('open'))) && await phonePage.isHidden('#scrim'), 'phone: Escape closes it');
+  await phonePage.click('#menuBtn');
+  await phonePage.click('.nav-ch[data-who="GS3:Splinter"]');
+  await phonePage.waitForSelector('#tabs');
+  check(!(await phonePage.$eval('.app', (el) => el.classList.contains('open'))), 'phone: picking a character closes the drawer');
+  await phonePage.waitForTimeout(300);
+  await sideways('character view');
+  await phone.close();
+
+  // ---- the sample data -------------------------------------------------
+  const demoContext = await browser.newContext({ viewport: { width: 1320, height: 900 } });
+  const demo = await demoContext.newPage();
+  const demoProblems = [];
+  demo.on('pageerror', (e) => demoProblems.push(e.message));
+  demo.on('console', (m) => { if (m.type() === 'error') demoProblems.push(m.text()); });
+  await demo.goto(`http://localhost:${SITE_PORT}/`);
+  await demo.waitForSelector('#source:not([hidden]) #demoBtn');
+  check(await demo.isHidden('.side'), 'first visit: no sidebar until there is data');
+  await demo.click('#demoBtn');
+  await demo.waitForSelector('.card[data-who]', { timeout: 15_000 });
+  check((await demo.$$('.card[data-who]')).length === 5, 'demo: the sample opens with its five characters');
+  check(await demo.isVisible('#banner') && /sample data/i.test(await demo.textContent('#banner')), 'demo: a banner says it is sample data');
+  check(/^Sample data/.test(await demo.textContent('#statusText')), `demo: the status says so too (${await demo.textContent('#statusText')})`);
+  const hour = await demo.evaluate(() => new Date().toDateString() === new Date(Number(document.querySelector('[data-since]')?.dataset.since) * 1000).toDateString());
+  check(hour, 'demo: the sample is moved to today');
+  await demo.click('#bannerConnect');
+  check(await demo.isVisible('#source') && await demo.isVisible('#sourceClose') && await demo.isHidden('#overview'), 'demo: Connect your own opens the source chooser');
+  await demo.click('#sourceClose');
+  check(await demo.isVisible('#overview .card[data-who]'), 'demo: and Back returns to the dashboard');
+  await demo.reload();
+  await demo.waitForSelector('#source:not([hidden])');
+  check(await demo.isHidden('#banner'), 'demo: never remembered as the reader\'s own source');
+  // A shared ?demo link, then the reader's own data: their source wins on the next visit
+  await demo.goto(`http://localhost:${SITE_PORT}/?demo`);
+  await demo.waitForSelector('#banner:not([hidden])', { timeout: 15_000 });
+  await demo.click('#bannerConnect');
+  await demo.fill('#port', String(API_PORT));
+  await demo.click('#liveForm button[type="submit"]');
+  await demo.waitForFunction(() => /^Live/.test(document.querySelector('#statusText').textContent), null, { timeout: 15_000 });
+  await demo.reload();
+  await demo.waitForFunction(() => /^Live/.test(document.querySelector('#statusText').textContent), null, { timeout: 15_000 });
+  check(await demo.isHidden('#banner') && !/demo/.test(await demo.evaluate(() => location.search)),
+    'demo: after ?demo, connecting your own data drops ?demo, so a reload opens your data');
+  check(demoProblems.length === 0, `demo: no console errors${demoProblems.length ? `: ${demoProblems.join(' | ')}` : ''}`);
+  await demoContext.close();
 
   // ---- a file, picked from disk ----------------------------------------
   const fileContext = await browser.newContext({ viewport: { width: 1320, height: 900 }, timezoneId: golden.tz });

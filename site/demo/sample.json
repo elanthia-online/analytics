@@ -1,0 +1,5 @@
+{
+  "about": "Sample data for the page's demo: a copy of test/fixtures/afternoon.db (synthetic, made-up characters). now and tz are that fixture's moment; test/demo.test.js keeps them in step.",
+  "now": 1793824620,
+  "tz": "America/New_York"
+}

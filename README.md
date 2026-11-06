@@ -15,6 +15,9 @@ every figure locally. Your data is never uploaded anywhere.
 > script no longer has a dashboard of its own. What changed is in
 > [docs/script-changes.md](docs/script-changes.md).
 
+**Try it without installing anything: https://analytics.elanthia.online/?demo** opens the
+site's sample data (made-up characters).
+
 **How to install, run and configure analytics.lic is in the guide:
 https://analytics.elanthia.online/guide/** (`site/guide/`). The script's header points
 there. What's planned is in [docs/roadmap.md](docs/roadmap.md).
@@ -25,6 +28,12 @@ From the sample data in `test/fixtures/`: made-up characters, served live by the
 API. Click one for the whole page. `npm run screenshots` regenerates them.
 
 <table>
+  <tr>
+    <td colspan="2" valign="top">
+      <a href="docs/images/landing.png"><img src="docs/images/landing-preview.png" width="100%" alt="The first visit: what the dashboard does, three ways to connect your data, and a button to explore sample data"></a>
+      <br><b>First visit</b>: connect analytics.lic, its database folder or a file, or look around with the sample data first.
+    </td>
+  </tr>
   <tr>
     <td width="50%" valign="top">
       <a href="docs/images/overview.png"><img src="docs/images/overview-preview.png" width="100%" alt="The overview: today's silver, experience, bounties, kills and hunting time for all characters, and a card per character"></a>
@@ -55,6 +64,7 @@ Open the page and choose where the data comes from:
 |---|---|---|---|
 | **analytics.lic** | Run `;analytics --dashboard` (or `;analytics serve`) in Lich, then *Connect* (port 8080 unless you changed it). The script prints a link that connects for you | Yes, updates every 5 seconds | Chrome, Edge, Firefox. Safari unverified |
 | **Database folder** | *Choose folder* and pick Lich's data folder, the one containing `analytics.db`. No server needed | Yes, re-reads every 5 seconds | Chrome, Edge |
+| **Sample data** | *Explore sample data*, or open `/?demo`. Made-up characters, moved to today; a banner says so, and it's never remembered as your source | No | Any modern browser |
 | **A file** | *Choose file* and pick a copy or backup of `analytics.db` (add `analytics.db-wal` too for the very latest) | No, shown as of when the file was saved | Any modern browser |
 
 The page remembers your choice. A live connection reconnects by itself. A folder needs one
