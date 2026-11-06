@@ -13,8 +13,8 @@ dashboard, which the script no longer has). They were generated at schema 6, con
 to schema 7, then to schema 8 by `tools/fixtures-schema8.js`, as `test/fixtures/source.json`
 records. To admit a new schema version: convert the fixture databases to its shape the same
 way (leaving the golden JSON alone, and filling only columns and tables no golden figure
-reads), run `npm test`, and add the version only if parity still passes. Copy
-`test/fixtures/afternoon.db` to `site/demo/sample.db` afterwards (`test/demo.test.js` checks it). A change to a
+reads), run `npm test`, and add the version only if parity still passes. Rebuild
+`site/demo/sample.db` afterwards with `npm run sample` (`test/demo.test.js` checks it). A change to a
 column listed below also needs the aggregation updated in the same change.
 
 Every row carries `game` and `character`; a character's id is `game:character`. GemStone IV

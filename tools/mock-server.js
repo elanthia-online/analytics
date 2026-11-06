@@ -3,6 +3,7 @@
 // script is specified to: the same routes, the same CORS and Host rules.
 //
 //   node tools/mock-server.js [--port 8080] [--db test/fixtures/afternoon.db] [--demo]
+//   (--demo defaults --db to site/demo/sample.db)
 //
 // --demo moves every timestamp in the database so the fixture's "now" is
 // the real now, and keeps writing (a bank deposit every 10 seconds) so a
@@ -18,7 +19,8 @@ const opt = (name, fallback) => {
   return at >= 0 && args[at + 1] && !args[at + 1].startsWith('--') ? args[at + 1] : fallback;
 };
 const PORT = Number(opt('port', 8080));
-const DB_PATH = opt('db', new URL('../test/fixtures/afternoon.db', import.meta.url).pathname);
+// --demo serves the site's sample data (the fixture plus more characters; tools/build-sample.js)
+const DB_PATH = opt('db', new URL(args.includes('--demo') ? '../site/demo/sample.db' : '../test/fixtures/afternoon.db', import.meta.url).pathname);
 const DEMO = args.includes('--demo');
 
 // The origins whose pages may read the API (docs/api.md, "CORS"). The

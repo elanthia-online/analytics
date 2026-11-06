@@ -43,7 +43,7 @@ try {
   await page.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
   await page.waitForSelector('.card[data-who]', { timeout: 15_000 });
   const cards = await page.$$eval('.card[data-who]', (els) => els.map((el) => el.getAttribute('data-who')));
-  check(cards.length === 5, `live: five character cards (${cards.join(', ')})`);
+  check(cards.length === 7, `live: the sample's seven characters active today (${cards.join(', ')})`);
   check(/^Live/.test(await page.textContent('#statusText')), 'live: header says Live');
   const shownText = await page.$$eval('.ch-name, .tl-name, .alert b, .nav-name, tbody td b', (els) => els.map((el) => el.textContent).join('|'));
   check(/\(GS4\)/.test(shownText) && !/GS3/.test(shownText) && cards.includes('GS3:Splinter'),
@@ -292,7 +292,7 @@ try {
   check(await demo.isHidden('.side'), 'first visit: no sidebar until there is data');
   await demo.click('#demoBtn');
   await demo.waitForSelector('.card[data-who]', { timeout: 15_000 });
-  check((await demo.$$('.card[data-who]')).length === 5, 'demo: the sample opens with its five characters');
+  check((await demo.$$('.card[data-who]')).length === 7, 'demo: the sample opens with its seven characters active today');
   check(await demo.isVisible('#banner') && /sample data/i.test(await demo.textContent('#banner')), 'demo: a banner says it is sample data');
   check(/^Sample data/.test(await demo.textContent('#statusText')), `demo: the status says so too (${await demo.textContent('#statusText')})`);
   const hour = await demo.evaluate(() => new Date().toDateString() === new Date(Number(document.querySelector('[data-since]')?.dataset.since) * 1000).toDateString());

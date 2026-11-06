@@ -8,9 +8,43 @@ import { shiftTimes, sameTimeToday, TIME_COLUMNS } from '../site/js/shift.js';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url));
 
-test('site/demo/sample.db is test/fixtures/afternoon.db, byte for byte', () => {
-  assert.ok(read('../site/demo/sample.db').equals(read('fixtures/afternoon.db')),
-    'copy test/fixtures/afternoon.db to site/demo/sample.db');
+// The sample is the parity fixture plus made-up characters and history
+// (tools/build-sample.js). Rebuilding it gives the committed file exactly.
+test('site/demo/sample.db is what tools/build-sample.js makes from the fixture', async () => {
+  const { buildSample } = await import('../tools/build-sample.js');
+  const SQL = await initSqlJs();
+  const meta = JSON.parse(read('../site/demo/sample.json'));
+  const built = Buffer.from(buildSample(SQL, read('fixtures/afternoon.db'), meta.now));
+  assert.ok(built.equals(read('../site/demo/sample.db')), 'run npm run sample');
+});
+
+test('the sample keeps every fixture row unchanged, and adds only for its own characters', async () => {
+  const SQL = await initSqlJs();
+  const fix = new SQL.Database(read('fixtures/afternoon.db')), sample = new SQL.Database(read('../site/demo/sample.db'));
+  try {
+    const tables = fix.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values.map((r) => r[0]);
+    for (const t of tables) {
+      const rows = (db, where = '') => (db.exec(`SELECT * FROM ${t}${where}`)[0]?.values ?? []).map((r) => JSON.stringify(r));
+      const have = new Set(rows(sample));
+      const missing = rows(fix).filter((r) => !have.has(r));
+      assert.equal(missing.length, 0, `${t}: ${missing.length} fixture rows changed or missing`);
+      const cols = fix.exec(`PRAGMA table_info(${t})`)[0].values.map((r) => r[1]);
+      if (!cols.includes('character')) continue;
+      const extra = new Set(rows(fix));
+      const added = (sample.exec(`SELECT character, * FROM ${t}`)[0]?.values ?? []).filter((r) => !extra.has(JSON.stringify(r.slice(1))));
+      const who = [...new Set(added.map((r) => r[0]))].sort();
+      assert.ok(who.every((c) => ['Bebop', 'Casey', 'Karai', 'Leonardo'].includes(c)), `${t}: rows added for ${who.join(', ')}`);
+    }
+    // What the sample is for: a week of history, one character past the cap and others below it
+    const days = (c) => sample.exec(`SELECT COUNT(DISTINCT date(start_time, 'unixepoch', 'localtime')) FROM cycles WHERE character = '${c}'`)[0].values[0][0];
+    for (const c of ['Karai', 'Casey', 'Bebop', 'Leonardo']) assert.ok(days(c) >= 7, `${c}: ${days(c)} days`);
+    const level = (c) => sample.exec(`SELECT level FROM progress WHERE character = '${c}' ORDER BY timestamp DESC LIMIT 1`)[0].values[0][0];
+    assert.equal(level('Karai'), 100);
+    assert.ok(level('Casey') < 50 && level('Splinter') < 100);
+  } finally {
+    fix.close();
+    sample.close();
+  }
 });
 
 test('site/demo/sample.json carries the fixture moment', () => {
