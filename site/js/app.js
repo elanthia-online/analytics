@@ -5,38 +5,19 @@
 import { Dashboard, LiveSource, FolderSource, FileSource, DemoSource, rememberSource, rememberedSource, savedFolder } from './data.js';
 import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml } from './ui/util.js';
 import { overviewHtml, detailHtml, navHtml } from './ui/views.js';
-import { icon, hydrate } from './ui/icons.js';
-import { nowMarkers } from './ui/charts.js';
+import { icon } from './ui/icons.js';
+import { nowMarkers, openTables } from './ui/charts.js';
+import './display.js'; // the theme and contrast controls (and the icons in the static HTML)
 import { exportImage } from './ui/export.js';
 
-hydrate();
-
-// ---------------- theme: Auto (follow the system), Light, Dark ----------------
-(function () {
-  var group = $('theme');
-  function current() { return document.documentElement.getAttribute('data-theme') || 'auto'; }
-  function showTheme() {
-    Array.prototype.forEach.call(group.querySelectorAll('button'), function (b) {
-      var on = b.getAttribute('data-t') === current();
-      b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
-    });
-  }
-  group.addEventListener('click', function (e) {
-    var b = e.target.closest('button[data-t]'); if (!b) return;
-    var next = b.getAttribute('data-t');
-    if (next === 'auto') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.setAttribute('data-theme', next);
-    try { if (next === 'auto') localStorage.removeItem('gs4a-theme'); else localStorage.setItem('gs4a-theme', next); } catch (e2) {}
-    showTheme();
-  });
-  showTheme();
-})();
 
 // ---------------- the drawer (phones and narrow windows) ----------------
 var app = document.querySelector('.app');
 function drawer(open) {
   app.classList.toggle('open', open); $('scrim').hidden = !open;
   $('menuBtn').setAttribute('aria-expanded', String(open));
+  // While the drawer is open, the page behind it can't be reached
+  document.querySelector('.main').inert = open;
   if (open) $('side').focus(); else if (document.activeElement && $('side').contains(document.activeElement)) $('menuBtn').focus();
 }
 $('menuBtn').onclick = function () { drawer(true); };
@@ -108,31 +89,45 @@ window.addEventListener('resize', function () {
 });
 function viewTitle() { return who ? shown(det ? det.name : shownId(who)) + (det ? ' ' + DOT + ' ' + det.label : '') : 'Everyone ' + DOT + ' Today'; }
 
+// Messages for screen readers (the status region in index.html)
+function announce(text) { var el = $('announce'); el.textContent = ''; setTimeout(function () { el.textContent = text; }, 50); }
+
 // ---------------- clicks, all delegated (views are redrawn as data changes) ----------------
 document.addEventListener('click', function (e) {
   var t = e.target;
+  // A character link opened in a new tab or window is left to the browser
+  if ((e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) && t.closest('a[href^="#"]')) return;
   var pin = t.closest('[data-pin]');
   if (pin) { e.stopPropagation(); togglePin(pin.getAttribute('data-pin')); return; }
   var tab = t.closest('#tabs button[data-r]');
   if (tab) { range = tab.getAttribute('data-r'); loadDetail(); return; }
   if (t.closest('#back')) { setWho(''); return; }
   var w = t.closest('[data-who]');
-  if (w) { setWho(w.getAttribute('data-who')); }
+  if (w) { e.preventDefault(); setWho(w.getAttribute('data-who'), true); }
 });
-document.addEventListener('keydown', function (e) {
-  if (e.key !== 'Enter' && e.key !== ' ') return;
-  var el = e.target;
-  if (el.matches && el.matches('[data-who][tabindex]')) { e.preventDefault(); setWho(el.getAttribute('data-who')); }
-});
-$('navOverview').onclick = function () { setWho(''); };
-$('home').onclick = function () { setWho(''); };
+// A chart's data table stays open (or closed) across redraws
+document.addEventListener('toggle', function (e) {
+  var d = e.target;
+  if (d.matches && d.matches('details.chart-table')) openTables[d.getAttribute('data-k')] = d.open;
+}, true);
+$('navOverview').onclick = function (e) { e.preventDefault(); setWho('', true); };
+$('home').onclick = function () { setWho('', true); };
 
-function setWho(name) {
+// focus: when the reader picked the view, move to its heading so a screen
+// reader announces it and the keyboard starts there
+function setWho(name, focus) {
   who = name; sourceOpen = false;
   history.replaceState(null, '', location.pathname + location.search + (name ? '#' + encodeURIComponent(shownId(name)) : ''));
-  det = null; drawer(false); show();
+  det = null; lastView = null; drawer(false); show();
   if (name) loadDetail(); else if (ov) renderOverview();
-  renderNav(); window.scrollTo(0, 0);
+  renderNav(); window.scrollTo(0, 0); setTitle();
+  if (focus) {
+    var h = document.querySelector((name ? '#detail' : '#overview') + ' h1');
+    if (h) h.focus({ preventScroll: true }); else $('content').focus({ preventScroll: true });
+  }
+}
+function setTitle() {
+  document.title = (who ? shown(det ? det.name : shownId(who)) + ' ' + DOT + ' ' : ov && !sourceOpen ? 'Overview ' + DOT + ' ' : '') + 'GS4 Analytics';
 }
 function show() {
   var connected = !!ov;
@@ -206,7 +201,7 @@ function loadDetail() {
   if (!who || !dash || !dash.conn || !ov) return;
   var d = null;
   try { d = dash.character(who, range); } catch (e) { d = null; }
-  if (d) { det = d; renderDetail(); tick(); return; }
+  if (d) { det = d; renderDetail(); tick(); setTitle(); return; }
   if (!det) {
     setHtml($('detail'), '<div class="card empty big">' + icon('pulse', 'empty-ic') + '<h3>No data for ' + esc(shownId(who)) + '</h3>' +
       '<p class="muted">This database has nothing recorded for that character.</p><button class="btn" id="back" type="button">' + icon('back') + 'Back to everyone</button></div>');
@@ -231,7 +226,8 @@ function connect(source) {
   setHtml($('overview'), skeleton('overview'));
   return loadOverview().then(function () {
     if (!ov) { setHtml($('overview'), ''); show(); return; }
-    rememberSource(source); show(); loadDetail();
+    rememberSource(source); show(); loadDetail(); setTitle();
+    announce(source.kind === 'demo' ? 'Showing sample data' : 'Connected to ' + source.label);
     // A shared ?demo link must not win over the reader's own source on the next visit
     if (source.kind !== 'demo' && params.has('demo')) {
       params.delete('demo');
@@ -294,7 +290,7 @@ $('export').onclick = function () {
   if (!ov) return;
   btn.disabled = true; label.textContent = 'Saving...';
   exportImage($(who ? 'detail' : 'overview'), viewTitle(), exportName, function (msg) {
-    btn.disabled = false; label.textContent = msg || 'Saved';
+    btn.disabled = false; label.textContent = msg || 'Saved'; announce(msg || 'Image saved');
     setTimeout(function () { label.textContent = 'Save image'; }, 2500);
   });
 };

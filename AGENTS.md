@@ -22,6 +22,7 @@ Read [docs/README.md](docs/README.md) first; it indexes the working docs.
 ```bash
 npm test                 # always: parity + WAL suites (pins TZ=America/New_York)
 npm run e2e              # after any change under site/ (Chromium + mock API)
+npm run a11y             # after any change under site/: axe-core on every view and theme, plus the colour tokens
 npm run vendor -- --check
 npm run serve            # http://localhost:8000
 npm run mock -- --demo   # stand-in script API on 127.0.0.1:8080
@@ -55,6 +56,13 @@ verification.
   palette: categorical slots `--k1..--k8` in a fixed order, activity states `--st-*`, and
   status colours that always come with an icon or a label. A new data colour needs the
   dataviz validator run again in both themes.
+- **Accessibility is checked, not hoped for.** `npm run a11y` (CI runs it) must stay clean:
+  axe-core at WCAG 2.2 AA on every view in light, dark and both high-contrast themes, and
+  the contrast of the colour tokens themselves (text 4.5:1, borders and marks 3:1). New
+  colours go in every theme block, high contrast included. Characters open through real
+  links (`hrefFor`), so a keyboard reaches them and Ctrl+click opens a new tab; status
+  icons carry `role="img"` and a label; every chart has a data table; nothing moves for
+  more than five seconds.
 - **The sample data is the fixture.** `site/demo/sample.db` is a byte copy of
   `test/fixtures/afternoon.db` (`test/demo.test.js` checks it). Regenerate both together.
   The demo is never remembered as a reader's source, and the page labels it on every view.

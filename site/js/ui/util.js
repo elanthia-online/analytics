@@ -49,7 +49,6 @@ export function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); 
 // Rest steps in a fixed order, each on its own categorical slot
 export const STEP_ORDER = ['travel', 'selling', 'eloot', 'bounty', 'healing', 'spells', 'other scripts', 'waiting'];
 export const STEP_COL = { travel: '--k1', selling: '--k2', eloot: '--k3', bounty: '--k4', healing: '--k5', spells: '--k6', 'other scripts': '--k7', waiting: '--gray' };
-export const STEP_DARK_TEXT = { bounty: true };
 export const STATE_COL = { hunt: '--st-hunt', rest: '--st-rest', idle: '--st-idle', dead: '--st-dead', offline: '--gray' };
 export const STATE_NAME = { hunt: 'Hunting', rest: 'Resting', idle: 'Idle', dead: 'Dead', offline: 'Offline' };
 export const LIGHT = { green: [U(0x2713), 'All normal'], amber: ['!', 'Needs a look'], red: ['!', 'Problem'], gray: [DASH, 'Not running'] };
@@ -58,13 +57,17 @@ export const LIGHT = { green: [U(0x2713), 'All normal'], amber: ['!', 'Needs a l
 export function delta(p, highBad, suffix) {
   if (p == null) return '';
   var r = Math.round(p);
-  if (r === 0) return '<span class="delta flat">0%' + (suffix || '') + '</span>';
+  // The arrow repeats the sign, so screen readers skip it; "vs typical" is
+  // read even where the page only shows it on hover
+  var sr = suffix ? '' : '<span class="sr"> vs typical</span>';
+  if (r === 0) return '<span class="delta flat">0%' + (suffix || '') + sr + '</span>';
   var good = (r > 0) !== !!highBad;
-  return '<span class="delta ' + (good ? 'good' : 'bad') + '">' + (r > 0 ? U(0x25B2) + ' +' : U(0x25BC) + ' ') + r + '%' + (suffix || '') + '</span>';
+  return '<span class="delta ' + (good ? 'good' : 'bad') + '"><span aria-hidden="true">' + (r > 0 ? U(0x25B2) : U(0x25BC)) + '</span> ' +
+    (r > 0 ? '+' : U(0x2212)) + Math.abs(r) + '%' + (suffix || '') + sr + '</span>';
 }
 export function status(level, cls) {
   var l = LIGHT[level] || LIGHT.gray;
-  return '<span class="status s-' + esc(level) + (cls ? ' ' + cls : '') + '" title="' + l[1] + '" aria-label="' + l[1] + '">' + l[0] + '</span>';
+  return '<span class="status s-' + esc(level) + (cls ? ' ' + cls : '') + '" role="img" title="' + l[1] + '" aria-label="' + l[1] + '">' + l[0] + '</span>';
 }
 export function stateHtml(st) {
   return '<span class="state st-' + esc(st.type) + '"><i style="background:' + css(STATE_COL[st.type] || '--gray') + '"></i>' + esc(STATE_NAME[st.type] || st.type) + '</span>' +
@@ -91,10 +94,12 @@ export function nameParts(name) {
   var m = /^(.*?)\s*\((\w+)\)$/.exec(shown(name));
   return m ? [m[1], m[2]] : [shown(name), ''];
 }
+// The link that opens a character (the URL hash names it, as players know it)
+export function hrefFor(id) { return '#' + encodeURIComponent(shownId(id)); }
 export function initial(name) { return esc(String(name || '?').charAt(0).toUpperCase()); }
 export function avatar(c, cls) {
   var st = c.state ? c.state.type : 'offline';
-  return '<span class="avatar ' + (cls || '') + '" style="--ring:' + css(STATE_COL[st] || '--gray') + '">' + initial(c.name) + '</span>';
+  return '<span class="avatar ' + (cls || '') + '" aria-hidden="true" style="--ring:' + css(STATE_COL[st] || '--gray') + '">' + initial(c.name) + '</span>';
 }
 export function stat(lab, val, sub, cls) {
   return '<div' + (cls ? ' class="' + cls + '"' : '') + '><div class="stat-lab">' + lab + '</div><div class="stat-val">' + val + '</div>' +

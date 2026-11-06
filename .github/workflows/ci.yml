@@ -66,3 +66,6 @@ jobs:
       - name: Live, detail, file and error paths against the mock API
         timeout-minutes: 5
         run: npm run e2e
+      - name: Accessibility (axe-core, WCAG 2.2 AA, every view in every theme, and the colour tokens)
+        timeout-minutes: 5
+        run: npm run a11y

@@ -2,6 +2,53 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: Accessibility pass, and a high-contrast mode
+
+**Decision.**
+- **Measured, then fixed.** `tools/a11y.js` (`npm run a11y`, in CI) runs axe-core 4.14.0 at
+  WCAG 2.2 A and AA plus best practices. It covers every view, the phone layout and the
+  open drawer, in light, dark, and both high-contrast themes chosen on the page, and in the
+  system's `prefers-contrast: more`.
+- **Colour tokens are checked directly.** The same script checks the contrast of the
+  tokens, because axe doesn't check SVG text, text on data colours, or borders and marks.
+- **The baseline failed on:**
+  - light `--muted` text: 3.7 to 4.15:1, now `#5f6878`, 5.0:1 or better;
+  - white percentage labels on the rest-step bars, now a per-slot `--on-k*` colour;
+  - heading order;
+  - a missing h1 when choosing a new source;
+  - an unnamed tooltip;
+  - scroll areas a keyboard couldn't reach;
+  - guide content outside a landmark.
+- **Problems axe can't see, fixed too:**
+  - Character cards, alerts, table names and the sidebar are real links.
+  - Focus moves to the new view's heading, and the window title names it.
+  - The closed phone drawer was reachable by Tab; the page behind the open one is now inert.
+  - The theme switch is now real radio buttons.
+  - Each chart has a data table; the timeline has a text summary; the change arrows aren't read aloud.
+  - Animations used to loop forever (WCAG 2.2.2); now none runs longer than five seconds.
+- **High contrast** is a toggle next to the theme. Left unset, it follows `prefers-contrast:
+  more`, and it works with Light, Dark and Auto. `theme-init.js` sets `data-hc` before the
+  first paint, and `display.js` runs the controls on every page, the guide included. It:
+  - takes text, lines and borders to full strength;
+  - drops the decorative washes and the blur behind the bars;
+  - gives activity states a texture as well as a colour (resting 45 degrees, dead 135), the
+    palette's documented accessibility channel.
+- **High-contrast data colours.**
+  - Light has its own steps, each 3:1 or better on white:
+    `#1f5fb4 #c2410c #00806a #a66f00 #c0386f #006400 #5340c4 #c22d2d`.
+  - These pass every check of the dataviz validator on a `#ffffff` surface, and the state
+    trio (slots 1 to 3) also passes all pairs.
+  - Dark keeps the validated dark steps, which already clear 3:1 on the darker surfaces.
+    Brighter ones fail the validator's lightness band.
+- **Forced colours** (Windows High Contrast) keep the data's colours and give everything
+  else the system's.
+
+**Rejected.**
+- Driving high contrast from CSS media queries alone. Combined with the theme choice, that
+  needs six copies of each rule, and a small script was already running before the first
+  paint.
+- A brighter dark high-contrast palette. It fails the validator's lightness band.
+
 ## 2026-11-06: A redesigned dashboard, with sample data built in
 
 **Decision.** The page is no longer a port of the script's `PAGE`. It has a new shell,

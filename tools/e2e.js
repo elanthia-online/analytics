@@ -88,15 +88,66 @@ try {
   await page.click('.nav-ch[data-who="GSF:Splinter"]');
   await page.waitForFunction(() => document.querySelector('.sb-name')?.textContent.includes('GSF'));
   await page.waitForTimeout(1200);
-  const rewrites = await page.evaluate(() => new Promise((resolve) => {
+  const { rewrites, newHour } = await page.evaluate(() => new Promise((resolve) => {
     let n = 0;
+    const hour = new Date().getHours();
     const watch = new MutationObserver(() => { n++; });
     watch.observe(document.getElementById('detail'), { childList: true });
-    setTimeout(() => { watch.disconnect(); resolve(n); }, 16_000);
+    setTimeout(() => { watch.disconnect(); resolve({ rewrites: n, newHour: new Date().getHours() !== hour }); }, 16_000);
   }));
-  check(rewrites === 0, `live: refreshes with nothing new leave the page alone (${rewrites} rewrites in three refreshes)`);
+  // A new hour legitimately redraws the hourly trend labels
+  check(rewrites === 0 || newHour, `live: refreshes with nothing new leave the page alone (${rewrites} rewrites in three refreshes${newHour ? ', across an hour' : ''})`);
   check(problems.length === 0, `live: no console errors or CSP violations${problems.length ? `: ${problems.join(' | ')}` : ''}`);
   await context.close();
+
+  // ---- keyboard, and the theme and contrast controls -------------------
+  const kb = await browser.newContext({ viewport: { width: 1320, height: 900 } });
+  const kbPage = await kb.newPage();
+  await kbPage.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
+  await kbPage.waitForSelector('.card[data-who]', { timeout: 15_000 });
+  await kbPage.keyboard.press('Tab');
+  check(await kbPage.evaluate(() => document.activeElement?.classList.contains('skip')), 'keyboard: the first Tab reaches "Skip to content"');
+  await kbPage.focus('.card[data-who="GS3:Bebop"] .ch-link');
+  await kbPage.keyboard.press('Enter');
+  await kbPage.waitForFunction(() => location.hash === '#GS4%3ABebop');
+  check(await kbPage.evaluate(() => document.activeElement?.matches('#detail h1')), 'keyboard: Enter on a card opens it, and focus moves to its heading');
+  check(/^Bebop \(GS4\)/.test(await kbPage.title()), `keyboard: the window title names the character (${await kbPage.title()})`);
+  await kbPage.click('#navOverview');
+  const popup = kb.waitForEvent('page');
+  await kbPage.click('.card[data-who="GS3:Splinter"] .ch-link', { modifiers: ['Control'] });
+  const tab = await popup;
+  await tab.waitForSelector('#tabs', { timeout: 15_000 });
+  check(tab.url().endsWith('#GS4%3ASplinter') && !kbPage.url().includes('Splinter'), 'keyboard: Ctrl+click opens a character in a new tab and leaves this one');
+  await tab.close();
+  await kbPage.click('.side .contrast-btn');
+  check(await kbPage.evaluate(() => document.documentElement.hasAttribute('data-hc')) && await kbPage.getAttribute('.side .contrast-btn', 'aria-pressed') === 'true',
+    'contrast: the High contrast button turns it on');
+  await kbPage.check('.side .theme-seg input[value="dark"]');
+  await kbPage.reload();
+  await kbPage.waitForSelector('.card[data-who]', { timeout: 15_000 });
+  check(await kbPage.evaluate(() => document.documentElement.hasAttribute('data-hc') && document.documentElement.getAttribute('data-theme') === 'dark'),
+    'contrast: high contrast and the dark theme are both remembered');
+  check(await kbPage.isChecked('.side .theme-seg input[value="dark"]'), 'theme: the theme switch shows the remembered choice');
+  await kbPage.click('.side .contrast-btn');
+  await kbPage.check('.side .theme-seg input[value="auto"]');
+  check(await kbPage.evaluate(() => !document.documentElement.hasAttribute('data-hc') && !document.documentElement.hasAttribute('data-theme')
+    && localStorage.getItem('gs4a-contrast') === null && localStorage.getItem('gs4a-theme') === null), 'contrast and theme: back to following the system, nothing stored');
+  await kb.close();
+  const sysMore = await browser.newContext({ viewport: { width: 1320, height: 900 }, contrast: 'more' });
+  const sysPage = await sysMore.newPage();
+  await sysPage.goto(`http://localhost:${SITE_PORT}/`);
+  await sysPage.waitForSelector('#source:not([hidden])');
+  check(await sysPage.evaluate(() => document.documentElement.hasAttribute('data-hc')), 'contrast: on by itself when the system asks for more contrast');
+  check(await sysPage.isVisible('.mbar .contrast-btn'), 'contrast: the first-visit page has the control too');
+  await sysPage.click('.mbar .contrast-btn');
+  await sysPage.reload();
+  await sysPage.waitForSelector('#source:not([hidden])');
+  check(await sysPage.evaluate(() => !document.documentElement.hasAttribute('data-hc') && localStorage.getItem('gs4a-contrast') === 'off'),
+    'contrast: and turning it off there is remembered');
+  await sysPage.goto(`http://localhost:${SITE_PORT}/guide/`);
+  check(await sysPage.evaluate(() => !document.documentElement.hasAttribute('data-hc')) && await sysPage.getAttribute('.contrast-btn', 'aria-pressed') === 'false',
+    'contrast: the guide follows the same choice');
+  await sysMore.close();
 
   // ---- a phone ---------------------------------------------------------
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -112,10 +163,12 @@ try {
   await phonePage.waitForSelector('.card[data-who]', { timeout: 15_000 });
   await sideways('overview');
   check(await phonePage.isHidden('.side') || (await phonePage.$eval('.side', (el) => el.getBoundingClientRect().right <= 0)), 'phone: the sidebar starts closed');
+  check(await phonePage.$eval('.side', (el) => getComputedStyle(el).visibility === 'hidden'), 'phone: the closed menu cannot be reached with Tab');
   await phonePage.click('#menuBtn');
   await phonePage.waitForFunction(() => document.querySelector('.app').classList.contains('open'));
   await phonePage.waitForTimeout(350);
   check(await phonePage.$eval('.side', (el) => el.getBoundingClientRect().left >= 0), 'phone: the menu button opens the drawer');
+  check(await phonePage.$eval('.main', (el) => el.inert), 'phone: while it is open, the page behind it is inert');
   await phonePage.keyboard.press('Escape');
   check(!(await phonePage.$eval('.app', (el) => el.classList.contains('open'))) && await phonePage.isHidden('#scrim'), 'phone: Escape closes it');
   await phonePage.click('#menuBtn');

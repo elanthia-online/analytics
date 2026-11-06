@@ -28,8 +28,8 @@ await new Promise((resolve, reject) => {
 
 const browser = await chromium.launch();
 const problems = [];
-async function shot(name, { hash = '', scheme = 'light', width = 1440, height = 900, preview = height, range = null, landing = false, path = null, scale = null }) {
-  const context = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, deviceScaleFactor: scale ?? (width < 600 ? 2 : 1.5) });
+async function shot(name, { hash = '', scheme = 'light', width = 1440, height = 900, preview = height, range = null, landing = false, path = null, scale = null, contrast = false }) {
+  const context = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, deviceScaleFactor: scale ?? (width < 600 ? 2 : 1.5), contrast: contrast ? 'more' : 'no-preference' });
   const page = await context.newPage();
   page.on('pageerror', (e) => problems.push(`${name}: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`${name}: ${m.text()}`); });
@@ -58,6 +58,7 @@ try {
   await shot('character', { hash: '#GS4%3ASplinter', range: 'weekly' });
   await shot('character-dark', { hash: '#GS4%3ASplinter', scheme: 'dark' });
   await shot('phone', { width: 390, height: 844, preview: 620 });
+  await shot('character-contrast', { hash: '#GS4%3ASplinter', contrast: true });
   await shot('og', { scheme: 'dark', width: 1200, height: 630, scale: 1, path: OG });
 } finally {
   await browser.close();
