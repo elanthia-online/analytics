@@ -1,8 +1,12 @@
 # Dashboard API (analytics.lic → this site)
 
-Status: **specified, not yet implemented in analytics.lic.** `tools/mock-server.js`
-implements it and is the reference: when this page and the mock disagree, fix the page.
-When the mock and this document disagree, fix the mock. What the script needs to change
+Status: **implemented** in analytics.lic at elanthia-online/scripts@0b41f063 (PR
+elanthia-online/scripts#2556). Checked against the real script: this site's files served at
+`https://analytics.elanthia.online` (by Playwright, so the real origin, CSP and CORS apply)
+read a copy of a real database live, picked up new writes by themselves, and every
+response carried the site's `Access-Control-Allow-Origin`. `tools/mock-server.js` still
+implements it for the tests: when this page and the mock disagree, fix the page. When the
+mock and this document disagree, fix the mock, and the script. What the script needs to change
 is in [script-changes.md](script-changes.md).
 
 API version: **1**. The site refuses any other version, with a message saying which side

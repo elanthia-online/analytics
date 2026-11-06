@@ -9,5 +9,9 @@
 | [porting-notes.md](porting-notes.md) | How the Ruby figures were ported, the parity harness, and the Ruby-vs-JS traps |
 | [decisions.md](decisions.md) | Decisions made, with the reasons and what was rejected |
 | [open-questions.md](open-questions.md) | Unverified behaviour and decisions still to make |
+| [roadmap.md](roadmap.md) | Ideas not built yet, script-side and site-side (the script's old TODO list) |
+
+The player guide is not here: it's part of the site, `site/guide/index.html`
+(https://analytics.elanthia.online/guide/).
 
 These are working documents. Update them in the same change as the code they describe.

@@ -7,8 +7,13 @@ Guidance for coding agents (and humans) working in this repo. `CLAUDE.md` points
 A static site (GitHub Pages, no build step) that opens an analytics.lic SQLite database in
 the browser with sql.js and renders the hunting dashboard. analytics.lic lives in
 elanthia-online/scripts (`scripts/analytics.lic`, PR elanthia-online/scripts#2556). It
-writes the database and, once [docs/script-changes.md](docs/script-changes.md) lands,
-serves it over a small local API ([docs/api.md](docs/api.md)).
+writes the database and serves it over a small local API ([docs/api.md](docs/api.md));
+[docs/script-changes.md](docs/script-changes.md) records how the script was changed for that.
+
+`site/guide/` is the player documentation for the script. The script's header links to
+it, so keep it in step with the script: a new setting, command or report belongs in the
+guide in the same change that adds it. Ideas not built yet go in
+[docs/roadmap.md](docs/roadmap.md).
 
 Read [docs/README.md](docs/README.md) first; it indexes the working docs.
 
