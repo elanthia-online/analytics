@@ -1,0 +1,123 @@
+// A stand-in for analytics.lic's dashboard API (docs/api.md), for local
+// development and the end-to-end check. It answers exactly as the updated
+// script is specified to: the same routes, the same CORS and Host rules.
+//
+//   node tools/mock-server.js [--port 8080] [--db test/fixtures/afternoon.db] [--demo]
+//
+// --demo moves every timestamp in the database so the fixture's "now" is
+// the real now, and keeps writing (a bank deposit every 10 seconds) so a
+// live page has something to update.
+import http from 'node:http';
+import { readFileSync } from 'node:fs';
+import initSqlJs from 'sql.js';
+
+const args = process.argv.slice(2);
+const opt = (name, fallback) => {
+  const at = args.indexOf(`--${name}`);
+  return at >= 0 && args[at + 1] && !args[at + 1].startsWith('--') ? args[at + 1] : fallback;
+};
+const PORT = Number(opt('port', 8080));
+const DB_PATH = opt('db', new URL('../test/fixtures/afternoon.db', import.meta.url).pathname);
+const DEMO = args.includes('--demo');
+
+// The origins whose pages may read the API (docs/api.md, "CORS"). The
+// project's Pages site, plus any page served from this computer.
+const ALLOWED_ORIGINS = [/^https:\/\/elanthia-online\.github\.io$/, /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/];
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+
+const SQL = await initSqlJs();
+const db = new SQL.Database(readFileSync(DB_PATH));
+let version = 1;
+const bootId = Date.now().toString(36);
+let image = db.export();
+
+if (DEMO) {
+  const golden = JSON.parse(readFileSync(DB_PATH.replace(/\.db$/, '.json'), 'utf8'));
+  shiftToNow(golden.now);
+  image = db.export();
+  setInterval(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const last = db.exec("SELECT balance FROM bank_snapshots WHERE game = 'GS3' AND character = 'Torvek' AND bank_name = '__total__' ORDER BY timestamp DESC LIMIT 1");
+    const balance = (last[0]?.values[0][0] ?? 0) + 2500;
+    db.run("INSERT INTO bank_snapshots (snapshot_id, session_id, game, character, timestamp, bank_name, balance, delta_silver, snapshot_type) VALUES (?, 's-demo', 'GS3', 'Torvek', ?, '__total__', ?, 2500, 'deposit')",
+      [`b-demo-${now}`, now, balance]);
+    db.run("UPDATE logins SET last_seen = ? WHERE game = 'GS3' AND character = 'Torvek' AND started_at = (SELECT MAX(started_at) FROM logins WHERE game = 'GS3' AND character = 'Torvek')", [now]);
+    image = db.export();
+    version++;
+  }, 10_000).unref();
+}
+
+// Moves the fixture's moment to now: timestamps by the exact gap, date
+// strings by the number of calendar days between the two
+function shiftToNow(fixtureNow) {
+  const delta = Math.floor(Date.now() / 1000) - fixtureNow;
+  const day = (ts) => { const t = new Date(ts * 1000); return Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) / 86_400_000; };
+  const days = day(fixtureNow + delta) - day(fixtureNow);
+  const columns = {
+    cycles: ['start_time', 'end_time'], bounties: ['received_time', 'completed_time'], bank_snapshots: ['timestamp'],
+    rest_steps: ['rest_start'], logins: ['started_at', 'first_seen', 'last_seen'], bounty_offers: ['offered_at', 'ended_at'],
+    kill_stats: ['last_kill_at'], sessions: ['start_time', 'end_time', 'midnight_timestamp'], silver_events: ['timestamp'],
+    item_sales: ['timestamp'], vendor_visits: ['start_time', 'end_time'],
+  };
+  for (const [table, cols] of Object.entries(columns)) {
+    db.run(`UPDATE ${table} SET ${cols.map((c) => `${c} = ${c} + ${delta}`).join(', ')}`);
+  }
+  // Rewritten through a copy: shifting in place would collide with rows not yet moved
+  const by = `'${days >= 0 ? '+' : ''}${days} days'`;
+  for (const [table, col] of [['kill_stats', 'date'], ['sessions', 'start_date']]) {
+    const cols = db.exec(`PRAGMA table_info(${table})`)[0].values.map((row) => row[1]);
+    db.run(`CREATE TEMP TABLE moved AS SELECT * FROM ${table}; DELETE FROM ${table};`);
+    db.run(`INSERT INTO ${table} (${cols.map((c) => `"${c}"`).join(', ')}) SELECT ${cols.map((c) => (c === col ? `date("${c}", ${by})` : `"${c}"`)).join(', ')} FROM moved; DROP TABLE moved;`);
+  }
+}
+
+function corsHeaders(origin) {
+  if (!origin || !ALLOWED_ORIGINS.some((re) => re.test(origin))) return {};
+  return { 'Access-Control-Allow-Origin': origin, Vary: 'Origin', 'Access-Control-Expose-Headers': 'X-Analytics-Token' };
+}
+
+const BASE_HEADERS = {
+  'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'cross-origin',
+  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+};
+
+const server = http.createServer((req, res) => {
+  const origin = req.headers.origin;
+  const reply = (code, type, body, extra = {}) => {
+    res.writeHead(code, { ...BASE_HEADERS, ...corsHeaders(origin), 'Content-Type': type, 'Content-Length': Buffer.byteLength(body), ...extra });
+    res.end(body);
+  };
+  const host = String(req.headers.host || '').toLowerCase().replace(/:\d+$/, '');
+  if (!LOCAL_HOSTS.includes(host)) return reply(403, 'text/plain', 'Forbidden'); // DNS rebinding
+  if (origin && !ALLOWED_ORIGINS.some((re) => re.test(origin))) return reply(403, 'text/plain', 'Forbidden');
+
+  const url = new URL(req.url, 'http://127.0.0.1');
+  if (req.method === 'OPTIONS') {
+    // Only older Chromium sends this (Private Network Access); simple GETs need no preflight
+    return reply(204, 'text/plain', '', {
+      'Access-Control-Allow-Methods': 'GET', 'Access-Control-Allow-Private-Network': 'true', 'Access-Control-Max-Age': '600',
+    });
+  }
+  if (req.method !== 'GET') return reply(405, 'text/plain', 'Method not allowed');
+
+  const token = `${bootId}.${version}`;
+  switch (url.pathname) {
+    case '/':
+      return reply(302, 'text/plain', '', { Location: `https://elanthia-online.github.io/analytics/?live=${PORT}` });
+    case '/api/meta':
+      return reply(200, 'application/json', JSON.stringify({
+        app: 'analytics', api: 1, script_version: 'mock', schema_version: '6', token,
+        now: Math.floor(Date.now() / 1000), db_bytes: image.byteLength,
+      }));
+    case '/api/db':
+      res.writeHead(200, { ...BASE_HEADERS, ...corsHeaders(origin), 'Content-Type': 'application/vnd.sqlite3',
+                           'Content-Length': image.byteLength, 'X-Analytics-Token': token });
+      return res.end(Buffer.from(image));
+    default:
+      return reply(404, 'text/plain', 'Not found');
+  }
+});
+
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`mock analytics.lic API on http://127.0.0.1:${PORT} (${DB_PATH}${DEMO ? ', demo' : ''})`);
+});

@@ -1,0 +1,7 @@
+{
+  "generator": "tools/gen-fixtures.rb",
+  "analytics_lic_sha256": "8ed10933848ff42cba7eaa534ed67cb8441cbe9e9680e23ccfa7b9dad6a6730a",
+  "schema_version": "6",
+  "tz": "America/New_York",
+  "note": "Golden output of GS4Analytics::Dashboard for synthetic data. Regenerate when analytics.lic changes."
+}

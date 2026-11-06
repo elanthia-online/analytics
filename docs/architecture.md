@@ -1,0 +1,75 @@
+# Architecture
+
+```
+ Lich (player's computer)                          Browser (same computer)
+ ┌────────────────────────────┐                    ┌───────────────────────────────────────┐
+ │ analytics.lic              │                    │ https://elanthia-online.github.io/     │
+ │  collector ──writes──┐     │                    │        analytics/  (static files)      │
+ │                      ▼     │   GET /api/meta    │                                        │
+ │   DATA_DIR/analytics.db ◄──┼── GET /api/db ─────┤  data.js   LiveSource / FolderSource / │
+ │   (+ analytics.db-wal)     │   127.0.0.1:8080   │            FileSource ─► SQLite image  │
+ │                      ▲     │                    │  sql.js    opens the image (WASM)      │
+ │  API: serialize ─────┘     │                    │  aggregate/ figures (pure functions)   │
+ └────────────────────────────┘                    │  app.js    renders (the script's page) │
+            ▲                                       └──────────────┬────────────────────────┘
+            └──── or: the browser reads the folder / a file ───────┘
+```
+
+## Layers
+
+| Layer | Files | Rule |
+|---|---|---|
+| Source | `site/js/data.js` (`LiveSource`, `FolderSource`, `FileSource`), `site/js/wal.js` | Produces a complete SQLite image (`Uint8Array`) and the moment it describes. Knows nothing about figures |
+| Engine | `site/vendor/sql.js/` | sql.js 1.15.2, vendored (see the decisions log). One `Database` per image. The previous one is `close()`d, because WASM memory is not garbage collected |
+| Aggregation | `site/js/aggregate/*.js` | Pure functions of `(conn, now)`. No DOM, no `fetch`, no `Date.now()`, so Node tests run them unchanged. Output JSON has exactly the shape the Ruby dashboard returned |
+| UI | `site/index.html`, `site/css/dashboard.css`, `site/js/app.js`, `site/js/theme-init.js` | The page analytics.lic served, kept as close to the original as possible. Only the data plumbing at the end of `app.js` is new |
+
+The aggregation JSON stays exactly what the Ruby code produced. That keeps `app.js` an
+almost unchanged copy of the script's page, and lets the Ruby output act as the test
+oracle. Change the shape only after the parity baseline is retired (see
+[porting-notes.md](porting-notes.md)), and then change `app.js` in the same commit.
+
+## Sources
+
+| | Live (script API) | Folder | File |
+|---|---|---|---|
+| Needs | analytics.lic with `--dashboard` or `serve` | Chromium (File System Access API) | Any modern browser |
+| Updates | every 5 s, re-downloads only when the token changes | every 5 s, re-reads only when size/mtime changes | never (pick again) |
+| WAL | the script's `serialize` already includes it | `wal.js` applies committed frames | `wal.js`, if the `-wal` file is picked too |
+| "Now" | the browser clock | the browser clock | the file's last-modified time (a snapshot) |
+| Permission prompt | Local Network Access, once per site (Chromium) | read access to the folder, once per session | none |
+
+`now` matters more than it looks. Almost every figure is relative to it: "today", idle
+and dead timers, pace by time of day, whether a login is live. A snapshot is shown as of
+when it was written, so last week's backup reads as last week and doesn't show everyone
+offline.
+
+## Time zones
+
+Figures use the viewer's time zone. SQLite's `'localtime'` in sql.js and the JS `Date`
+calendar math both follow the browser, so SQL day buckets and JS midnights agree. The
+Ruby dashboard used the Lich computer's zone. They're the same zone whenever the
+browser and Lich run on the same computer, which is the only setup the live source
+allows.
+
+## Security model
+
+- The site is static and has no backend. A database the player opens never leaves their
+  browser. Nothing in this repo sends it anywhere.
+- CSP (a `<meta>` tag, because Pages can't set headers):
+  - `script-src 'self' 'wasm-unsafe-eval'`, so no inline script
+  - `connect-src 'self' http://127.0.0.1:* http://localhost:*`
+  - `style-src` keeps `'unsafe-inline'`, because the charts and the save-image copy rely on
+    style attributes.
+- The script's API is the trust boundary. Its rules (Host check against DNS rebinding,
+  exact-origin CORS, read-only, localhost-only) are in [api.md](api.md).
+- Everything rendered from the database goes through `esc()` in `app.js`, as in the
+  original page. Game text is attacker-influenced (other players' names, NPC speech), so
+  keep it that way.
+
+## No build step
+
+`site/` is published as is. Native ES modules, no bundler, no npm packages at runtime. A
+contributor can open `site/` with any static server (`npm run serve`) and see exactly what
+Pages serves. The only dev dependency is sql.js, for the Node tests and the vendored
+copy. Playwright is used for the end-to-end check.

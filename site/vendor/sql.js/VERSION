@@ -1,0 +1,4 @@
+sql.js 1.15.2 (https://github.com/sql-js/sql.js), MIT licensed
+17e880ef4c40827f93ead7766ab960937259368a8341b9d231984a7d8f9fbd41  sql-wasm-browser.js
+0dfeecda2070b36da0cd4f6afa250af9453de528a983770f85b13d5d6b667572  sql-wasm-browser.wasm
+60a3f6e4d7b29b4321359e683b36cf198d24f58e24582070f56e6fa89d5ee2be  LICENSE
