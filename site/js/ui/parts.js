@@ -31,7 +31,7 @@ export function unit(s) { return '<span class="unit">' + s + '</span>'; }
 // Sort choices per table, kept across redraws (and set by app.js on a click)
 export var sortState = {};
 
-// cols: [{ h: heading, v: row => sort value, c: row => cell HTML, text: true for a
+// cols: [{ h: heading (plain text; it is escaped), v: row => sort value, c: row => cell HTML, text: true for a
 // text column (sorted A-Z first, left-aligned), title: tooltip }]. def: { col, dir }.
 // The sorted column's header carries aria-sort; each header is a button.
 export function sortTable(key, label, cols, rows, def) {
@@ -49,11 +49,11 @@ export function sortTable(key, label, cols, rows, def) {
     var on = i === st.col, dir = on ? st.dir : null;
     return '<th' + (c.text ? ' class="l"' : '') + (on ? ' aria-sort="' + (dir === 'asc' ? 'ascending' : 'descending') + '"' : '') + (c.title ? ' title="' + esc(c.title) + '"' : '') + '>' +
       '<button type="button" class="sort' + (on ? ' on ' + dir : '') + '" id="sort-' + esc(key) + '-' + i + '" data-sort="' + esc(key) + '" data-col="' + i + '" data-text="' + (c.text ? 1 : 0) + '">' +
-      c.h + '<span class="sort-ic" aria-hidden="true"></span></button></th>';
+      esc(c.h) + '<span class="sort-ic" aria-hidden="true"></span></button></th>';
   }).join('');
   var body = sorted.map(function (r) {
     return '<tr>' + cols.map(function (c) { return '<td' + (c.text ? ' class="l' + (c.wrap ? ' wrapcell' : '') + '"' : '') + '>' + c.c(r) + '</td>'; }).join('') + '</tr>';
   }).join('');
-  return scroll(label) + '<table class="sortable"><caption class="sr">' + esc(label) + ', sorted by ' + esc(String(col.h).replace(/<[^>]+>/g, '')) +
+  return scroll(label) + '<table class="sortable"><caption class="sr">' + esc(label) + ', sorted by ' + esc(col.h) +
     (col.text ? (st.dir === 'asc' ? ', A to Z' : ', Z to A') : st.dir === 'asc' ? ', lowest first' : ', highest first') + '. Choose a column heading to sort by it.</caption><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
 }
