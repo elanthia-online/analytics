@@ -13,7 +13,7 @@ const PORT = Number(at >= 0 ? args[at + 1] : 8000);
 const ROOT = new URL('../site/', import.meta.url).pathname;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '': 'text/plain',
+  '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '': 'text/plain',
 };
 
 export function startDevServer(port = PORT) {

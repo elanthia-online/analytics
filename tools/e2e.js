@@ -111,6 +111,9 @@ try {
   for (const id of anchors) if (!(await guide.$(`[id="${id}"]`))) missing.push(id);
   check(missing.length === 0, `guide: every in-page link has a target${missing.length ? ` (missing ${missing.join(', ')})` : ''}`);
   for (const id of ['connect', 'lan', 'settings']) check((await guide.$(`[id="${id}"]`)) !== null, `guide: #${id} exists, the script and the page link to it`);
+  const icons = await guide.$$eval('link[rel~="icon"], link[rel="apple-touch-icon"]', (els) => els.map((el) => el.href));
+  const served = await Promise.all(icons.concat([`http://localhost:${SITE_PORT}/favicon.ico`]).map((href) => guide.request.get(href).then((r) => r.ok())));
+  check(icons.length === 3 && served.every(Boolean), `favicon: the SVG, PNG and touch icons are linked and served, and /favicon.ico (${served.filter(Boolean).length}/${served.length})`);
   check(guideProblems.length === 0, `guide: no console errors or CSP violations${guideProblems.length ? `: ${guideProblems.join(' | ')}` : ''}`);
   if (shots) await guide.screenshot({ path: `${shots}/guide.png`, fullPage: true });
   await guideContext.close();
