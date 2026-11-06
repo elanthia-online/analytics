@@ -40,7 +40,7 @@ if (DEMO) {
     const now = Math.floor(Date.now() / 1000);
     const last = db.exec("SELECT balance FROM bank_snapshots WHERE game = 'GS3' AND character = 'Torvek' AND bank_name = '__total__' ORDER BY timestamp DESC LIMIT 1");
     const balance = (last[0]?.values[0][0] ?? 0) + 2500;
-    db.run("INSERT INTO bank_snapshots (snapshot_id, session_id, game, character, timestamp, bank_name, balance, delta_silver, snapshot_type) VALUES (?, 's-demo', 'GS3', 'Torvek', ?, '__total__', ?, 2500, 'deposit')",
+    db.run("INSERT INTO bank_snapshots (snapshot_id, game, character, timestamp, bank_name, balance, delta_silver, snapshot_type) VALUES (?, 'GS3', 'Torvek', ?, '__total__', ?, 2500, 'deposit')",
       [`b-demo-${now}`, now, balance]);
     db.run("UPDATE logins SET last_seen = ? WHERE game = 'GS3' AND character = 'Torvek' AND started_at = (SELECT MAX(started_at) FROM logins WHERE game = 'GS3' AND character = 'Torvek')", [now]);
     image = db.export();
@@ -57,7 +57,7 @@ function shiftToNow(fixtureNow) {
   const columns = {
     cycles: ['start_time', 'end_time'], bounties: ['received_time', 'completed_time'], bank_snapshots: ['timestamp'],
     rest_steps: ['rest_start'], logins: ['started_at', 'first_seen', 'last_seen'], bounty_offers: ['offered_at', 'ended_at'],
-    kill_stats: ['last_kill_at'], sessions: ['start_time', 'end_time', 'midnight_timestamp'], silver_events: ['timestamp'],
+    kill_stats: ['last_kill_at'], silver_events: ['timestamp'],
     item_sales: ['timestamp'], vendor_visits: ['start_time', 'end_time'],
   };
   for (const [table, cols] of Object.entries(columns)) {
@@ -65,7 +65,7 @@ function shiftToNow(fixtureNow) {
   }
   // Rewritten through a copy: shifting in place would collide with rows not yet moved
   const by = `'${days >= 0 ? '+' : ''}${days} days'`;
-  for (const [table, col] of [['kill_stats', 'date'], ['sessions', 'start_date']]) {
+  for (const [table, col] of [['kill_stats', 'date']]) {
     const cols = db.exec(`PRAGMA table_info(${table})`)[0].values.map((row) => row[1]);
     db.run(`CREATE TEMP TABLE moved AS SELECT * FROM ${table}; DELETE FROM ${table};`);
     db.run(`INSERT INTO ${table} (${cols.map((c) => `"${c}"`).join(', ')}) SELECT ${cols.map((c) => (c === col ? `date("${c}", ${by})` : `"${c}"`)).join(', ')} FROM moved; DROP TABLE moved;`);

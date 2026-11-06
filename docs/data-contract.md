@@ -1,13 +1,19 @@
 # What the site reads from analytics.db
 
-The database is analytics.lic's, and the script owns its schema (`Database.create_schema`
-/ `add_missing_columns`). The site reads it and never writes. This page lists what the
+The database is analytics.lic's, and the script owns its schema (`Database.create_schema`).
+The site reads it and never writes. The script has no migrations: it refuses to open a
+file whose `schema_version` isn't its own, and the player starts a fresh database. This page lists what the
 aggregation depends on, so a schema change in the script can be checked against it.
 
-Checked against schema version **6** (`metadata.schema_version`). `KNOWN_SCHEMAS` in
-`site/js/aggregate/index.js` lists the versions the page loads without a warning. Add a
-version there only after running the parity tests against fixtures generated at that
-version.
+Checked against schema version **7** (`metadata.schema_version`). `KNOWN_SCHEMAS` in
+`site/js/aggregate/index.js` lists the versions the page loads without a warning.
+
+The fixtures can't be regenerated any more (`tools/gen-fixtures.rb` needs the Ruby
+dashboard, which the script no longer has). They were generated at schema 6 and converted
+to schema 7, as `test/fixtures/source.json` records. To admit a new schema version:
+convert the fixture databases to its shape the same way (with sqlite3, leaving the golden
+JSON alone), run `npm test`, and add the version only if parity still passes. A change to a
+column listed below also needs the aggregation updated in the same change.
 
 Every row carries `game` and `character`; a character's id is `game:character`.
 
@@ -22,8 +28,10 @@ Every row carries `game` and `character`; a character's id is `game:character`.
 | `logins` | `game`, `character`, `started_at`, `last_seen` | "This login" figures. Optional (`loginFor` tolerates its absence) |
 | `metadata` | `key = 'schema_version'` | The compatibility warning |
 
-Not read: `sessions`, `silver_events`, `item_sales`, `vendor_visits`. They're stored for
-future reports, and the mock server's demo mode shifts their timestamps.
+Not read: `silver_events`, `item_sales`, `vendor_visits`. They're stored for the script's
+text reports and for future views here, and the mock server's demo mode shifts their
+timestamps. Schema 7 dropped the `sessions` table (one row per character per day) and every
+`session_id` column: nothing read them, and a day is the date of a row's own timestamp.
 
 ## Conventions the figures rely on
 

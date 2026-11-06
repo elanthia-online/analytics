@@ -255,11 +255,12 @@ dashboard:
             <tr><td><code>bounty_offers</code></td><td>Every task offered, kept or not: what it was, how it ended, expedited or not.</td></tr>
             <tr><td><code>bank_snapshots</code></td><td>Bank listings and teller moves, with the tracked total.</td></tr>
             <tr><td><code>silver_events</code>, <code>item_sales</code></td><td>Box silver, sales, bounty silver and spending; each item sold.</td></tr>
-            <tr><td><code>sessions</code>, <code>logins</code></td><td>Each character's days, and each game login.</td></tr>
+            <tr><td><code>logins</code></td><td>Each game login: when Lich connected, and when the script last ran in it.</td></tr>
             <tr><td><code>vendor_visits</code></td><td>Only filled by your own scripts through the <a href="#hooks">hooks</a>.</td></tr>
           </tbody>
         </table></div>
-        <p>You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
+        <p>The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
+          You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
       </section>
 
       <section id="accuracy" class="card">

@@ -8,7 +8,7 @@ export { buildOverview, buildCharacter, RANGES };
 
 // analytics.lic schema versions this build has been checked against
 // (metadata.schema_version). Others load with a warning.
-export const KNOWN_SCHEMAS = ['6'];
+export const KNOWN_SCHEMAS = ['7'];
 
 // Both views for one refresh, from one open database
 export function buildViews(conn, { now, who, range }) {
