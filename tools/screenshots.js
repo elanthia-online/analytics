@@ -34,7 +34,7 @@ async function shot(name, { hash = '', scheme = 'light', width = 1440, height = 
   page.on('pageerror', (e) => problems.push(`${name}: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`${name}: ${m.text()}`); });
   await page.goto(landing ? `http://localhost:${SITE_PORT}/` : `http://localhost:${SITE_PORT}/?live=${API_PORT}${hash}`);
-  await page.waitForSelector(landing ? '#source:not([hidden]) #demoBtn' : hash ? '#tabs' : '.card[data-who]', { timeout: 15_000 });
+  await page.waitForSelector(landing ? '#source:not([hidden]) #demoBtn' : hash ? '.sub-nav' : '.card[data-who]', { timeout: 15_000 });
   if (range) {
     await page.click(`#tabs button[data-r="${range}"]`);
     await page.waitForFunction((r) => document.querySelector('#tabs button.on')?.getAttribute('data-r') === r, range);
@@ -57,6 +57,8 @@ try {
   await shot('overview', {});
   await shot('character', { hash: '#GS4%3ASplinter', range: 'weekly' });
   await shot('character-dark', { hash: '#GS4%3ASplinter', scheme: 'dark' });
+  await shot('income', { hash: '#GS4%3ASplinter/income', range: 'weekly' });
+  await shot('progress', { hash: '#GS4%3ASplinter/progress', scheme: 'dark' });
   await shot('phone', { width: 390, height: 844, preview: 620 });
   await shot('character-contrast', { hash: '#GS4%3ASplinter', contrast: true });
   await shot('og', { scheme: 'dark', width: 1200, height: 630, scale: 1, path: OG });

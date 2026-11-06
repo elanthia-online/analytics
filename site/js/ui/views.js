@@ -4,28 +4,15 @@ import { DOT, esc, css, hrefFor, num, short, dur, clock, stamp, plural, ago, now
          stat, reasonsHtml, bountyText, meter, LIGHT, STATE_COL } from './util.js';
 import { timeline, dayStrip, trendChart, stepBar } from './charts.js';
 import { icon } from './icons.js';
+import { scroll, nameHtml, kpi, head, statusTag, tile, unit } from './parts.js';
+import { SECTION_NAMES, sectionIcon, incomeHtml, huntingHtml, bountiesHtml, progressHtml, historyHtml } from './sections.js';
+import { barChart } from './charts.js';
 
 var CATEGORICAL = ['--k1', '--k2', '--k3', '--k4', '--k5', '--k6', '--k7', '--k8'];
 
-// A table that may scroll sideways: reachable and named for keyboard users
-function scroll(label) { return '<div class="scroll" tabindex="0" role="region" aria-label="' + esc(label) + '">'; }
-
-function nameHtml(name, cls) {
-  var p = nameParts(name);
-  return '<span class="' + (cls || 'nm') + '">' + esc(p[0]) + (p[1] ? ' <span class="game">' + esc(p[1]) + '</span>' : '') + '</span>';
-}
 function greeting(ts) {
   var h = new Date(ts * 1000).getHours();
   return h < 5 ? 'Late night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-}
-function kpi(ic, lab, val, sub) {
-  return '<div class="kpi"><span class="kpi-ic">' + icon(ic) + '</span><div class="stat-lab">' + lab + '</div><div class="stat-val">' + val + '</div>' +
-    (sub ? '<div class="stat-sub">' + sub + '</div>' : '') + '</div>';
-}
-// A card's heading: level 2 for a card on the page, 3 for one inside a card
-function head(title, note, extra, level) {
-  var h = 'h' + (level || 2);
-  return '<div class="card-head"><' + h + '>' + title + '</' + h + '>' + (note ? '<span class="note">' + note + '</span>' : '') + (extra || '') + '</div>';
 }
 function paceKpi(lab, m) {
   // Three to a card leaves no room for words beside the number: the tooltip says what it compares
@@ -39,8 +26,10 @@ function card(c, ov, on) {
   return '<article class="card ch-card click lv-' + esc(level) + '" data-who="' + esc(c.id) + '">' +
     '<div class="ch-head">' + avatar(c) + '<div class="ch-id">' +
       '<h3 class="ch-name"><a class="ch-link" href="' + hrefFor(c.id) + '">' + nameHtml(c.name) + '</a></h3><div class="ch-meta">' + stateHtml(c.state) + '</div></div>' +
-      '<button class="pin no-export' + (on ? ' on' : '') + '" type="button" data-pin="' + esc(c.id) + '" title="' + (on ? 'Unpin' : 'Pin to the top') +
-      '" aria-label="' + (on ? 'Unpin ' : 'Pin ') + esc(shown(c.name)) + '" aria-pressed="' + on + '">' + icon('star') + '</button></div>' +
+      '<span class="ch-actions no-export"><button class="pin' + (on ? ' on' : '') + '" type="button" data-pin="' + esc(c.id) + '" title="' + (on ? 'Unpin' : 'Pin to the top') +
+      '" aria-label="' + (on ? 'Unpin ' : 'Pin ') + esc(shown(c.name)) + '" aria-pressed="' + on + '">' + icon('star') + '</button>' +
+      '<button class="pin hide-btn" type="button" data-hide="' + esc(c.id) + '" title="Hide from the overview" aria-label="Hide ' + esc(shown(c.name)) + ' from the overview">' +
+      icon('eyeoff') + '</button></span></div>' +
     dayStrip(c, ov.day_start, esc(c.id).replace(/\W/g, '_')) +
     (c.light.reasons.length ? reasonsHtml(c.light)
       : '<ul class="reasons"><li>' + status(level) + '<span>' + LIGHT[level][1] + '</span></li></ul>') +
@@ -54,12 +43,12 @@ function card(c, ov, on) {
 
 // Silver by character as one bar, each character on its categorical slot in
 // the database's order (so a pin never repaints anyone)
-function shareBar(ov) {
-  var total = ov.characters.reduce(function (a, c) { return a + (c.pace.silver.so_far || 0); }, 0);
+function shareBar(ov, visible) {
+  var total = ov.characters.reduce(function (a, c) { return a + (visible(c.id) ? c.pace.silver.so_far || 0 : 0); }, 0);
   if (!total) return '';
   var order = ov.characters.slice(), slot = {};
   order.forEach(function (c, i) { slot[c.id] = CATEGORICAL[i] || '--gray'; });
-  var parts = order.filter(function (c) { return c.pace.silver.so_far > 0; });
+  var parts = order.filter(function (c) { return visible(c.id) && c.pace.silver.so_far > 0; });
   return '<div class="share"><div class="share-bar" aria-hidden="true">' + parts.map(function (c) {
     var pct = c.pace.silver.so_far * 100 / total;
     return '<span style="flex:' + c.pace.silver.so_far + ' 1 0;background:' + css(slot[c.id]) + '" data-tip="' + esc(shown(c.name) + ' ' + DOT + ' ' + short(c.pace.silver.so_far) + ' (' + Math.round(pct) + '%)') + '"></span>';
@@ -68,11 +57,12 @@ function shareBar(ov) {
   }).join('') + '</div></div>';
 }
 
-function alertsHtml(ov) {
-  if (!ov.alerts.length) return '<div class="empty ok">' + status('green') + '<div><b>Nothing to flag</b><div class="small muted">Every character is running normally.</div></div></div>';
+function alertsHtml(ov, visible) {
+  var alerts = ov.alerts.filter(function (a) { return visible(a.id); });
+  if (!alerts.length) return '<div class="empty ok">' + status('green') + '<div><b>Nothing to flag</b><div class="small muted">Every character is running normally.</div></div></div>';
   var groups = [['red', 'Problems'], ['amber', 'Needs a look']];
   return groups.map(function (g) {
-    var list = ov.alerts.filter(function (a) { return a.level === g[0]; });
+    var list = alerts.filter(function (a) { return a.level === g[0]; });
     if (!list.length) return '';
     return '<div class="ag"><h3 class="ag-head">' + status(g[0]) + '<span>' + g[1] + '</span><span class="count"><span class="sr">(</span>' + list.length + '<span class="sr">)</span></span></h3>' +
       list.map(function (a) {
@@ -81,7 +71,11 @@ function alertsHtml(ov) {
   }).join('');
 }
 
-export function overviewHtml(ov, chars, pinned, width) {
+// opts: { hidden: [ids], daily: buildDaily for the shown characters }
+export function overviewHtml(ov, chars, pinned, width, opts) {
+  opts = opts || {};
+  var hidden = opts.hidden || [];
+  var visible = function (id) { return hidden.indexOf(id) < 0; };
   if (!ov.characters.length) {
     return '<div class="card empty big">' + icon('pulse', 'empty-ic') + '<h3>No characters with data in the last day</h3><p class="muted">Run analytics.lic while you hunt and they will show up here.</p></div>';
   }
@@ -103,7 +97,7 @@ export function overviewHtml(ov, chars, pinned, width) {
   var hero = '<div class="kpi-row"><div class="card hero">' +
       '<div class="hero-top"><span class="kpi-ic big">' + icon('coins') + '</span><div><div class="eyebrow">Silver today</div><div class="small muted">all characters</div></div></div>' +
       '<div class="hero-fig">' + short(silver) + '</div>' +
-      '<div class="hero-sub"><b>' + short(silver / hours) + '</b> per hour since midnight</div>' + shareBar(ov) +
+      '<div class="hero-sub"><b>' + short(silver / hours) + '</b> per hour since midnight</div>' + shareBar(ov, visible) +
     '</div><div class="kpi-grid">' +
       kpi('spark', 'Experience', short(exp), short(exp / hours) + ' / hr') +
       kpi('scroll', 'Bounties', num(sum(function (c) { return c.pace.bounties.so_far; })), 'completed') +
@@ -120,10 +114,17 @@ export function overviewHtml(ov, chars, pinned, width) {
   }).join('');
 
   return top + hero +
-    '<section><div class="sec-head"><h2>Characters</h2><span class="note">Star a character to keep it first</span></div>' +
-      '<div class="grid g-cards">' + chars.map(function (c) { return card(c, ov, pinned(c.id)); }).join('') + '</div></section>' +
-    '<section class="card">' + head('Activity today', 'Hover a stretch for its times') + timeline(chars, ov.day_start, 'ov', width) + '</section>' +
-    '<section class="card">' + head('Alerts', ov.alerts.length ? plural(ov.alerts.length, 'item') : '') + '<div class="alerts">' + alertsHtml(ov) + '</div></section>' +
+    '<section><div class="sec-head"><h2>Characters</h2><span class="note">Star a character to keep it first</span>' +
+      (hidden.length ? '<span class="note">' + plural(hidden.length, 'hidden character') + ' &middot; <button type="button" class="link-btn" data-unhide-all>Show ' +
+        (hidden.length === 1 ? 'it' : 'them') + '</button></span>' : '') + '</div>' +
+      (chars.length ? '<div class="grid g-cards">' + chars.map(function (c) { return card(c, ov, pinned(c.id)); }).join('') + '</div>'
+        : '<div class="card empty">Every character is hidden. <button type="button" class="link-btn" data-unhide-all>Show them</button></div>') + '</section>' +
+    (chars.length ? '<section class="card">' + head('Activity today', 'Hover a stretch for its times') + timeline(chars, ov.day_start, 'ov', width) + '</section>' : '') +
+    (opts.daily ? '<section class="card">' + head('Experience by day', 'last ' + opts.daily.labels.length + ' days' + (hidden.length ? ', shown characters' : ', every character')) +
+      barChart('ov-daily', opts.daily.labels, [{ name: 'Experience', color: '--k1', values: opts.daily.labels.map(function (_, i) {
+        return chars.reduce(function (a, c) { var s = opts.daily.series[c.id]; return a + (s ? s.exp[i] : 0); }, 0); }) }], short, width, 'Experience by day, all shown characters') + '</section>' : '') +
+    '<section class="card">' + head('Alerts', ov.alerts.filter(function (a) { return visible(a.id); }).length ? plural(ov.alerts.filter(function (a) { return visible(a.id); }).length, 'item') : '') +
+      '<div class="alerts">' + alertsHtml(ov, visible) + '</div></section>' +
     '<section>' +
       '<div class="card">' + head('Side by side', 'today') + scroll('Side by side, today') + '<table><thead><tr><th>Character</th><th>Silver</th><th>Exp</th><th>Bounties</th>' +
       '<th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th><th>Crashes</th><th title="Rests for the item limit">Items</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
@@ -131,17 +132,10 @@ export function overviewHtml(ov, chars, pinned, width) {
 }
 
 // ---------------- one character ----------------
-function statusTag(s) {
-  var cls = s === 'completed' ? 't-ok' : (s === 'active' || s === 'open') ? 't-live' : 't-off';
-  return '<span class="tag ' + cls + '"><i></i>' + esc(s) + '</span>';
-}
-function tile(ic, lab, val, sub, extra, cls) {
-  return '<div class="tile' + (cls ? ' ' + cls : '') + '"><div class="tile-lab">' + icon(ic) + '<span>' + lab + '</span></div><div class="stat-val">' + val + '</div>' +
-    (sub ? '<div class="stat-sub">' + sub + '</div>' : '') + (extra || '') + '</div>';
-}
-function unit(s) { return '<span class="unit">' + s + '</span>'; }
 
-export function detailHtml(c, range, width) {
+// section: one of SECTIONS; data: that page's figures; filter: the history filter
+export function detailHtml(c, range, width, section, data, filter) {
+  section = section || 'summary';
   var t = c.trend, rs = c.range_stats, b = c.bounty, mind = c.mind, enc = c.encumbrance;
   var tabs = Object.keys(c.ranges).map(function (k) {
     return '<button type="button" data-r="' + k + '" class="' + (k === range ? 'on' : '') + '" aria-pressed="' + (k === range) + '">' + esc(c.ranges[k]) + '</button>'; }).join('');
@@ -151,7 +145,21 @@ export function detailHtml(c, range, width) {
 
   var sub = '<div class="subbar no-export"><button type="button" id="back" class="back">' + icon('back') + '<span>Overview</span></button>' +
     '<span class="sb-sep">/</span><span class="sb-name">' + nameHtml(c.name) + '</span><span class="spacer"></span>' +
-    '<div class="tabs" id="tabs" role="group" aria-label="Range">' + tabs + '</div></div>';
+    (section === 'progress' ? '<span class="small muted">Pace from the last 7 days</span>' : '<div class="tabs" id="tabs" role="group" aria-label="Range">' + tabs + '</div>') + '</div>' +
+    '<nav class="sub-nav no-export" aria-label="' + esc(shown(c.name)) + ' pages"><ul>' + Object.keys(SECTION_NAMES).map(function (k) {
+      return '<li><a href="' + hrefFor(c.id, k) + '" data-who="' + esc(c.id) + '" data-sec="' + k + '"' + (k === section ? ' aria-current="page" class="on"' : '') + '>' +
+        icon(sectionIcon(k)) + '<span>' + SECTION_NAMES[k] + '</span></a></li>';
+    }).join('') + '</ul></nav>';
+  if (section !== 'summary') {
+    var slim = '<div class="card profile slim lv-' + esc(c.light.level) + '"><div class="profile-top">' + avatar(c) +
+      '<div class="profile-id"><h1 class="ch-name" tabindex="-1">' + nameHtml(c.name) + ' <span class="page-of">' + SECTION_NAMES[section] + '</span></h1>' +
+      '<div class="ch-meta">' + stateHtml(c.state) + (c.state.profile ? '<span class="tag">' + icon('map') + esc(c.state.profile) + '</span>' : '') + '</div></div>' +
+      '<div class="health-mini">' + status(c.light.level) + '<span>' + light[1] + '</span></div></div></div>';
+    var body = !data ? '<div class="card empty">Nothing to show.</div>'
+      : section === 'income' ? incomeHtml(data) : section === 'hunting' ? huntingHtml(data) : section === 'bounties' ? bountiesHtml(data)
+      : section === 'progress' ? progressHtml(data, width) : historyHtml(data, filter || { type: 'all', q: '' });
+    return sub + slim + '<div class="section-body">' + body + '</div>';
+  }
 
   var profile = '<div class="card profile lv-' + esc(c.light.level) + '">' +
       '<div class="profile-top">' + avatar(c, 'big') +
@@ -226,13 +234,21 @@ export function detailHtml(c, range, width) {
     '<section class="card">' + head('Task offers', esc(c.label) + ' ' + DOT + ' removed in bold') + offers + '</section>';
 }
 
-// The sidebar's list of characters
-export function navHtml(ov, chars, who) {
-  return chars.map(function (c) {
+// The sidebar's list of characters; hidden ones go in a group of their own
+export function navHtml(ov, chars, who, hidden, hiddenOpen) {
+  hidden = hidden || [];
+  var link = function (c) {
     var on = c.id === who, lv = c.light.level;
     return '<a class="nav-ch' + (on ? ' on' : '') + '" data-who="' + esc(c.id) + '" href="' + hrefFor(c.id) + '"' + (on ? ' aria-current="page"' : '') + '>' +
       avatar(c, 'sm') + '<span class="nav-txt"><span class="nav-name">' + esc(shown(c.name)) + '</span>' +
       '<span class="nav-sub">' + esc(({ hunt: 'Hunting', rest: 'Resting', idle: 'Idle', dead: 'Dead', offline: 'Offline' })[c.state.type] || c.state.type) + ' ' + DOT + ' ' + short(c.pace.silver.so_far) + '</span></span>' +
       (lv === 'red' || lv === 'amber' ? status(lv, 'nav-flag') : '') + '</a>';
-  }).join('');
+  };
+  var shownChars = chars.filter(function (c) { return hidden.indexOf(c.id) < 0; });
+  var hid = chars.filter(function (c) { return hidden.indexOf(c.id) >= 0; });
+  return shownChars.map(link).join('') + (hid.length ? '<details class="nav-hidden"' + (hiddenOpen ? ' open' : '') + '><summary>' + icon('eyeoff') +
+    '<span>Hidden</span><span class="count">' + hid.length + '</span></summary>' + hid.map(function (c) {
+      return '<div class="nav-row">' + link(c) + '<button type="button" class="icon-btn sm" data-unhide="' + esc(c.id) + '" title="Show on the overview" aria-label="Show ' +
+        esc(shown(c.name)) + ' on the overview">' + icon('eye') + '</button></div>';
+    }).join('') + '</details>' : '');
 }

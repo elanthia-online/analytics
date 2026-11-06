@@ -63,6 +63,11 @@ verification.
   links (`hrefFor`), so a keyboard reaches them and Ctrl+click opens a new tab; status
   icons carry `role="img"` and a label; every chart has a data table; nothing moves for
   more than five seconds.
+- **New figures are tested against independent queries.** The detail pages
+  (`site/js/aggregate/details.js`) have no Ruby golden output; `test/details.test.js` checks
+  each against a direct SQL query of the fixture, or against a small database built in the
+  test (the post-cap character). Every table and column they read is optional, so an older
+  database shows an empty section rather than an error.
 - **The sample data is the fixture.** `site/demo/sample.db` is a byte copy of
   `test/fixtures/afternoon.db` (`test/demo.test.js` checks it). Regenerate both together.
   The demo is never remembered as a reader's source, and the page labels it on every view.

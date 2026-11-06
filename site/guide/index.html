@@ -166,8 +166,20 @@
           <a href="../?demo">https://analytics.elanthia.online/?demo</a>. The characters are made up, and their day is moved to today.
           A banner says it's sample data, and the page doesn't remember it: next time you open the site, it asks for your own data again.</p>
 
+        <h4>A character's pages</h4>
+        <p>Open a character and the tabs under its name go deeper. Each has its own address, so you can bookmark or share one, and the range tabs (Today, This Week, This Month) apply wherever they make sense.</p>
+        <ul>
+          <li><b>Summary</b>: right now, performance and trends, rests, bounties and hunting grounds.</li>
+          <li><b>Income</b>: silver by where it came from (coins on creatures, gems, skins, the pawnshop, boxes, bounty rewards), what was spent and on what, the best-selling items, and each shop, bank and locksmith stop with its time and silver a minute, by town too.</li>
+          <li><b>Hunting</b>: every creature: kills, silver a kill, boxes per 100 kills, the profile and the last kill.</li>
+          <li><b>Bounties</b>: by type: how many taken and done, success, average time, and silver, exp and bounty points each; and how task offers ended.</li>
+          <li><b>Progress</b>: level (or training points past the cap) and ascension points with ETAs at your recent pace, experience by day split into regular and ascension, unspent training points, fame, deeds, Lumnis and Death's Sting with how long each lasted.</li>
+          <li><b>History</b>: every hunt, rest, death and idle stretch, newest first, with a filter and a search.</li>
+        </ul>
+
         <h4>Finding your way around</h4>
         <ul>
+          <li><b>Hide</b> a character you don't want on the overview (an alt you've parked) with the crossed-out eye on its card. Its figures leave the overview's totals; it stays in the sidebar under <i>Hidden</i>, where the eye brings it back.</li>
           <li>The <b>sidebar</b> lists your characters, with what each is doing, its silver today, and a red or amber mark when something needs a look.
             On a phone it opens from the menu button at the top left.</li>
           <li><b>Star</b> a character on its card to keep it first everywhere. Stars are saved in this browser.</li>
@@ -214,6 +226,7 @@
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
             <tr><td><code>parse_sales</code></td><td><code>true</code></td><td>Record vendor sales (including promissory notes, gem pouches and containers) and spending at the locksmith, the locksmith pool and the priestess, so your selling scripts need no changes.</td></tr>
+            <tr><td><code>track_shops</code></td><td><code>true</code></td><td>Record each stop at a gem shop, pawnshop, furrier, alchemist, consignment, herbalist, general store, locksmith, locksmith pool, bank, chronomage or debt collector, from the map's room tags, with the time spent and the silver made and spent there. Turn it off if your selling script reports its own visits through the <a href="#hooks">hooks</a>.</td></tr>
             <tr><td><code>parse_bank</code></td><td><code>true</code></td><td>Record <code>BANK ACCOUNT</code> listings, and move the tracked total by every deposit, withdrawal and note. With no total yet, one <code>BANK ACCOUNT</code> is sent quietly a few seconds after starting.</td></tr>
           </tbody>
         </table></div>
@@ -281,7 +294,8 @@ dashboard:
         <div class="scroll" tabindex="0" role="region" aria-label="What is recorded"><table class="ref">
           <thead><tr><th>Table</th><th>Holds</th></tr></thead>
           <tbody>
-            <tr><td><code>cycles</code></td><td>Each hunt, rest, dead and idle stretch: start, end, reason, profile, exp, fame, mind and encumbrance at both ends.</td></tr>
+            <tr><td><code>cycles</code></td><td>Each hunt, rest, dead and idle stretch: start, end, reason, profile, exp (the total, and regular and ascension apart), fame, mind and encumbrance at both ends.</td></tr>
+            <tr><td><code>progress</code></td><td>Where each character stands: level, regular and ascension exp, exp to the next level or training point, fame, deeds, long-term exp, Death's Sting, unspent PTPs, MTPs and ATPs, and whether Lumnis, RPA or Fash'lo'nae is on. A row when something changes, experience at most every 5 minutes, and at least hourly. Read from what Lich already knows; no command is sent. Unspent training points come from <code>EXPERIENCE</code> output when anything (you or a script) types it.</td></tr>
             <tr><td><code>rest_steps</code></td><td>Time per rest step.</td></tr>
             <tr><td><code>kill_stats</code></td><td>Kills, corpse silver and boxes, per character, day, profile and creature.</td></tr>
             <tr><td><code>bounties</code></td><td>Bounties you worked: type, target, area, count done of required, outcome, rewards.</td></tr>
@@ -289,10 +303,10 @@ dashboard:
             <tr><td><code>bank_snapshots</code></td><td>Bank listings and teller moves, with the tracked total.</td></tr>
             <tr><td><code>silver_events</code>, <code>item_sales</code></td><td>Box silver, sales, bounty silver and spending; each item sold.</td></tr>
             <tr><td><code>logins</code></td><td>Each game login: when Lich connected, and when the script last ran in it.</td></tr>
-            <tr><td><code>vendor_visits</code></td><td>Only filled by your own scripts through the <a href="#hooks">hooks</a>.</td></tr>
+            <tr><td><code>vendor_visits</code></td><td>Each stop at a shop, the bank or a locksmith: how long, the silver made and spent there, the room and the town. Recorded by itself from the map's room tags (the same tags <code>go2</code> and <code>eloot</code> travel by), so it works with any selling script. See <code>track_shops</code>.</td></tr>
           </tbody>
         </table></div>
-        <p>The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
+        <p>This is schema 8. The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
           You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
       </section>
 
@@ -315,7 +329,7 @@ dashboard:
 <pre tabindex="0"><code>if defined?(GS4Analytics::SilverManager)
   GS4Analytics::SilverManager.take_snapshot          # a bank listing now
   GS4Analytics::SilverManager.record_vendor_silver(amount, vendor_type, vendor_name = nil)  # only with parse_sales: false
-  GS4Analytics::SilverManager.record_vendor_visit(vendor, start_time, end_time, silver)
+  GS4Analytics::SilverManager.record_vendor_visit(vendor, start_time, end_time, silver)  # only with track_shops: false
 end</code></pre>
         <p>While <code>parse_sales</code> is on, <code>record_vendor_silver</code> is ignored so a sale isn't counted twice.</p>
       </section>

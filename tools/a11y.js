@@ -39,6 +39,17 @@ const VIEWS = [
   ['chart data tables open', `${live}#GS4%3ASplinter`, '#tabs', async (page) => {
     for (const d of await page.$$('details.chart-table')) await d.evaluate((el) => { el.open = true; });
   }],
+  ['character income', `${live}#GS4%3ASplinter/income`, '#detail .brows'],
+  ['character hunting', `${live}#GS4%3ASplinter/hunting`, '#detail .brows'],
+  ['character bounties', `${live}#GS4%3ASplinter/bounties`, '#detail .kpi-grid'],
+  ['character progress', `${live}#GS4%3ASplinter/progress`, '#detail .prog', async (page) => {
+    for (const d of await page.$$('details.chart-table')) await d.evaluate((el) => { el.open = true; });
+  }],
+  ['character history, filtered', `${live}#GS4%3ASplinter/history`, '#histBody tr', async (page) => { await page.fill('#histQ', 'crags'); }],
+  ['overview with a character hidden', live, '.card[data-who]', async (page) => {
+    await page.click('.card[data-who="GS3:Bebop"] [data-hide]');
+    await page.click('.nav-hidden summary');
+  }],
   ['sample data', '/?demo', '#banner:not([hidden])'],
   ['choosing another source', '/?demo', '#banner:not([hidden])', async (page) => { await page.click('#bannerConnect'); }],
   ['unreachable source', '/?live=1', '#sourceError:not([hidden])'],
@@ -48,6 +59,8 @@ const PHONE_VIEWS = [
   ['phone overview', live, '.card[data-who]'],
   ['phone menu open', live, '.card[data-who]', async (page) => { await page.click('#menuBtn'); await page.waitForTimeout(400); }],
   ['phone character', `${live}#GS4%3ASplinter`, '#tabs'],
+  ['phone income', `${live}#GS4%3ASplinter/income`, '#detail .brows'],
+  ['phone history', `${live}#GS4%3ASplinter/history`, '#histBody tr'],
 ];
 const THEMES = [
   ['light', { colorScheme: 'light' }, {}],

@@ -2,6 +2,40 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: Detail pages for each character, and schema 8
+
+**Decision.**
+- **Character sub-pages.** A character has six pages, each with its own address
+  (`#GS4%3AName/income`): Summary (the page as it was), Income, Hunting, Bounties, Progress
+  and History.
+  - They are real links with `aria-current`, so they can be bookmarked, Ctrl+clicked into a
+    new tab, and followed by Back and Forward (navigation now pushes a history entry).
+  - The range tabs apply to every page except Progress, which uses its own 7-day pace.
+- **Progression from Lich's state (schema 8).** It comes from Rysk's `exphistory.lic`, but
+  without a command: the `progress` table holds level, regular and ascension experience,
+  training points, Death's Sting and Lumnis. The Lumnis cycle end, skill and ascension goals,
+  and targets went to the roadmap.
+- **Shop stops** are recorded by the script from the map's room tags, so eloot users get them
+  with no change to eloot.
+- **Hide a character.** Its card, its share of the totals and its alerts leave the overview,
+  and it stays reachable from the sidebar's Hidden group.
+- **The overview** gains experience by day for 28 days.
+
+**Why sub-pages, not an "advanced" toggle.** A toggle would double the summary's length, and
+on a phone it would bury today's view. Separate pages keep each one scannable, give screen
+readers a clean heading structure, and can be linked to.
+
+**Why no chart library.** Rysk's report loads Chart.js from a CDN. The CSP forbids that, and
+vendoring it would add a 200 KB dependency that needs its own theming, high-contrast and
+accessibility work. The charts here are small SVG builders that already have all of that,
+so the new pages add two more of them (bars by day, labelled bars) instead.
+
+**Rejected.**
+- Refreshing a page while the reader types in its filter. The History filter redraws only
+  its table, and `write()` puts focus and the caret back after a live refresh.
+- Showing per-cycle fame and silver columns when no row has them. They appear only when
+  the data does.
+
 ## 2026-11-06: Accessibility pass, and a high-contrast mode
 
 **Decision.**

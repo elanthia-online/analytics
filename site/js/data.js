@@ -11,7 +11,7 @@
 import { Conn } from './db.js';
 import { readLive, applyWal } from './wal.js';
 import { shiftTimes, sameTimeToday } from './shift.js';
-import { buildOverview, buildCharacter, KNOWN_SCHEMAS } from './aggregate/index.js';
+import { buildOverview, buildCharacter, KNOWN_SCHEMAS, buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress } from './aggregate/index.js';
 
 export const DB_NAME = 'analytics.db';
 export const API_VERSION = 1;
@@ -233,6 +233,20 @@ export class Dashboard {
 
   character(who, range) {
     return this.memo(`char|${who}|${range}`, (now) => buildCharacter(this.conn, this.overview(), who, range, { now }));
+  }
+
+  // One of a character's detail pages (aggregate/details.js)
+  details(who, section, range) {
+    if (section === 'progress') {
+      return this.memo(`progress|${who}`, (now) => ({ progress: buildProgress(this.conn, who, { now }), daily: buildDaily(this.conn, [who], { now }) }));
+    }
+    const build = { income: buildIncome, hunting: buildHunting, bounties: buildBounties, history: buildHistory }[section];
+    return build ? this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now })) : null;
+  }
+
+  // Experience by day for the last four weeks, per character
+  daily(ids) {
+    return this.memo(`daily|${ids.join(',')}`, (now) => buildDaily(this.conn, ids, { now }));
   }
 }
 

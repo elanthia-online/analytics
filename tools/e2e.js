@@ -149,6 +149,50 @@ try {
     'contrast: the guide follows the same choice');
   await sysMore.close();
 
+  // ---- a character's pages, and hiding characters ------------------------
+  const pages = await browser.newContext({ viewport: { width: 1320, height: 900 } });
+  const pg = await pages.newPage();
+  const pgProblems = [];
+  pg.on('pageerror', (e) => pgProblems.push(e.message));
+  pg.on('console', (m) => { if (m.type() === 'error') pgProblems.push(m.text()); });
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#GS4%3ASplinter`);
+  await pg.waitForSelector('.sub-nav');
+  for (const [sec, ready] of [['income', '.brows'], ['hunting', '.brows'], ['bounties', '.kpi-grid'], ['progress', '.prog'], ['history', '#histBody tr']]) {
+    await pg.click(`.sub-nav a[data-sec="${sec}"]`);
+    await pg.waitForSelector(`#detail ${ready}`, { timeout: 10_000 });
+    const ok = (await pg.evaluate(() => location.hash)) === `#GS4%3ASplinter/${sec}` &&
+      (await pg.getAttribute(`.sub-nav a[data-sec="${sec}"]`, 'aria-current')) === 'page' &&
+      (await pg.evaluate(() => document.activeElement?.matches('#detail h1')));
+    check(ok, `pages: ${sec} opens with its own address, marked current, focus on its heading`);
+  }
+  await pg.click('.sub-nav a[data-sec="income"]');
+  await pg.waitForSelector('#detail .brows');
+  const today = await pg.textContent('#detail .kpi .stat-sub');
+  await pg.click('#tabs button[data-r="monthly"]');
+  await pg.waitForFunction(() => document.querySelector('#detail .kpi .stat-sub')?.textContent === 'This Month');
+  check(true, `pages: the range tabs apply to them (${today} -> This Month)`);
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#GS4%3ASplinter/history`);
+  await pg.waitForSelector('#histBody tr');
+  const allRows = await pg.$$eval('#histBody tr', (r) => r.length);
+  await pg.fill('#histQ', 'encumbered');
+  const some = await pg.$$eval('#histBody tr', (r) => r.length);
+  await pg.waitForTimeout(6000); // a live refresh in between
+  check(some < allRows && (await pg.evaluate(() => document.activeElement?.id)) === 'histQ' && (await pg.inputValue('#histQ')) === 'encumbered',
+    `history: the filter narrows the rows (${allRows} -> ${some}) and keeps focus and text through a live refresh`);
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
+  await pg.waitForSelector('.card[data-who]');
+  await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');
+  await pg.waitForFunction(() => !document.querySelector('.card[data-who="GS3:Bebop"]'));
+  check((await pg.$$('.nav-hidden .nav-ch[data-who="GS3:Bebop"]')).length === 1, 'hide: the card leaves the overview and the menu keeps it under Hidden');
+  await pg.reload();
+  await pg.waitForSelector('.card[data-who]');
+  check(!(await pg.$('.card[data-who="GS3:Bebop"]')), 'hide: remembered after a reload');
+  await pg.click('[data-unhide-all]');
+  await pg.waitForSelector('.card[data-who="GS3:Bebop"]');
+  check(await pg.evaluate(() => localStorage.getItem('gs4a-hidden')) === null, 'hide: Show them brings everyone back');
+  check(pgProblems.length === 0, `pages: no console errors${pgProblems.length ? `: ${pgProblems.join(' | ')}` : ''}`);
+  await pages.close();
+
   // ---- a phone ---------------------------------------------------------
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const phonePage = await phone.newPage();
@@ -165,9 +209,10 @@ try {
   check(await phonePage.isHidden('.side') || (await phonePage.$eval('.side', (el) => el.getBoundingClientRect().right <= 0)), 'phone: the sidebar starts closed');
   check(await phonePage.$eval('.side', (el) => getComputedStyle(el).visibility === 'hidden'), 'phone: the closed menu cannot be reached with Tab');
   await phonePage.click('#menuBtn');
-  await phonePage.waitForFunction(() => document.querySelector('.app').classList.contains('open'));
-  await phonePage.waitForTimeout(350);
-  check(await phonePage.$eval('.side', (el) => el.getBoundingClientRect().left >= 0), 'phone: the menu button opens the drawer');
+  // Waits for the slide to finish rather than a fixed time, which a busy machine can outlast
+  const opened = await phonePage.waitForFunction(() => document.querySelector('.app').classList.contains('open') &&
+    document.querySelector('.side').getBoundingClientRect().left >= 0, null, { timeout: 5000 }).then(() => true, () => false);
+  check(opened, 'phone: the menu button opens the drawer');
   check(await phonePage.$eval('.main', (el) => el.inert), 'phone: while it is open, the page behind it is inert');
   await phonePage.keyboard.press('Escape');
   check(!(await phonePage.$eval('.app', (el) => el.classList.contains('open'))) && await phonePage.isHidden('#scrim'), 'phone: Escape closes it');
