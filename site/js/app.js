@@ -6,6 +6,7 @@ import { Dashboard, LiveSource, FolderSource, FileSource, DemoSource, rememberSo
 import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml } from './ui/util.js';
 import { overviewHtml, detailHtml, navHtml } from './ui/views.js';
 import { icon, hydrate } from './ui/icons.js';
+import { nowMarkers } from './ui/charts.js';
 import { exportImage } from './ui/export.js';
 
 hydrate();
@@ -161,6 +162,7 @@ document.addEventListener('mousemove', function (e) {
 
 // ---------------- timers and status ----------------
 function tick() {
+  nowMarkers();
   Array.prototype.forEach.call(document.querySelectorAll('.timer'), function (el) {
     var s = el.getAttribute('data-since'), off = el.getAttribute('data-type') === 'offline';
     var secs = s ? nowSrv() - Number(s) : 0;
@@ -230,6 +232,12 @@ function connect(source) {
   return loadOverview().then(function () {
     if (!ov) { setHtml($('overview'), ''); show(); return; }
     rememberSource(source); show(); loadDetail();
+    // A shared ?demo link must not win over the reader's own source on the next visit
+    if (source.kind !== 'demo' && params.has('demo')) {
+      params.delete('demo');
+      var q = params.toString();
+      history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+    }
     $('footText').textContent = source.kind === 'demo' ? 'Sample data, made-up characters' :
       source.live ? 'Updates every 5 seconds ' + DOT + ' Read only ' + DOT + ' ' + source.label : 'Snapshot of ' + source.label + ' ' + DOT + ' Read only';
   });

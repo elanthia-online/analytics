@@ -92,9 +92,9 @@ try {
     let n = 0;
     const watch = new MutationObserver(() => { n++; });
     watch.observe(document.getElementById('detail'), { childList: true });
-    setTimeout(() => { watch.disconnect(); resolve(n); }, 11_000);
+    setTimeout(() => { watch.disconnect(); resolve(n); }, 16_000);
   }));
-  check(rewrites === 0, `live: refreshes with nothing new leave the page alone (${rewrites} rewrites in two refreshes)`);
+  check(rewrites === 0, `live: refreshes with nothing new leave the page alone (${rewrites} rewrites in three refreshes)`);
   check(problems.length === 0, `live: no console errors or CSP violations${problems.length ? `: ${problems.join(' | ')}` : ''}`);
   await context.close();
 
@@ -149,6 +149,17 @@ try {
   await demo.reload();
   await demo.waitForSelector('#source:not([hidden])');
   check(await demo.isHidden('#banner'), 'demo: never remembered as the reader\'s own source');
+  // A shared ?demo link, then the reader's own data: their source wins on the next visit
+  await demo.goto(`http://localhost:${SITE_PORT}/?demo`);
+  await demo.waitForSelector('#banner:not([hidden])', { timeout: 15_000 });
+  await demo.click('#bannerConnect');
+  await demo.fill('#port', String(API_PORT));
+  await demo.click('#liveForm button[type="submit"]');
+  await demo.waitForFunction(() => /^Live/.test(document.querySelector('#statusText').textContent), null, { timeout: 15_000 });
+  await demo.reload();
+  await demo.waitForFunction(() => /^Live/.test(document.querySelector('#statusText').textContent), null, { timeout: 15_000 });
+  check(await demo.isHidden('#banner') && !/demo/.test(await demo.evaluate(() => location.search)),
+    'demo: after ?demo, connecting your own data drops ?demo, so a reload opens your data');
   check(demoProblems.length === 0, `demo: no console errors${demoProblems.length ? `: ${demoProblems.join(' | ')}` : ''}`);
   await demoContext.close();
 

@@ -16,7 +16,7 @@ export function timeline(chars, dayStart, idp, width) {
   var longest = Math.max.apply(null, chars.map(function (c) { return shown(c.name).length; }).concat([0]));
   var W = Math.round(Math.min(1400, Math.max(300, width || 1000)));
   var rowH = 34, barH = 18, L = multi ? Math.min(Math.round(W * 0.3), Math.max(70, Math.round(longest * 7.5 + 20))) : 0, R = 4, top = 6, n = chars.length, H = top + n * rowH + 22;
-  var span = 86400, now = nowSrv();
+  var span = 86400;
   function x(t) { return L + (W - L - R) * Math.min(Math.max((t - dayStart) / span, 0), 1); }
   var svg = '';
   var every = W < 560 ? 6 : 3;
@@ -37,10 +37,11 @@ export function timeline(chars, dayStart, idp, width) {
     });
     svg += '</g>';
   });
-  // Rounded so a refresh moves the marker only when it moves a visible amount
-  var nx = Math.round(x(now) * 2) / 2;
-  svg += '<line x1="' + nx + '" x2="' + nx + '" y1="' + (top - 4) + '" y2="' + (top + n * rowH) + '" stroke="var(--ink)" stroke-width="1.5"/>' +
-         '<circle cx="' + nx + '" cy="' + (top - 4) + '" r="3.5" fill="var(--ink)"/>';
+  // The now marker is placed by nowMarkers() every second, not drawn at a
+  // position here, so the same data always gives the same markup
+  svg += '<g class="nowmk" data-t0="' + dayStart + '" data-x0="' + L + '" data-x1="' + (W - R) + '">' +
+         '<line x1="0" x2="0" y1="' + (top - 4) + '" y2="' + (top + n * rowH) + '" stroke="var(--ink)" stroke-width="1.5"/>' +
+         '<circle cx="0" cy="' + (top - 4) + '" r="3.5" fill="var(--ink)"/></g>';
   var leg = ['hunt', 'rest', 'idle', 'dead'].map(function (k) {
     return '<span><i style="background:' + css(STATE_COL[k]) + '"></i>' + STATE_NAME[k] + '</span>'; }).join('') +
     '<span><i style="background:var(--st-none);box-shadow:inset 0 0 0 1px var(--line-2)"></i>No data</span>' +
@@ -50,17 +51,27 @@ export function timeline(chars, dayStart, idp, width) {
 
 // The day at a glance on a character card: the same stretches, no labels
 export function dayStrip(c, dayStart, idp) {
-  var W = 240, H = 8, now = nowSrv();
+  var W = 240, H = 8;
   function x(t) { return W * Math.min(Math.max((t - dayStart) / 86400, 0), 1); }
   var svg = '<rect width="' + W + '" height="' + H + '" rx="4" fill="var(--st-none)"/>';
   c.timeline.forEach(function (s) {
     svg += '<rect x="' + x(s[1]).toFixed(2) + '" width="' + Math.max(0.6, x(s[2]) - x(s[1])).toFixed(2) + '" height="' + H + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
   });
-  var clip = 'ds-' + idp, nx = (Math.round(x(now) * 2) / 2 - 0.75).toFixed(2);
+  var clip = 'ds-' + idp;
   return '<div class="strip"><svg viewBox="0 -2 ' + W + ' ' + (H + 4) + '" preserveAspectRatio="none" width="100%" height="12" role="img" aria-label="Today, midnight to midnight">' +
     '<clipPath id="' + clip + '"><rect width="' + W + '" height="' + H + '" rx="4"/></clipPath><g clip-path="url(#' + clip + ')">' + svg + '</g>' +
-    '<rect x="' + nx + '" width="1.5" y="-2" height="' + (H + 4) + '" rx=".75" fill="var(--ink)"/></svg>' +
+    '<g class="nowmk" data-t0="' + dayStart + '" data-x0="0" data-x1="' + W + '"><rect x="-.75" width="1.5" y="-2" height="' + (H + 4) + '" rx=".75" fill="var(--ink)"/></g></svg>' +
     '<div class="strip-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div>';
+}
+
+// Moves every now marker to the current time (called each second, and after a redraw)
+export function nowMarkers(root) {
+  var now = nowSrv();
+  Array.prototype.forEach.call((root || document).querySelectorAll('.nowmk'), function (g) {
+    var t0 = Number(g.getAttribute('data-t0')), x0 = Number(g.getAttribute('data-x0')), x1 = Number(g.getAttribute('data-x1'));
+    var x = x0 + (x1 - x0) * Math.min(Math.max((now - t0) / 86400, 0), 1);
+    g.setAttribute('transform', 'translate(' + x.toFixed(2) + ' 0)');
+  });
 }
 
 // ---------------- trend charts ----------------
