@@ -235,13 +235,21 @@ export class Dashboard {
     return this.memo(`char|${who}|${range}`, (now) => buildCharacter(this.conn, this.overview(), who, range, { now }));
   }
 
-  // One of a character's detail pages (aggregate/details.js)
+  // One of a character's detail pages (aggregate/details.js). The section
+  // comes from the URL, so it is matched against the known pages one by one,
+  // never used to look a function up: a name like "constructor" would find one.
   details(who, section, range) {
-    if (section === 'progress') {
-      return this.memo(`progress|${who}`, (now) => ({ progress: buildProgress(this.conn, who, { now }), daily: buildDaily(this.conn, [who], { now }) }));
+    let build;
+    switch (section) {
+      case 'progress':
+        return this.memo(`progress|${who}`, (now) => ({ progress: buildProgress(this.conn, who, { now }), daily: buildDaily(this.conn, [who], { now }) }));
+      case 'income': build = buildIncome; break;
+      case 'hunting': build = buildHunting; break;
+      case 'bounties': build = buildBounties; break;
+      case 'history': build = buildHistory; break;
+      default: return null;
     }
-    const build = { income: buildIncome, hunting: buildHunting, bounties: buildBounties, history: buildHistory }[section];
-    return build ? this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now })) : null;
+    return this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now }));
   }
 
   // Experience by day for the last four weeks, per character
