@@ -50,7 +50,7 @@ timestamps. Schema 7 dropped the `sessions` table (one row per character per day
 - Booleans (`bounty_offers.expedited`) are stored by Sequel as `1`/`0`. `'t'`/`'1'` are
   accepted too.
 
-### The character detail pages (`site/js/aggregate/details.js`)
+### The character detail pages and Compare (`site/js/aggregate/details.js`)
 
 New figures, not ports of the Ruby dashboard; `test/details.test.js` checks them against
 independent queries. Every table and column here is optional: an older database shows an
@@ -63,6 +63,6 @@ empty section, never an error.
 | `vendor_visits` | `vendor` (the room tag), `start_time`, `duration_seconds`, `silver`, and from schema 8 `spent`, `town` | Income: shops and stops, by town |
 | `kill_stats` | `creature`, `kill_count`, `total_silver`, `boxes`, `profile`, `last_kill_at`, `date` | Hunting; Income's coins on creatures |
 | `bounties` | `bp_reward` as well as the columns above | Bounties: points each and an hour |
-| `bank_snapshots` | `cycle_id` | History: silver per cycle |
+| `bank_snapshots` | `cycle_id`; and `snapshot_type`, `balance`, `delta_silver` on `'__total__'` rows that aren't `deposit` or `withdraw` | History: silver per cycle; Income's bank checks (a listing's `delta_silver` is how far it was from the tracked total) |
 | `progress` (schema 8) | `timestamp`, `level`, `exp`, `ascension_exp`, `fame`, `deeds`, `long_term_exp`, `deaths_sting`, `ptp`, `mtp`, `atp`, `lumnis`, `rpa` | Progress: level or training points, ascension points, pace and ETAs, Death's Sting stretches, Lumnis share |
 

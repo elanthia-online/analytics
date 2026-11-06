@@ -66,6 +66,12 @@ API. Click one for the whole page. `npm run screenshots` regenerates them.
   </tr>
   <tr>
     <td colspan="2" valign="top">
+      <a href="docs/images/compare.png"><img src="docs/images/compare-preview.png" width="100%" alt="The Compare page for the week: each character's income, shop stops with silver a minute, creatures and bounty types in sortable tables"></a>
+      <br><b>Compare</b>: every character side by side, from today to all time; sort any table by a column.
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
       <a href="docs/images/character-contrast.png"><img src="docs/images/character-contrast-preview.png" width="100%" alt="The character page in high contrast: black text, strong borders, and the activity bars textured as well as coloured"></a>
       <br><b>High contrast</b>: on from the sidebar, or by itself when your system asks for more contrast. Works with light and dark.
     </td>

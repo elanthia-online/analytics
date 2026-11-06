@@ -325,3 +325,82 @@ export function buildProgress(conn, id, { now }) {
   out.lumnis_share = total ? Math.round(withL * 100 / total) : null;
   return out;
 }
+
+// ---- longer ranges ------------------------------------------------------------
+
+// The detail and Compare pages take two more ranges than the summary
+export const DETAIL_RANGES = { daily: 'Today', weekly: 'This Week', monthly: 'This Month', ytd: 'This Year', total: 'All Time' };
+
+// ---- bank reconciliation --------------------------------------------------------
+
+// A BANK ACCOUNT listing stores how far its total was from the one tracked
+// through deposits and withdrawals (delta_silver). Nonzero means the banks
+// moved without a teller line being read: silver per hour counts it as
+// income or spending like any other change, so it is shown, not hidden.
+export function buildReconciliation(conn, id, range, { now }) {
+  const who = parseWho(id);
+  const { label, from } = window(range, now);
+  if (!hasColumn(conn, 'bank_snapshots', 'snapshot_type')) return { label, from, listings: 0, checks: [], off: 0 };
+  const rows = conn.all("SELECT timestamp, balance, delta_silver, snapshot_type FROM bank_snapshots WHERE game = ? AND character = ? " +
+    "AND bank_name = '__total__' AND snapshot_type NOT IN ('deposit', 'withdraw') AND timestamp >= ? AND timestamp <= ? " +
+    'ORDER BY timestamp DESC', ...who, from, now);
+  const checks = rows.filter((r) => r.delta_silver != null && toI(r.delta_silver) !== 0)
+    .map((r) => ({ at: toI(r.timestamp), balance: toI(r.balance), off: toI(r.delta_silver), type: r.snapshot_type }));
+  return { label, from, listings: rows.filter((r) => r.delta_silver != null).length, checks,
+    off: checks.reduce((a, c) => a + c.off, 0), apart: checks.reduce((a, c) => a + Math.abs(c.off), 0) };
+}
+
+// ---- comparing characters ---------------------------------------------------------
+
+// The per-character figures of Income, Hunting and Bounties, side by side.
+// Each list is flat (one row per character and thing) so tables can sort it.
+export function buildCompare(conn, ids, range, { now }) {
+  const { label, from } = window(range, now);
+  const out = { label, from, characters: ids.length, shops: [], towns: [], creatures: [], bounties: [], income: [] };
+  for (const id of ids) {
+    const inc = buildIncome(conn, id, range, { now });
+    const hunt = buildHunting(conn, id, range, { now });
+    const b = buildBounties(conn, id, range, { now });
+    if (inc.total_in || inc.total_out) {
+      out.income.push({ id, total_in: inc.total_in, total_out: inc.total_out, net: inc.net,
+        top: inc.sources.slice().sort((x, y) => y.amount - x.amount)[0]?.label || null });
+    }
+    for (const s of inc.shops) out.shops.push({ id, ...s });
+    for (const t of inc.towns) out.towns.push({ id, ...t });
+    for (const c of hunt.creatures) out.creatures.push({ id, ...c });
+    for (const t of b.types) out.bounties.push({ id, ...t });
+  }
+  return out;
+}
+
+// ---- targets --------------------------------------------------------------------
+
+// A target the reader set on the Progress page: { kind: 'level' | 'tp' | 'atp', value,
+// from }, from being the experience (ascension experience for 'atp') when it was set.
+// How far it is, the share covered since it was set, and when at the recent pace.
+// Pure maths on buildProgress.
+export function targetEta(p, target) {
+  if (!p || !p.available || !target) return null;
+  const value = Math.floor(Number(target.value));
+  if (!(value > 0)) return null;
+  let need, have, total, perDay, label;
+  if (target.kind === 'level') {
+    if (value > 100) return null;
+    label = `Level ${value}`;
+    total = EXP_FOR_LEVEL[value]; have = p.exp; need = total - have; perDay = p.pace?.exp_per_day;
+  } else if (target.kind === 'tp') {
+    label = `${value} training points past the cap`;
+    total = CAP_EXP + value * EXP_PER_TP; have = p.exp; need = total - have; perDay = p.pace?.exp_per_day;
+  } else if (target.kind === 'atp') {
+    label = `${value} ascension points`;
+    total = value * ASC_PER_ATP; have = p.ascension_exp; need = total - have; perDay = p.pace?.asc_per_day;
+  } else return null;
+  const reached = need <= 0;
+  // Without a starting point (an older saved target), count from the current level, the cap, or zero
+  const base = Number.isFinite(Number(target.from)) && Number(target.from) < total ? Number(target.from)
+    : target.kind === 'level' ? EXP_FOR_LEVEL[Math.min(p.level, value - 1)] : target.kind === 'tp' ? CAP_EXP : 0;
+  const span = total - base;
+  return { kind: target.kind, value, label, need: Math.max(0, need), reached,
+    pct: reached ? 100 : span > 0 ? Math.max(0, Math.min(100, Math.round((have - base) * 1000 / span) / 10)) : 0,
+    eta: reached || !(perDay > 0) ? null : Math.round(need / perDay * 86400) };
+}

@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
 import { Conn } from '../site/js/db.js';
 import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress } from '../site/js/aggregate/index.js';
-import { CAP_EXP, EXP_FOR_LEVEL, levelOf } from '../site/js/aggregate/details.js';
+import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
 import { rangeFromArg } from '../site/js/aggregate/report.js';
 
 const SQL = await initSqlJs();
@@ -126,6 +126,70 @@ test('progress, past the cap: training points from regular experience, ATPs from
     // Each step's gain counts toward Lumnis when the row before it had Lumnis active:
     // 20,000 (after row 0, active) + 10,000 (after row 1, active) of 20,000 + 10,000 + 10,500
     assert.equal(p.lumnis_share, Math.round(30_000 * 100 / 40_500));
+  } finally {
+    c.close();
+  }
+});
+
+test('longer ranges: this year and all time hold at least the month', () => {
+  assert.deepEqual(Object.keys(DETAIL_RANGES), ['daily', 'weekly', 'monthly', 'ytd', 'total']);
+  const month = buildIncome(conn, ID, 'monthly', { now }), year = buildIncome(conn, ID, 'ytd', { now }), all = buildIncome(conn, ID, 'total', { now });
+  assert.equal(all.label, 'All Time');
+  assert.ok(year.total_in >= month.total_in && all.total_in >= year.total_in);
+  const events = one("SELECT SUM(amount) AS s FROM silver_events WHERE game = ? AND character = ? AND source_category <> 'expense'", ...W).s;
+  const coins = one('SELECT SUM(total_silver) AS s FROM kill_stats WHERE game = ? AND character = ? AND date <= ?', ...W, new Date(now * 1000).toLocaleDateString('sv')).s;
+  assert.equal(all.total_in, events + coins);
+});
+
+test('bank reconciliation: every listing that found the total off, and by how much', () => {
+  const r = buildReconciliation(conn, ID, 'total', { now });
+  const t = one("SELECT COUNT(*) AS n, SUM(delta_silver) AS s, SUM(ABS(delta_silver)) AS a FROM bank_snapshots WHERE game = ? AND character = ? AND bank_name = '__total__' " +
+    "AND snapshot_type NOT IN ('deposit', 'withdraw') AND delta_silver IS NOT NULL AND delta_silver <> 0 AND timestamp <= ?", ...W, now);
+  assert.deepEqual([r.checks.length, r.off, r.apart], [t.n, t.s ?? 0, t.a ?? 0]);
+  assert.ok(r.checks.length > 0, 'the fixture has listings that were off');
+  assert.ok(r.checks.every((c, i, all) => i === 0 || all[i - 1].at >= c.at), 'newest first');
+  assert.ok(r.listings >= r.checks.length);
+});
+
+test('compare: each character\'s own figures, side by side', () => {
+  const ids = [ID, 'GS3:April'];
+  const c = buildCompare(conn, ids, 'monthly', { now });
+  for (const id of ids) {
+    const inc = buildIncome(conn, id, 'monthly', { now }), h = buildHunting(conn, id, 'monthly', { now }), b = buildBounties(conn, id, 'monthly', { now });
+    const mine = (list) => list.filter((r) => r.id === id);
+    assert.deepEqual(mine(c.shops).map((s) => [s.vendor, s.visits, s.silver]), inc.shops.map((s) => [s.vendor, s.visits, s.silver]), `${id} shops`);
+    assert.equal(mine(c.creatures).reduce((a, r) => a + r.kills, 0), h.kills, `${id} kills`);
+    assert.equal(mine(c.bounties).reduce((a, r) => a + r.received, 0), b.all.received, `${id} bounties`);
+    assert.equal(mine(c.income)[0]?.total_in ?? 0, inc.total_in, `${id} income`);
+  }
+});
+
+test('targets: how far, and when at the recent pace', () => {
+  const pre = buildProgress(conn, ID, { now });
+  const lv = targetEta(pre, { kind: 'level', value: pre.level + 2 });
+  assert.equal(lv.need, EXP_FOR_LEVEL[pre.level + 2] - pre.exp);
+  assert.equal(lv.eta, Math.round(lv.need / pre.pace.exp_per_day * 86400));
+  assert.equal(targetEta(pre, { kind: 'level', value: pre.level }).reached, true);
+  // The bar counts from where the character stood when the target was set
+  const from = pre.exp - 1000;
+  const half = targetEta(pre, { kind: 'level', value: pre.level + 2, from });
+  assert.equal(half.pct, Math.round(1000 * 1000 / (EXP_FOR_LEVEL[pre.level + 2] - from)) / 10);
+  // and without one, from the start of the current level
+  const noFrom = targetEta(pre, { kind: 'level', value: pre.level + 1 });
+  assert.equal(noFrom.pct, pre.next_level.pct);
+  assert.equal(targetEta(pre, { kind: 'level', value: 101 }), null);
+  assert.equal(targetEta(pre, { kind: 'level', value: 'abc' }), null);
+  assert.equal(targetEta(pre, { kind: 'nope', value: 5 }), null);
+  const c = capped();
+  try {
+    const p = buildProgress(c.conn, 'GS3:Rocksteady', { now: c.now });
+    const tp = targetEta(p, { kind: 'tp', value: 20 });
+    assert.equal(tp.need, CAP_EXP + 20 * 2500 - p.exp); // 50,000 - 30,500
+    assert.equal(tp.need, 19_500);
+    assert.equal(tp.eta, Math.round(19_500 / p.pace.exp_per_day * 86400));
+    const atp = targetEta(p, { kind: 'atp', value: 3 });
+    assert.equal(atp.need, 10_000);
+    assert.equal(atp.eta, Math.round(10_000 / p.pace.asc_per_day * 86400));
   } finally {
     c.close();
   }

@@ -50,6 +50,17 @@ const VIEWS = [
     await page.click('.card[data-who="GS3:Bebop"] [data-hide]');
     await page.click('.nav-hidden summary');
   }],
+  ['compare', `${live}#compare`, '#compare table'],
+  ['compare, all time, sorted', `${live}#compare`, '#compare table', async (page) => {
+    await page.click('#cmpTabs button[data-r="total"]');
+    await page.click('#compare [data-sort="cmp-creatures"][data-col="3"]');
+  }],
+  ['income, all time with bank checks', `${live}#GS4%3ASplinter/income`, '#detail .brows', async (page) => { await page.click('#tabs button[data-r="total"]'); }],
+  ['progress with a target', `${live}#GS4%3ASplinter/progress`, '#targetForm', async (page) => {
+    await page.fill('#targetValue', '90');
+    await page.click('#targetForm button[type="submit"]');
+    await page.waitForSelector('[data-target-clear]');
+  }],
   ['sample data', '/?demo', '#banner:not([hidden])'],
   ['choosing another source', '/?demo', '#banner:not([hidden])', async (page) => { await page.click('#bannerConnect'); }],
   ['unreachable source', '/?live=1', '#sourceError:not([hidden])'],
@@ -60,6 +71,7 @@ const PHONE_VIEWS = [
   ['phone menu open', live, '.card[data-who]', async (page) => { await page.click('#menuBtn'); await page.waitForTimeout(400); }],
   ['phone character', `${live}#GS4%3ASplinter`, '#tabs'],
   ['phone income', `${live}#GS4%3ASplinter/income`, '#detail .brows'],
+  ['phone compare', `${live}#compare`, '#compare table'],
   ['phone history', `${live}#GS4%3ASplinter/history`, '#histBody tr'],
 ];
 const THEMES = [
