@@ -97,14 +97,14 @@ past what is comfortable to re-send.
 
 ## CORS and who may read it
 
-A page served by the hosted site (`https://elanthia-online.github.io`) reads an API on
+A page served by the hosted site (`https://analytics.elanthia.online`) reads an API on
 `http://127.0.0.1:<port>`. That's cross-origin, so the response has to allow it.
 
 - If the request's `Origin` is allowed, answer with `Access-Control-Allow-Origin: <that
   origin>` and `Vary: Origin`. Otherwise send no CORS headers, and the browser hides the
   response from the page.
 - Allowed origins:
-  - `https://elanthia-online.github.io`
+  - `https://analytics.elanthia.online`
   - `http://localhost:<any port>`, `http://127.0.0.1:<any port>`, `http://[::1]:<any port>`
     (development, and a copy of the site served on this computer)
   - anything the player adds in `analytics.yaml` (`dashboard.allowed_origins`), for a fork
@@ -112,11 +112,10 @@ A page served by the hosted site (`https://elanthia-online.github.io`) reads an 
 - A request with an `Origin` header that is not allowed gets `403`. Browsers send
   `Origin` on cross-origin fetches, so a page on any other site can't read the
   database or even get a 200 from it.
-- `https://elanthia-online.github.io` is shared by every Pages site in the
-  elanthia-online organisation. Allowing it lets any of those sites read the API, not
-  just this dashboard. That is acceptable for an organisation the player already trusts
-  with their scripts. If it isn't acceptable, the alternative is a custom domain for
-  this site. See [open-questions.md](open-questions.md).
+- The site has its own domain on purpose. `https://elanthia-online.github.io` is shared by
+  every Pages site in the organisation; allowing it would let any of them read the API.
+  It now only redirects to the custom domain, so it is **not** allowed. A fork hosted
+  elsewhere is added through `allowed_origins`.
 
 ### The Host check stays
 
@@ -146,7 +145,7 @@ the browser, and CORS would not apply at all.
 
 ## `GET /`
 
-`302` to `https://elanthia-online.github.io/analytics/?live=<port>`, so the URL the script
+`302` to `https://analytics.elanthia.online/?live=<port>`, so the URL the script
 prints when it starts the server (and old bookmarks of `http://localhost:8080`) open the
 hosted page already connected.
 

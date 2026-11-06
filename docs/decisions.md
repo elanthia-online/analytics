@@ -2,6 +2,20 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: The site has its own domain, analytics.elanthia.online
+
+**Decision.** Pages serves the site at `https://analytics.elanthia.online/`, and the
+script's API allows only that origin (plus local development origins and the player's
+`allowed_origins`). `https://elanthia-online.github.io/analytics/` redirects there.
+
+**Why.** Every Pages site in the organisation shares the `elanthia-online.github.io`
+origin. Allowing it would let any of them read a running script's database through the
+API, and their pages would share this page's `localStorage` and IndexedDB (including the
+saved folder handle). An origin of its own isolates both.
+
+**Rejected.** Allowing `elanthia-online.github.io` as well, for people with old links. The
+redirect already covers them.
+
 ## 2026-11-06: The script serves the database; the browser computes the figures
 
 **Decision.** analytics.lic exposes two routes, `/api/meta` (a change token) and `/api/db`

@@ -21,8 +21,9 @@ const DB_PATH = opt('db', new URL('../test/fixtures/afternoon.db', import.meta.u
 const DEMO = args.includes('--demo');
 
 // The origins whose pages may read the API (docs/api.md, "CORS"). The
-// project's Pages site, plus any page served from this computer.
-const ALLOWED_ORIGINS = [/^https:\/\/elanthia-online\.github\.io$/, /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/];
+// project's site (its own domain, so no other Pages site shares the
+// origin), plus any page served from this computer.
+const ALLOWED_ORIGINS = [/^https:\/\/analytics\.elanthia\.online$/, /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/];
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
 const SQL = await initSqlJs();
@@ -103,7 +104,7 @@ const server = http.createServer((req, res) => {
   const token = `${bootId}.${version}`;
   switch (url.pathname) {
     case '/':
-      return reply(302, 'text/plain', '', { Location: `https://elanthia-online.github.io/analytics/?live=${PORT}` });
+      return reply(302, 'text/plain', '', { Location: `https://analytics.elanthia.online/?live=${PORT}` });
     case '/api/meta':
       return reply(200, 'application/json', JSON.stringify({
         app: 'analytics', api: 1, script_version: 'mock', schema_version: '6', token,

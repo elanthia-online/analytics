@@ -2,8 +2,8 @@
 
 A web dashboard for [`analytics.lic`](https://github.com/elanthia-online/scripts/pull/2556),
 the Lich5 script that records your Gemstone IV hunting: hunt and rest cycles, silver,
-experience, kills, bounties and task offers. It is meant to be published at
-**https://elanthia-online.github.io/analytics/**.
+experience, kills, bounties and task offers. It is published at
+**https://analytics.elanthia.online/**.
 
 The page runs entirely in your browser. It opens your `analytics.db` with
 [sql.js](https://github.com/sql-js/sql.js) (SQLite compiled to WebAssembly) and works out
@@ -72,7 +72,10 @@ Then open http://localhost:8000/?live=8080.
 
 `.github/workflows/pages.yml` publishes `site/` to GitHub Pages on every push to `main`,
 after the tests pass. The repository's Pages source must be set to **GitHub Actions**
-(Settings → Pages).
+(Settings → Pages). The custom domain `analytics.elanthia.online` is set there as
+well, not with a `CNAME` file: an Actions deploy ignores one. DNS is a CNAME record to
+`elanthia-online.github.io`, and the domain is verified for the organisation.
+`https://elanthia-online.github.io/analytics/` redirects to it.
 
 ## License
 

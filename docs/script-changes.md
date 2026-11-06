@@ -41,10 +41,10 @@ Host-header check unchanged. They change as follows.
 
 ```ruby
 API_VERSION = 1
-SITE_URL    = 'https://elanthia-online.github.io/analytics/' # overridable, see section 3
+SITE_URL    = 'https://analytics.elanthia.online/' # overridable, see section 3
 # Pages that may read the API: this project's site, and any page served from
 # this computer (development, or a copy of the site). Origins are scheme+host+port.
-ALLOWED_ORIGINS = [%r{\Ahttps://elanthia-online\.github\.io\z}, %r{\Ahttp://(localhost|127\.0\.0\.1|\[::1\]):\d+\z}].freeze
+ALLOWED_ORIGINS = [%r{\Ahttps://analytics\.elanthia\.online\z}, %r{\Ahttp://(localhost|127\.0\.0\.1|\[::1\]):\d+\z}].freeze
 ```
 
 **`read_head`** must also return the `Origin` header. It's parsed exactly like `Host`,
@@ -153,7 +153,7 @@ Notes on `snapshot`:
 ## 2. CLI (lines 4904–5093)
 
 - `start_dashboard` (line 5041) prints the URL to open, not `http://localhost:PORT`:
-  `Dashboard at https://elanthia-online.github.io/analytics/?live=8080 (reads this
+  `Dashboard at https://analytics.elanthia.online/?live=8080 (reads this
   computer's analytics.lic on port 8080)`. The `302` on `/` means the old
   `http://localhost:8080` keeps working.
 - `status` (line 5050) prints the same URL.
@@ -169,7 +169,7 @@ Notes on `snapshot`:
 `DEFAULTS[:dashboard]` (line 323) becomes:
 
 ```ruby
-dashboard: { port: 8080, site_url: 'https://elanthia-online.github.io/analytics/', allowed_origins: [] }
+dashboard: { port: 8080, site_url: 'https://analytics.elanthia.online/', allowed_origins: [] }
 ```
 
 - `site_url`: where `/` redirects and what the CLI prints. A player using a fork of this
@@ -184,7 +184,7 @@ Update the settings help text in the `Settings::HEADER` comment (lines 426–434
 ## 4. The header block and help (lines 1–95)
 
 - Line 8: "a live web dashboard" → "a live web dashboard (hosted at
-  https://elanthia-online.github.io/analytics/, reading this computer's data)".
+  https://analytics.elanthia.online/, reading this computer's data)".
 - Lines 19–20: the `--dashboard` / `serve` lines lose `[lan]`.
 - The ideas list (lines 65–78) mentions dashboard features. Those are now issues on
   this repo; leave a pointer instead.
@@ -223,8 +223,8 @@ repo's `test/parity.test.js` covers what they covered.
 | db image | `GET /api/db` → `application/vnd.sqlite3`; the body opens with `SQLite3::Database.new` from a temp file and has the seeded rows |
 | WAL rows included | rows written by the collector and not yet checkpointed are in the image |
 | token moves | a write from another connection changes the token; no write keeps it, and the image is not rebuilt (same object) |
-| CORS allowed | `Origin: https://elanthia-online.github.io` → that `Access-Control-Allow-Origin`, `Vary: Origin` |
-| CORS refused | `Origin: https://evil.example` → 403, no CORS headers |
+| CORS allowed | `Origin: https://analytics.elanthia.online` → that `Access-Control-Allow-Origin`, `Vary: Origin` |
+| CORS refused | `Origin: https://evil.example` → 403, no CORS headers. Also `https://elanthia-online.github.io`: the old address only redirects now, and other org sites live there |
 | no Origin | a request with no Origin (curl, the script's own checks) → 200 without CORS headers |
 | preflight | `OPTIONS` → 204 with `Access-Control-Allow-Private-Network: true` and no body |
 | redirect | `GET /` → 302 to `site_url?live=PORT` |

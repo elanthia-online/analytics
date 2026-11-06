@@ -36,14 +36,7 @@ Things that need a decision or a check this repo can't do on its own. Move an it
      of the page
 
    Is anyone actually using `--lan`?
-7. **`https://elanthia-online.github.io` is shared** by every Pages site in the org.
-   Allowing that origin lets any of them read a running script's database. Fine as long as
-   the org trusts its own repos. Otherwise give this site a custom domain
-   (e.g. `analytics.elanthia.online`) and allow only that origin. The shared origin
-   also shares browser storage: every org Pages site can read this page's
-   `localStorage` (theme, pins, chosen source) and IndexedDB, which holds the saved
-   folder handle. The folder still needs the player's permission again before it can be
-   read. A custom domain fixes both.
+7. ~~Shared `elanthia-online.github.io` origin~~: settled, see decisions.md (own domain).
 8. **Database size.** `/api/db` re-sends the whole database after every change, which
    while hunting can mean every few seconds. 0.4 MB is nothing; at 50 MB on localhost it's
    still fast but wasteful. Two ways to go past that:

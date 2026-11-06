@@ -3,8 +3,8 @@
 ```
  Lich (player's computer)                          Browser (same computer)
  ┌────────────────────────────┐                    ┌───────────────────────────────────────┐
- │ analytics.lic              │                    │ https://elanthia-online.github.io/     │
- │  collector ──writes──┐     │                    │        analytics/  (static files)      │
+ │ analytics.lic              │                    │ https://analytics.elanthia.online/     │
+ │  collector ──writes──┐     │                    │        (static files, GitHub Pages)    │
  │                      ▼     │   GET /api/meta    │                                        │
  │   DATA_DIR/analytics.db ◄──┼── GET /api/db ─────┤  data.js   LiveSource / FolderSource / │
  │   (+ analytics.db-wal)     │   127.0.0.1:8080   │            FileSource ─► SQLite image  │
