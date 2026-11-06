@@ -148,3 +148,14 @@ test('an older database without the new tables gives empty pages, not errors', (
 });
 
 test.after(() => db.close());
+
+test('Dashboard.details answers only the known pages, whatever the URL says', async () => {
+  const { Dashboard } = await import('../site/js/data.js');
+  const dash = new Dashboard(SQL);
+  dash.conn = conn; dash.source = { live: false }; dash.asOf = now;
+  for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf', 'summary', 'nope', '']) {
+    assert.equal(dash.details(ID, name, 'daily'), null, name);
+  }
+  assert.ok(dash.details(ID, 'income', 'daily').sources);
+  assert.ok(dash.details(ID, 'progress', 'daily').progress.available);
+});
