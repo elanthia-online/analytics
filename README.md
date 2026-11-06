@@ -69,7 +69,10 @@ Then open http://localhost:8000/?live=8080.
 
 - `npm run e2e` needs Playwright's Chromium (`npx playwright install chromium` if you don't
   have it).
-- `npm run vendor` refreshes `site/vendor/sql.js` after a sql.js version bump.
+- `npm run vendor` refreshes `site/vendor/sql.js` after a sql.js version bump. Dependabot
+  (`.github/dependabot.yml`, weekly) proposes bumps for the workflow actions and the npm dev
+  dependencies. A sql.js bump fails CI's vendor check until `npm run vendor` is run and committed
+  on its branch.
 
 `tools/gen-fixtures.rb` rebuilds the parity fixtures from a scripts checkout. See
 [docs/porting-notes.md](docs/porting-notes.md).
