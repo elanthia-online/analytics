@@ -279,3 +279,23 @@ reference for expected values.
    - Watch it update while hunting.
    - Then try Firefox, and Safari if anyone has a Mac (see
      [open-questions.md](open-questions.md)).
+
+## Schema 8 (2026-11-06)
+
+For the character detail pages; analytics.lic as of elanthia-online/scripts@7bfc369a.
+
+- `progress`: a new table, written by `ProgressManager`. Level, regular and ascension
+  experience, `until_next`, fame, deeds, long-term exp, Death's Sting, unspent PTP, MTP and
+  ATP (from the `PTPs/MTPs` line of `EXPERIENCE` output that passes anyway), and Lumnis, RPA
+  and Fash'lo'nae from the `mindState` bar. A row when a milestone changes, experience at
+  most every 5 minutes, at least hourly. No game command is sent.
+- `cycles`: `exp_regular_start`/`_end` and `exp_asc_start`/`_end` beside the total, since
+  post-cap training points count regular experience only.
+- `vendor_visits`: `spent`, `room_id` and `town`, and the rows are now recorded by the script
+  itself (`ShopWatcher`, setting `track_shops`, on by default). Entering a room the map tags
+  as a shop, bank or locksmith opens a visit; leaving it closes it, with the silver read
+  meanwhile. It works with any selling script, eloot included; `record_vendor_visit` is used
+  only with `track_shops` off.
+- `SCHEMA_VERSION` 8; `KNOWN_SCHEMAS` is `['8']`. A schema 7 file is refused (no migrations
+  before release).
+

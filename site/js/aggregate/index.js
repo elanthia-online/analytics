@@ -3,12 +3,13 @@
 // reads the clock, the DOM or the network, so Node tests run it as is.
 import { buildOverview } from './overview.js';
 import { buildCharacter, RANGES } from './character.js';
+import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, SECTIONS } from './details.js';
 
-export { buildOverview, buildCharacter, RANGES };
+export { buildOverview, buildCharacter, RANGES, buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, SECTIONS };
 
 // analytics.lic schema versions this build has been checked against
 // (metadata.schema_version). Others load with a warning.
-export const KNOWN_SCHEMAS = ['7'];
+export const KNOWN_SCHEMAS = ['8'];
 
 // Both views for one refresh, from one open database
 export function buildViews(conn, { now, who, range }) {

@@ -86,7 +86,7 @@ const server = http.createServer((req, res) => {
       return reply(302, 'text/plain', '', { Location: `https://analytics.elanthia.online/?live=${PORT}` });
     case '/api/meta':
       return reply(200, 'application/json', JSON.stringify({
-        app: 'analytics', api: 1, script_version: 'mock', schema_version: '7', token,
+        app: 'analytics', api: 1, script_version: 'mock', schema_version: '8', token,
         now: Math.floor(Date.now() / 1000), db_bytes: image.byteLength,
       }));
     case '/api/db':

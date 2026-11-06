@@ -1,8 +1,8 @@
 {
   "generator": "tools/gen-fixtures.rb",
   "analytics_lic_sha256": "8ed10933848ff42cba7eaa534ed67cb8441cbe9e9680e23ccfa7b9dad6a6730a",
-  "schema_version": "7",
+  "schema_version": "8",
   "tz": "America/New_York",
   "note": "Golden output of GS4Analytics::Dashboard for synthetic data. Frozen: the generator needs the Ruby dashboard, which the script no longer has.",
-  "converted": "Generated at schema 6 by analytics.lic 63fcad62 (the hash above), the last version with the Ruby dashboard. Converted to schema 7 with sqlite3: DROP TABLE sessions, and DROP COLUMN session_id on cycles, bounties, bounty_offers, silver_events, item_sales and bank_snapshots. No figure reads either, and the golden JSON is unchanged. Schema 7 is analytics.lic from elanthia-online/scripts#2556 as of 55d7ba92."
+  "converted": "Generated at schema 6 by analytics.lic 63fcad62 (the hash above), the last version with the Ruby dashboard. Converted to schema 7 with sqlite3: DROP TABLE sessions, and DROP COLUMN session_id on cycles, bounties, bounty_offers, silver_events, item_sales and bank_snapshots. No figure reads either, and the golden JSON is unchanged. Schema 7 is analytics.lic from elanthia-online/scripts#2556 as of 55d7ba92. Then converted to schema 8 by tools/fixtures-schema8.js (2026-11-06): the new columns (cycles.exp_regular_*/exp_asc_*, vendor_visits.spent/room_id/town) and the progress table added, and synthetic rows from a seeded PRNG put into the tables and columns no golden figure reads (silver_events, item_sales, vendor_visits, progress, kill_stats.boxes, bounties.bp_reward). Parity is unchanged. Schema 8 is analytics.lic from elanthia-online/scripts#2556 as of 7bfc369a."
 }

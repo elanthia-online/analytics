@@ -95,7 +95,7 @@ export function nameParts(name) {
   return m ? [m[1], m[2]] : [shown(name), ''];
 }
 // The link that opens a character (the URL hash names it, as players know it)
-export function hrefFor(id) { return '#' + encodeURIComponent(shownId(id)); }
+export function hrefFor(id, section) { return '#' + encodeURIComponent(shownId(id)) + (section && section !== 'summary' ? '/' + section : ''); }
 export function initial(name) { return esc(String(name || '?').charAt(0).toUpperCase()); }
 export function avatar(c, cls) {
   var st = c.state ? c.state.type : 'offline';

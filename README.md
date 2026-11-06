@@ -10,7 +10,7 @@ The page runs entirely in your browser. It opens your `analytics.db` with
 every figure locally. Your data is never uploaded anywhere.
 
 > **Status:** analytics.lic serves this page its database as of
-> elanthia-online/scripts@0b41f063, schema 7 as of 55d7ba92 (PR
+> elanthia-online/scripts@0b41f063, schema 8 as of 7bfc369a (PR
 > elanthia-online/scripts#2556, not merged yet). The
 > script no longer has a dashboard of its own. What changed is in
 > [docs/script-changes.md](docs/script-changes.md).
@@ -52,6 +52,16 @@ API. Click one for the whole page. `npm run screenshots` regenerates them.
     <td width="50%" valign="top" align="center">
       <a href="docs/images/phone.png"><img src="docs/images/phone-preview.png" width="40%" alt="The overview on a phone"></a>
       <br><b>On a phone</b>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/images/income.png"><img src="docs/images/income-preview.png" width="100%" alt="A character's Income page for the week: silver by source, spending, best sellers, and time and silver at each shop"></a>
+      <br><b>Income</b>: where the silver came from, what was spent, the best sellers, and every shop stop by town.
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/images/progress.png"><img src="docs/images/progress-preview.png" width="100%" alt="A character's Progress page in dark mode: level and ascension milestones with ETAs, and experience by day"></a>
+      <br><b>Progress</b>: the next level or training point and ascension point with ETAs, experience by day, Death's Sting.
     </td>
   </tr>
   <tr>

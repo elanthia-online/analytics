@@ -3,8 +3,10 @@
 // data.js opens the database and the aggregation layer computes the figures.
 // See docs/architecture.md.
 import { Dashboard, LiveSource, FolderSource, FileSource, DemoSource, rememberSource, rememberedSource, savedFolder } from './data.js';
-import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml } from './ui/util.js';
+import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml, plural } from './ui/util.js';
 import { overviewHtml, detailHtml, navHtml } from './ui/views.js';
+import { SECTION_NAMES, historyRows } from './ui/sections.js';
+import { SECTIONS } from './aggregate/index.js';
 import { icon } from './ui/icons.js';
 import { nowMarkers, openTables } from './ui/charts.js';
 import './display.js'; // the theme and contrast controls (and the icons in the static HTML)
@@ -26,7 +28,16 @@ $('scrim').onclick = function () { drawer(false); };
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && app.classList.contains('open')) drawer(false); });
 
 // ---------------- state ----------------
-var who = storedId(decodeURIComponent(location.hash.slice(1))); // the database id; the URL shows it as players know it
+// The URL hash names the character as players know it, and the page:
+// #GS4%3ASplinter (its summary) or #GS4%3ASplinter/income
+function readHash() {
+  var text = decodeURIComponent(location.hash.slice(1)), at = text.lastIndexOf('/');
+  var sec = at > 0 ? text.slice(at + 1) : '';
+  if (SECTIONS.indexOf(sec) < 0) sec = 'summary'; else text = text.slice(0, at);
+  return [storedId(text), sec];
+}
+var initial = readHash();
+var who = initial[0], section = initial[1]; // who is the database id
 var range = 'daily', ov = null, det = null, failed = 0, dash = null, feed = null, errorText = '', sourceOpen = false;
 var lastView = null;
 // While a remembered or linked source connects, the page shows a loading
@@ -38,6 +49,16 @@ var booting = params.has('demo') || params.has('live') || !!(saved && saved.kind
 var pins = [];
 try { pins = JSON.parse(localStorage.getItem('gs4a-pins') || '[]') || []; } catch (e) { pins = []; }
 function pinned(id) { return pins.indexOf(id) >= 0; }
+// Hidden characters: left out of the overview (and its totals), kept in the sidebar's Hidden group
+var hidden = [];
+try { hidden = JSON.parse(localStorage.getItem('gs4a-hidden') || '[]') || []; } catch (e) { hidden = []; }
+function setHidden(list) {
+  hidden = list;
+  try { if (hidden.length) localStorage.setItem('gs4a-hidden', JSON.stringify(hidden)); else localStorage.removeItem('gs4a-hidden'); } catch (e) {}
+  renderOverview(); renderNav();
+}
+var hiddenOpen = false;
+var histFilter = { type: 'all', q: '' };
 function togglePin(id) {
   pins = pinned(id) ? pins.filter(function (p) { return p !== id; }) : pins.concat([id]);
   try { localStorage.setItem('gs4a-pins', JSON.stringify(pins)); } catch (e) {}
@@ -62,23 +83,34 @@ function skeleton(kind) {
   return '<div class="skel-wrap" aria-busy="true" aria-label="Loading">' + b('s-eyebrow') + b('s-title') + '<div class="skel-row">' + b('s-hero') + b('s-hero') + '</div>' +
     '<div class="skel-row">' + b('s-card') + b('s-card') + b('s-card') + '</div></div>';
 }
+// Writes a view, putting focus (and the caret in a text field) back where it was
+function write(el, html) {
+  var a = document.activeElement, id = a && el.contains(a) ? a.id : '';
+  var caret = id && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
+  var changed = setHtml(el, html);
+  if (changed && id && $(id)) { $(id).focus({ preventScroll: true }); if (caret) try { $(id).setSelectionRange(caret[0], caret[1]); } catch (e) {} }
+  return changed;
+}
 function renderOverview() {
   if (!ov) return;
-  if (setHtml($('overview'), overviewHtml(ov, ordered(ov.characters), pinned, chartWidth()))) tick();
+  var shownChars = ordered(ov.characters).filter(function (c) { return hidden.indexOf(c.id) < 0; });
+  var daily = dash && dash.conn ? dash.daily(shownChars.map(function (c) { return c.id; })) : null;
+  if (write($('overview'), overviewHtml(ov, shownChars, pinned, chartWidth(), { hidden: hidden.filter(function (id) { return ov.names.indexOf(id) >= 0; }), daily: daily }))) tick();
   if (!who && !sourceOpen) enter($('overview'), 'overview');
 }
 function renderNav() {
   if (!ov) { setHtml($('navChars'), ''); $('navCount').textContent = ''; return; }
-  setHtml($('navChars'), navHtml(ov, ordered(ov.characters), who));
+  write($('navChars'), navHtml(ov, ordered(ov.characters), who, hidden, hiddenOpen));
   $('navCount').textContent = ov.characters.length;
   var on = !who && !sourceOpen;
   $('navOverview').classList.toggle('on', on);
   if (on) $('navOverview').setAttribute('aria-current', 'page'); else $('navOverview').removeAttribute('aria-current');
 }
+var sdata = null; // the current section's figures
 function renderDetail() {
   if (!det) return;
-  if (setHtml($('detail'), detailHtml(det, range, chartWidth()))) tick();
-  enter($('detail'), 'detail:' + who);
+  if (write($('detail'), detailHtml(det, range, chartWidth(), section, sdata, histFilter))) tick();
+  enter($('detail'), 'detail:' + who + '/' + section);
 }
 // The width a full-card chart gets: the content column less the card's padding
 function chartWidth() { return Math.round(($('content').clientWidth || 1000) - (window.innerWidth <= 640 ? 32 + 40 : 72 + 42)); }
@@ -87,7 +119,10 @@ window.addEventListener('resize', function () {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(function () { if (who) renderDetail(); else renderOverview(); }, 150);
 });
-function viewTitle() { return who ? shown(det ? det.name : shownId(who)) + (det ? ' ' + DOT + ' ' + det.label : '') : 'Everyone ' + DOT + ' Today'; }
+function viewTitle() {
+  return who ? shown(det ? det.name : shownId(who)) + (section !== 'summary' ? ' ' + DOT + ' ' + SECTION_NAMES[section] : '') + (det && section !== 'progress' ? ' ' + DOT + ' ' + det.label : '')
+    : 'Everyone ' + DOT + ' Today';
+}
 
 // Messages for screen readers (the status region in index.html)
 function announce(text) { var el = $('announce'); el.textContent = ''; setTimeout(function () { el.textContent = text; }, 50); }
@@ -99,26 +134,55 @@ document.addEventListener('click', function (e) {
   if ((e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) && t.closest('a[href^="#"]')) return;
   var pin = t.closest('[data-pin]');
   if (pin) { e.stopPropagation(); togglePin(pin.getAttribute('data-pin')); return; }
+  var hide = t.closest('[data-hide]');
+  if (hide) {
+    var id = hide.getAttribute('data-hide'), name = shown((ov.characters.find(function (c) { return c.id === id; }) || {}).name || id);
+    setHidden(hidden.concat([id]));
+    announce(name + ' hidden. It is in the Hidden group of the menu.');
+    var next = document.querySelector('#overview .ch-link') || $('content');
+    next.focus({ preventScroll: true });
+    return;
+  }
+  var unhide = t.closest('[data-unhide]');
+  if (unhide) { var uid = unhide.getAttribute('data-unhide'); setHidden(hidden.filter(function (h) { return h !== uid; })); announce('Shown on the overview again'); return; }
+  if (t.closest('[data-unhide-all]')) { setHidden([]); announce('Every character is shown again'); return; }
   var tab = t.closest('#tabs button[data-r]');
   if (tab) { range = tab.getAttribute('data-r'); loadDetail(); return; }
   if (t.closest('#back')) { setWho(''); return; }
   var w = t.closest('[data-who]');
-  if (w) { e.preventDefault(); setWho(w.getAttribute('data-who'), true); }
+  if (w) { e.preventDefault(); setWho(w.getAttribute('data-who'), true, w.getAttribute('data-sec') || 'summary'); }
+});
+// The history page's filter: only its table is redrawn, so typing is never interrupted
+function filterHistory() {
+  if (!sdata || section !== 'history' || !$('histBody')) return;
+  var rows = historyRows(sdata.cycles, histFilter);
+  $('histBody').innerHTML = rows.html; $('histCount').textContent = plural(rows.count, 'row');
+}
+document.addEventListener('input', function (e) {
+  if (e.target.id === 'histQ') { histFilter.q = e.target.value; filterHistory(); }
+});
+document.addEventListener('change', function (e) {
+  if (e.target.id === 'histType') { histFilter.type = e.target.value; filterHistory(); }
 });
 // A chart's data table stays open (or closed) across redraws
 document.addEventListener('toggle', function (e) {
   var d = e.target;
   if (d.matches && d.matches('details.chart-table')) openTables[d.getAttribute('data-k')] = d.open;
+  if (d.matches && d.matches('details.nav-hidden')) hiddenOpen = d.open;
 }, true);
 $('navOverview').onclick = function (e) { e.preventDefault(); setWho('', true); };
 $('home').onclick = function () { setWho('', true); };
 
 // focus: when the reader picked the view, move to its heading so a screen
 // reader announces it and the keyboard starts there
-function setWho(name, focus) {
-  who = name; sourceOpen = false;
-  history.replaceState(null, '', location.pathname + location.search + (name ? '#' + encodeURIComponent(shownId(name)) : ''));
-  det = null; lastView = null; drawer(false); show();
+function setWho(name, focus, sec) {
+  var same = name === who && !!name;
+  who = name; sourceOpen = false; section = name ? sec || 'summary' : 'summary';
+  // A page the reader chose is a new history entry, so Back returns to where they were
+  var url = location.pathname + location.search + (name ? '#' + encodeURIComponent(shownId(name)) + (section !== 'summary' ? '/' + section : '') : '');
+  if (url !== location.pathname + location.search + location.hash) history[focus ? 'pushState' : 'replaceState'](null, '', url);
+  if (!same) det = null;
+  sdata = null; lastView = null; drawer(false); show();
   if (name) loadDetail(); else if (ov) renderOverview();
   renderNav(); window.scrollTo(0, 0); setTitle();
   if (focus) {
@@ -126,8 +190,15 @@ function setWho(name, focus) {
     if (h) h.focus({ preventScroll: true }); else $('content').focus({ preventScroll: true });
   }
 }
+// Back, Forward, or an address typed with a different #...: show that page
+function followUrl() {
+  var want = readHash();
+  if (want[0] !== who || want[1] !== section) setWho(want[0], false, want[1]);
+}
+window.addEventListener('popstate', followUrl);
+window.addEventListener('hashchange', followUrl);
 function setTitle() {
-  document.title = (who ? shown(det ? det.name : shownId(who)) + ' ' + DOT + ' ' : ov && !sourceOpen ? 'Overview ' + DOT + ' ' : '') + 'GS4 Analytics';
+  document.title = (who ? shown(det ? det.name : shownId(who)) + ' ' + DOT + ' ' + (section !== 'summary' ? SECTION_NAMES[section] + ' ' + DOT + ' ' : '') : ov && !sourceOpen ? 'Overview ' + DOT + ' ' : '') + 'GS4 Analytics';
 }
 function show() {
   var connected = !!ov;
@@ -201,7 +272,11 @@ function loadDetail() {
   if (!who || !dash || !dash.conn || !ov) return;
   var d = null;
   try { d = dash.character(who, range); } catch (e) { d = null; }
-  if (d) { det = d; renderDetail(); tick(); setTitle(); return; }
+  if (d) {
+    det = d;
+    try { sdata = section !== 'summary' ? dash.details(who, section, range) : null; } catch (e) { sdata = null; }
+    renderDetail(); tick(); setTitle(); return;
+  }
   if (!det) {
     setHtml($('detail'), '<div class="card empty big">' + icon('pulse', 'empty-ic') + '<h3>No data for ' + esc(shownId(who)) + '</h3>' +
       '<p class="muted">This database has nothing recorded for that character.</p><button class="btn" id="back" type="button">' + icon('back') + 'Back to everyone</button></div>');
@@ -283,7 +358,7 @@ function restore() {
 function exportName(ext) {
   var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
   var when = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
-  return 'gs4-analytics-' + (who ? shownId(who).replace(/[^\w-]+/g, '_') + '-' + range : 'everyone') + '-' + when + '.' + ext;
+  return 'gs4-analytics-' + (who ? shownId(who).replace(/[^\w-]+/g, '_') + (section !== 'summary' ? '-' + section : '') + (section !== 'progress' ? '-' + range : '') : 'everyone') + '-' + when + '.' + ext;
 }
 $('export').onclick = function () {
   var btn = $('export'), label = $('exportLabel');

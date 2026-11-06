@@ -126,7 +126,7 @@ function dataTable(key, m, labels, hourly, fmtv) {
     return '<tr><td>' + esc(hourly ? lb.slice(11) : lb.slice(5)) + (i === m.partial_index ? ' (so far)' : '') + '</td><td>' + esc(fmtv(v)) + '</td><td>' + vs + '</td></tr>';
   }).join('');
   if (!rows) return '';
-  return '<details class="chart-table" data-k="' + esc(key) + '"' + (openTables[key] ? ' open' : '') + '><summary>Data table</summary><div class="wrapt"><table>' +
+  return '<details class="chart-table" data-k="' + esc(key) + '"' + (openTables[key] ? ' open' : '') + '><summary>Data table</summary><div class="wrapt" tabindex="0" role="region" aria-label="' + esc(m.title) + ', data">' + '<table>' +
     '<caption class="sr">' + esc(m.title) + (m.n >= 1 ? ', typical ' + esc(fmtv(m.mean)) : '') + '</caption>' +
     '<thead><tr><th>' + (hourly ? 'Hour' : 'Day') + '</th><th>Value</th><th>vs typical</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
 }
@@ -241,4 +241,66 @@ export function stepBar(steps) {
     return '<div><i style="background:' + css(STEP_COL[k] || '--gray') + '"></i><span>' + esc(k) + '</span><b>' + dur(steps[k]) + '</b><span class="muted">' +
       Math.round(steps[k] * 100 / total) + '%</span></div>'; }).join('') + '</div>';
   return '<div class="step-total"><span class="stat-val">' + dur(total) + '</span><span class="muted small">average rest</span></div>' + bar + list;
+}
+
+// ---------------- bars by day ----------------
+// series: [{ name, values, color: '--k1' }], stacked in order. One column per
+// label, hover for the day's figures, a legend when there is more than one
+// series, and the numbers as a table underneath.
+export function barChart(key, labels, series, fmtv, width, title) {
+  var W = Math.round(Math.min(1400, Math.max(300, width || 800))), H = 190, L = 48, R = 8, T = 12, B = 24, n = labels.length;
+  var totals = labels.map(function (_, i) { return series.reduce(function (a, s) { return a + (s.values[i] || 0); }, 0); });
+  var max = Math.max.apply(null, totals.concat([0]));
+  if (!(max > 0)) return '<div class="empty small">Nothing gained in these ' + n + ' days.</div>';
+  var scale = nice(max * 1.05), hi = scale.max, band = (W - L - R) / n, bw = Math.max(2, Math.min(28, band - Math.max(2, band * 0.28)));
+  function y(v) { return T + (H - T - B) * (1 - v / hi); }
+  var tick = function (v) { return v >= 1e6 ? (v / 1e6).toFixed(v % 1e6 ? 1 : 0) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(v % 1e3 ? 1 : 0) + 'K' : String(Math.round(v)); };
+  var svg = '';
+  for (var g = 0; g <= hi + 1e-9; g += scale.step) {
+    svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(g) + '" y2="' + y(g) + '" stroke="' + (g === 0 ? 'var(--line-2)' : 'var(--line)') + '"/>' +
+           '<text x="' + (L - 8) + '" y="' + (y(g) + 3.5) + '" text-anchor="end">' + tick(g) + '</text>';
+  }
+  var every = n > 20 ? (W < 600 ? 7 : 3) : 1;
+  labels.forEach(function (lb, i) {
+    var x = L + band * i + (band - bw) / 2, base = 0, parts = [];
+    series.forEach(function (s, k) {
+      var v = s.values[i] || 0;
+      if (v <= 0) return;
+      var top = y(base + v), h = y(base) - top;
+      // A 2px surface gap between stacked parts; the top part gets the rounded end
+      svg += '<rect class="bar" x="' + x.toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(1, h - (base > 0 ? 2 : 0)).toFixed(1) +
+        '" rx="' + (k === series.length - 1 || base + v === totals[i] ? 3 : 0) + '" fill="' + css(s.color) + '"/>';
+      base += v; parts.push(s.name + ' ' + fmtv(v));
+    });
+    var tip = lb.slice(5) + ': ' + fmtv(totals[i]) + (series.length > 1 && parts.length ? ' (' + parts.join(', ') + ')' : '');
+    svg += '<rect x="' + (L + band * i).toFixed(1) + '" y="0" width="' + band.toFixed(1) + '" height="' + H + '" fill="transparent" class="bar-hit" data-tip="' + esc(tip) + '"/>';
+    if (i % every === 0 || i === n - 1) svg += '<text x="' + (L + band * i + band / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(lb.slice(8)) + '</text>';
+  });
+  var total = totals.reduce(function (a, v) { return a + v; }, 0);
+  var legend = series.length > 1 ? '<div class="legend" aria-hidden="true">' + series.map(function (s) {
+    return '<span><i style="background:' + css(s.color) + '"></i>' + esc(s.name) + '</span>'; }).join('') + '</div>' : '';
+  var rows = labels.map(function (lb, i) {
+    return '<tr><td>' + esc(lb) + '</td>' + (series.length > 1 ? series.map(function (s) { return '<td>' + esc(fmtv(s.values[i] || 0)) + '</td>'; }).join('') : '') +
+      '<td>' + esc(fmtv(totals[i])) + '</td></tr>'; }).join('');
+  var table = '<details class="chart-table" data-k="' + esc(key) + '"' + (openTables[key] ? ' open' : '') + '><summary>Data table</summary><div class="wrapt" tabindex="0" role="region" aria-label="' + esc(title) + ', data">' + '<table>' +
+    '<caption class="sr">' + esc(title) + '</caption><thead><tr><th>Day</th>' + (series.length > 1 ? series.map(function (s) { return '<th>' + esc(s.name) + '</th>'; }).join('') : '') +
+    '<th>Total</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
+  var best = totals.indexOf(max);
+  return '<svg class="bars" viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="' +
+    esc(title + ': ' + fmtv(total) + ' over ' + n + ' days, best ' + labels[best] + ' with ' + fmtv(max) + '. The data table below lists every day.') + '">' + svg + '</svg>' + legend + table;
+}
+
+// ---------------- labelled bars ----------------
+// items: [{ label, value, sub }]; one hue, since every bar is named in text
+export function barRows(items, fmtv, color) {
+  var max = Math.max.apply(null, items.map(function (it) { return it.value; }).concat([0]));
+  if (!(max > 0)) return '';
+  var total = items.reduce(function (a, it) { return a + it.value; }, 0);
+  return '<ul class="brows">' + items.map(function (it) {
+    var pct = Math.round(it.value * 100 / (total || 1));
+    return '<li><div class="brow-top"><span class="brow-lab">' + esc(it.label) + '</span><span class="brow-val">' + esc(fmtv(it.value)) +
+      '<span class="brow-pct"> ' + pct + '%</span></span></div>' +
+      '<div class="brow-track" aria-hidden="true"><span style="width:' + Math.max(0.5, it.value * 100 / max).toFixed(1) + '%;background:' + css(color || '--k1') + '"></span></div>' +
+      (it.sub ? '<div class="brow-sub">' + esc(it.sub) + '</div>' : '') + '</li>';
+  }).join('') + '</ul>';
 }

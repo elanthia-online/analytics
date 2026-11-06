@@ -34,7 +34,7 @@ has changed. Everything else answers 404, except `/`, which redirects to the hos
   "app": "analytics",
   "api": 1,
   "script_version": "1.1.0",
-  "schema_version": "7",
+  "schema_version": "8",
   "token": "k3j2a1.42",
   "now": 1793997420,
   "db_bytes": 413696
