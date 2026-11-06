@@ -54,6 +54,12 @@ API. Click one for the whole page. `npm run screenshots` regenerates them.
       <br><b>On a phone</b>
     </td>
   </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <a href="docs/images/character-contrast.png"><img src="docs/images/character-contrast-preview.png" width="100%" alt="The character page in high contrast: black text, strong borders, and the activity bars textured as well as coloured"></a>
+      <br><b>High contrast</b>: on from the sidebar, or by itself when your system asks for more contrast. Works with light and dark.
+    </td>
+  </tr>
 </table>
 
 ## Using it
@@ -102,6 +108,7 @@ npm test                    # parity with the Ruby dashboard + WAL reader (TZ is
 npm run serve               # site/ on http://localhost:8000
 npm run mock -- --demo      # a stand-in analytics.lic API on 127.0.0.1:8080, data moved to "now"
 npm run e2e                 # Chromium against the mock: live, detail, file and error paths
+npm run a11y                # accessibility: axe-core (WCAG 2.2 AA) on every view and theme, and the colour tokens
 ```
 
 Then open http://localhost:8000/?live=8080.

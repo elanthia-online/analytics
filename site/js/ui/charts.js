@@ -2,7 +2,7 @@
 // page-wide [data-tip] tooltip, so a refresh that redraws a chart needs no
 // listeners put back.
 import { U, DOT, DASH, esc, css, num, short, dur, clock, nice, nowSrv, shown,
-         STATE_COL, STATE_NAME, STEP_ORDER, STEP_COL, STEP_DARK_TEXT } from './util.js';
+         STATE_COL, STATE_NAME, STEP_ORDER, STEP_COL } from './util.js';
 
 // SVG ids are derived from what is drawn (not a counter), so drawing the
 // same data twice gives the same markup and setHtml can skip it
@@ -33,7 +33,7 @@ export function timeline(chars, dayStart, idp, width) {
            '<rect x="' + L + '" y="' + y + '" width="' + (W - L - R) + '" height="' + barH + '" rx="6" fill="var(--st-none)"/><g clip-path="url(#' + clip + ')">';
     c.timeline.forEach(function (s) {
       var x1 = x(s[1]), x2 = x(s[2]);
-      svg += '<rect class="seg" x="' + x1.toFixed(1) + '" y="' + y + '" width="' + Math.max(1.2, x2 - x1).toFixed(1) + '" height="' + barH + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
+      svg += '<rect class="seg s-' + esc(s[0]) + '" x="' + x1.toFixed(1) + '" y="' + y + '" width="' + Math.max(1.2, x2 - x1).toFixed(1) + '" height="' + barH + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
     });
     svg += '</g>';
   });
@@ -43,10 +43,21 @@ export function timeline(chars, dayStart, idp, width) {
          '<line x1="0" x2="0" y1="' + (top - 4) + '" y2="' + (top + n * rowH) + '" stroke="var(--ink)" stroke-width="1.5"/>' +
          '<circle cx="0" cy="' + (top - 4) + '" r="3.5" fill="var(--ink)"/></g>';
   var leg = ['hunt', 'rest', 'idle', 'dead'].map(function (k) {
-    return '<span><i style="background:' + css(STATE_COL[k]) + '"></i>' + STATE_NAME[k] + '</span>'; }).join('') +
+    return '<span><i class="s-' + k + '" style="background:' + css(STATE_COL[k]) + '"></i>' + STATE_NAME[k] + '</span>'; }).join('') +
     '<span><i style="background:var(--st-none);box-shadow:inset 0 0 0 1px var(--line-2)"></i>No data</span>' +
     '<span><i style="background:var(--ink);width:2px;border-radius:0"></i>Now</span>';
-  return '<svg class="tl" viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Activity today">' + svg + '</svg><div class="legend">' + leg + '</div>';
+  return '<svg class="tl" viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="' + esc(summary(chars)) + '">' + svg + '</svg><div class="legend" aria-hidden="true">' + leg + '</div>';
+}
+
+// What the timeline shows, as a sentence: time in each state, per character
+function summary(chars) {
+  return 'Activity today. ' + chars.map(function (c) {
+    var by = {};
+    c.timeline.forEach(function (s) { by[s[0]] = (by[s[0]] || 0) + (s[2] - s[1]); });
+    var parts = ['hunt', 'rest', 'idle', 'dead'].filter(function (k) { return by[k] >= 60; })
+      .map(function (k) { return STATE_NAME[k].toLowerCase() + ' ' + dur(by[k]); });
+    return shown(c.name) + ': ' + (parts.length ? parts.join(', ') : 'no activity');
+  }).join('. ') + '.';
 }
 
 // The day at a glance on a character card: the same stretches, no labels
@@ -55,10 +66,11 @@ export function dayStrip(c, dayStart, idp) {
   function x(t) { return W * Math.min(Math.max((t - dayStart) / 86400, 0), 1); }
   var svg = '<rect width="' + W + '" height="' + H + '" rx="4" fill="var(--st-none)"/>';
   c.timeline.forEach(function (s) {
-    svg += '<rect x="' + x(s[1]).toFixed(2) + '" width="' + Math.max(0.6, x(s[2]) - x(s[1])).toFixed(2) + '" height="' + H + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
+    svg += '<rect class="s-' + esc(s[0]) + '" x="' + x(s[1]).toFixed(2) + '" width="' + Math.max(0.6, x(s[2]) - x(s[1])).toFixed(2) + '" height="' + H + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
   });
   var clip = 'ds-' + idp;
-  return '<div class="strip"><svg viewBox="0 -2 ' + W + ' ' + (H + 4) + '" preserveAspectRatio="none" width="100%" height="12" role="img" aria-label="Today, midnight to midnight">' +
+  // Hidden from screen readers: the activity timeline below says the same in words
+  return '<div class="strip" aria-hidden="true"><svg viewBox="0 -2 ' + W + ' ' + (H + 4) + '" preserveAspectRatio="none" width="100%" height="12" focusable="false">' +
     '<clipPath id="' + clip + '"><rect width="' + W + '" height="' + H + '" rx="4"/></clipPath><g clip-path="url(#' + clip + ')">' + svg + '</g>' +
     '<g class="nowmk" data-t0="' + dayStart + '" data-x0="0" data-x1="' + W + '"><rect x="-.75" width="1.5" y="-2" height="' + (H + 4) + '" rx=".75" fill="var(--ink)"/></g></svg>' +
     '<div class="strip-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div>';
@@ -100,6 +112,23 @@ function smooth(pts) {
          (pts[i + 1][1] - h * t[i + 1]).toFixed(1) + ' ' + pts[i + 1][0].toFixed(1) + ' ' + pts[i + 1][1].toFixed(1);
   }
   return d;
+}
+
+// Charts whose data table the reader has opened (kept open across redraws)
+export var openTables = {};
+
+function dataTable(key, m, labels, hourly, fmtv) {
+  var band = m.n >= 5;
+  var rows = labels.map(function (lb, i) {
+    var v = m.values[i];
+    if (v == null) return '';
+    var vs = band ? (v >= m.mean ? '+' : U(0x2212)) + Math.abs(Math.round((v - m.mean) * 100 / (m.mean || 1))) + '%' : '--';
+    return '<tr><td>' + esc(hourly ? lb.slice(11) : lb.slice(5)) + (i === m.partial_index ? ' (so far)' : '') + '</td><td>' + esc(fmtv(v)) + '</td><td>' + vs + '</td></tr>';
+  }).join('');
+  if (!rows) return '';
+  return '<details class="chart-table" data-k="' + esc(key) + '"' + (openTables[key] ? ' open' : '') + '><summary>Data table</summary><div class="wrapt"><table>' +
+    '<caption class="sr">' + esc(m.title) + (m.n >= 1 ? ', typical ' + esc(fmtv(m.mean)) : '') + '</caption>' +
+    '<thead><tr><th>' + (hourly ? 'Hour' : 'Day') + '</th><th>Value</th><th>vs typical</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
 }
 
 export function trendChart(key, m, labels, hourly, iconFn) {
@@ -184,16 +213,17 @@ export function trendChart(key, m, labels, hourly, iconFn) {
   return '<div class="chart-head"><span class="chart-ic">' + iconFn(CHART_ICON[key] || 'trend') + '</span><h4>' + esc(m.title.replace(/ \(%\)$/, '')) + '</h4>' +
       (band ? delta(m.vs_pct, highBad) : '') + '</div>' +
     '<div class="chart-val">' + esc(latest) + '<span>' + (hourly ? 'latest hour' : 'latest day') + '</span></div>' +
-    '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="' + esc(m.title) + '">' + svg + '</svg>' +
-    '<div class="chart-foot">' + foot + '</div>';
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="' + esc(m.title + ': latest ' + latest + (band ? ', typical ' + fmtv(m.mean) : '') + '. The data table below lists every point.') + '">' + svg + '</svg>' +
+    '<div class="chart-foot">' + foot + '</div>' + dataTable(key, m, labels, hourly, fmtv);
 }
 // A local copy so charts.js doesn't need util's delta signature to change
 function delta(p, highBad) {
   if (p == null) return '';
   var r = Math.round(p);
-  if (r === 0) return '<span class="delta flat" title="vs typical">0%</span>';
+  if (r === 0) return '<span class="delta flat" title="vs typical">0%<span class="sr"> vs typical</span></span>';
   var good = (r > 0) !== !!highBad;
-  return '<span class="delta ' + (good ? 'good' : 'bad') + '" title="vs typical">' + (r > 0 ? U(0x25B2) + ' +' : U(0x25BC) + ' ') + r + '%</span>';
+  return '<span class="delta ' + (good ? 'good' : 'bad') + '" title="vs typical"><span aria-hidden="true">' + (r > 0 ? U(0x25B2) : U(0x25BC)) + '</span> ' +
+    (r > 0 ? '+' : U(0x2212)) + Math.abs(r) + '%<span class="sr"> vs typical</span></span>';
 }
 
 // ---------------- rest steps ----------------
@@ -204,7 +234,8 @@ export function stepBar(steps) {
   if (!total) return '<div class="empty small">No step timing in this window yet.</div>';
   var bar = '<div class="segbar" role="img" aria-label="Average rest: ' + keys.map(function (k) { return k + ' ' + dur(steps[k]); }).join(', ') + '">' + keys.map(function (k) {
     var share = steps[k] * 100 / total, label = Math.round(share) + '%';
-    return '<span class="' + (STEP_DARK_TEXT[k] ? 'dark' : '') + '" style="flex:' + steps[k] + ' 1 0;background:' + css(STEP_COL[k] || '--gray') + '" data-tip="' +
+    var slot = STEP_COL[k] || '--gray';
+    return '<span style="flex:' + steps[k] + ' 1 0;background:' + css(slot) + ';--on:var(--on-' + slot.slice(2) + ')" data-tip="' +
       esc(k + ' ' + DOT + ' ' + dur(steps[k]) + ' (' + label + ')') + '">' + (share >= 9 ? label : '') + '</span>'; }).join('') + '</div>';
   var list = '<div class="steps">' + keys.map(function (k) {
     return '<div><i style="background:' + css(STEP_COL[k] || '--gray') + '"></i><span>' + esc(k) + '</span><b>' + dur(steps[k]) + '</b><span class="muted">' +

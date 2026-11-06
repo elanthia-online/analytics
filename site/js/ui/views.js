@@ -1,11 +1,14 @@
 // The two views as HTML strings: everyone (overview) and one character
 // (detail). They only read the aggregation's JSON; app.js puts them on the page.
-import { DOT, esc, css, num, short, dur, clock, stamp, plural, ago, nowSrv, delta, status, stateHtml, shown, nameParts, avatar,
+import { DOT, esc, css, hrefFor, num, short, dur, clock, stamp, plural, ago, nowSrv, delta, status, stateHtml, shown, nameParts, avatar,
          stat, reasonsHtml, bountyText, meter, LIGHT, STATE_COL } from './util.js';
 import { timeline, dayStrip, trendChart, stepBar } from './charts.js';
 import { icon } from './icons.js';
 
 var CATEGORICAL = ['--k1', '--k2', '--k3', '--k4', '--k5', '--k6', '--k7', '--k8'];
+
+// A table that may scroll sideways: reachable and named for keyboard users
+function scroll(label) { return '<div class="scroll" tabindex="0" role="region" aria-label="' + esc(label) + '">'; }
 
 function nameHtml(name, cls) {
   var p = nameParts(name);
@@ -19,21 +22,23 @@ function kpi(ic, lab, val, sub) {
   return '<div class="kpi"><span class="kpi-ic">' + icon(ic) + '</span><div class="stat-lab">' + lab + '</div><div class="stat-val">' + val + '</div>' +
     (sub ? '<div class="stat-sub">' + sub + '</div>' : '') + '</div>';
 }
-function head(title, note, extra) {
-  return '<div class="card-head"><h3>' + title + '</h3>' + (note ? '<span class="note">' + note + '</span>' : '') + (extra || '') + '</div>';
+// A card's heading: level 2 for a card on the page, 3 for one inside a card
+function head(title, note, extra, level) {
+  var h = 'h' + (level || 2);
+  return '<div class="card-head"><' + h + '>' + title + '</' + h + '>' + (note ? '<span class="note">' + note + '</span>' : '') + (extra || '') + '</div>';
 }
 function paceKpi(lab, m) {
   // Three to a card leaves no room for words beside the number: the tooltip says what it compares
-  var sub = m.pct == null ? '<span class="muted" title="Not enough days yet to say what is typical">building</span>' : '<span title="vs typical by now">' + delta(m.pct, false, '') + '</span>';
+  var sub = m.pct == null ? '<span class="muted" title="Not enough days yet to say what is typical">building<span class="sr"> a baseline</span></span>' : '<span title="vs typical by now">' + delta(m.pct, false, '') + '</span>';
   return stat(lab, short(m.so_far), sub);
 }
 
 // ---------------- everyone ----------------
 function card(c, ov, on) {
   var b = c.bounty, level = c.light.level;
-  return '<article class="card ch-card click lv-' + esc(level) + '" tabindex="0" data-who="' + esc(c.id) + '" aria-label="' + esc(shown(c.name)) + '">' +
+  return '<article class="card ch-card click lv-' + esc(level) + '" data-who="' + esc(c.id) + '">' +
     '<div class="ch-head">' + avatar(c) + '<div class="ch-id">' +
-      '<div class="ch-name">' + nameHtml(c.name) + '</div><div class="ch-meta">' + stateHtml(c.state) + '</div></div>' +
+      '<h3 class="ch-name"><a class="ch-link" href="' + hrefFor(c.id) + '">' + nameHtml(c.name) + '</a></h3><div class="ch-meta">' + stateHtml(c.state) + '</div></div>' +
       '<button class="pin no-export' + (on ? ' on' : '') + '" type="button" data-pin="' + esc(c.id) + '" title="' + (on ? 'Unpin' : 'Pin to the top') +
       '" aria-label="' + (on ? 'Unpin ' : 'Pin ') + esc(shown(c.name)) + '" aria-pressed="' + on + '">' + icon('star') + '</button></div>' +
     dayStrip(c, ov.day_start, esc(c.id).replace(/\W/g, '_')) +
@@ -55,10 +60,10 @@ function shareBar(ov) {
   var order = ov.characters.slice(), slot = {};
   order.forEach(function (c, i) { slot[c.id] = CATEGORICAL[i] || '--gray'; });
   var parts = order.filter(function (c) { return c.pace.silver.so_far > 0; });
-  return '<div class="share"><div class="share-bar" role="img" aria-label="Silver today by character">' + parts.map(function (c) {
+  return '<div class="share"><div class="share-bar" aria-hidden="true">' + parts.map(function (c) {
     var pct = c.pace.silver.so_far * 100 / total;
     return '<span style="flex:' + c.pace.silver.so_far + ' 1 0;background:' + css(slot[c.id]) + '" data-tip="' + esc(shown(c.name) + ' ' + DOT + ' ' + short(c.pace.silver.so_far) + ' (' + Math.round(pct) + '%)') + '"></span>';
-  }).join('') + '</div><div class="share-leg">' + parts.map(function (c) {
+  }).join('') + '</div><div class="share-leg"><span class="sr">Share of silver today:</span>' + parts.map(function (c) {
     return '<span><i style="background:' + css(slot[c.id]) + '"></i>' + esc(shown(c.name)) + ' <b>' + Math.round(c.pace.silver.so_far * 100 / total) + '%</b></span>';
   }).join('') + '</div></div>';
 }
@@ -69,9 +74,9 @@ function alertsHtml(ov) {
   return groups.map(function (g) {
     var list = ov.alerts.filter(function (a) { return a.level === g[0]; });
     if (!list.length) return '';
-    return '<div class="ag"><div class="ag-head">' + status(g[0]) + '<span>' + g[1] + '</span><span class="count">' + list.length + '</span></div>' +
+    return '<div class="ag"><h3 class="ag-head">' + status(g[0]) + '<span>' + g[1] + '</span><span class="count"><span class="sr">(</span>' + list.length + '<span class="sr">)</span></span></h3>' +
       list.map(function (a) {
-        return '<div class="alert" data-who="' + esc(a.id) + '" tabindex="0"><span class="al-text"><b>' + esc(shown(a.character)) + '</b><span>' + esc(a.text) + '</span></span>' + icon('chevron', 'al-go') + '</div>';
+        return '<a class="alert" data-who="' + esc(a.id) + '" href="' + hrefFor(a.id) + '"><span class="al-text"><b>' + esc(shown(a.character)) + '</b><span>' + esc(a.text) + '</span></span>' + icon('chevron', 'al-go') + '</a>';
       }).join('') + '</div>';
   }).join('');
 }
@@ -89,7 +94,7 @@ export function overviewHtml(ov, chars, pinned, width) {
   var deaths = sum(function (c) { return c.today.deaths; });
   var today = new Date(ov.day_start * 1000).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 
-  var top = '<div class="page-head"><div><div class="eyebrow">' + esc(today) + '</div><h1>' + greeting(nowSrv()) + '</h1>' +
+  var top = '<div class="page-head"><div><div class="eyebrow">' + esc(today) + '</div><h1 tabindex="-1">' + greeting(nowSrv()) + '</h1>' +
     '<div class="chips"><span class="chip">' + icon('layers') + plural(chars.length, 'character') + '</span>' +
     '<span class="chip"><i style="background:var(--good)"></i>' + online + ' online</span>' +
     '<span class="chip"><i style="background:' + css(STATE_COL.hunt) + '"></i>' + hunting + ' hunting</span>' +
@@ -109,7 +114,7 @@ export function overviewHtml(ov, chars, pinned, width) {
 
   var rows = chars.map(function (c) {
     var t = c.today;
-    return '<tr class="click" data-who="' + esc(c.id) + '"><td><span class="cell-ch">' + avatar(c, 'xs') + '<b>' + esc(shown(c.name)) + '</b></span></td><td>' + short(c.pace.silver.so_far) + '</td><td>' + short(c.pace.exp.so_far) + '</td><td>' + num(c.pace.bounties.so_far) +
+    return '<tr class="click" data-who="' + esc(c.id) + '"><td><a class="cell-ch" href="' + hrefFor(c.id) + '">' + avatar(c, 'xs') + '<b>' + esc(shown(c.name)) + '</b></a></td><td>' + short(c.pace.silver.so_far) + '</td><td>' + short(c.pace.exp.so_far) + '</td><td>' + num(c.pace.bounties.so_far) +
       '</td><td>' + num(t.kills) + '</td><td>' + dur(t.hunt_s) + '</td><td>' + (t.uptime_pct == null ? '--' : t.uptime_pct + '%') +
       '</td><td>' + t.deaths + '</td><td>' + c.crashes.length + '</td><td>' + t.item_rests + '</td></tr>';
   }).join('');
@@ -120,7 +125,7 @@ export function overviewHtml(ov, chars, pinned, width) {
     '<section class="card">' + head('Activity today', 'Hover a stretch for its times') + timeline(chars, ov.day_start, 'ov', width) + '</section>' +
     '<section class="card">' + head('Alerts', ov.alerts.length ? plural(ov.alerts.length, 'item') : '') + '<div class="alerts">' + alertsHtml(ov) + '</div></section>' +
     '<section>' +
-      '<div class="card">' + head('Side by side', 'today') + '<div class="scroll"><table><thead><tr><th>Character</th><th>Silver</th><th>Exp</th><th>Bounties</th>' +
+      '<div class="card">' + head('Side by side', 'today') + scroll('Side by side, today') + '<table><thead><tr><th>Character</th><th>Silver</th><th>Exp</th><th>Bounties</th>' +
       '<th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th><th>Crashes</th><th title="Rests for the item limit">Items</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
     '</section>';
 }
@@ -150,7 +155,7 @@ export function detailHtml(c, range, width) {
 
   var profile = '<div class="card profile lv-' + esc(c.light.level) + '">' +
       '<div class="profile-top">' + avatar(c, 'big') +
-        '<div class="profile-id"><h1 class="ch-name">' + nameHtml(c.name) + '</h1>' +
+        '<div class="profile-id"><h1 class="ch-name" tabindex="-1">' + nameHtml(c.name) + '</h1>' +
           '<div class="ch-meta">' + stateHtml(c.state) +
           (c.state.profile ? '<span class="tag">' + icon('map') + esc(c.state.profile) + '</span>' : '') +
           (c.state.type === 'rest' && c.state.reason ? '<span class="small muted">resting: ' + esc(c.state.reason) + '</span>' : '') + '</div></div>' +
@@ -189,8 +194,8 @@ export function detailHtml(c, range, width) {
     : '<tr><td colspan="3" class="muted">No rests yet today</td></tr>';
   var rest = '<section class="grid g-2">' +
     '<div class="card">' + head('Average rest', esc(c.label) + ' ' + DOT + ' time per step') + stepBar(c.steps) +
-      '<div class="divider"></div>' + head('Rest reasons today') +
-      '<div class="scroll"><table><thead><tr><th>Reason</th><th>Today</th><th>Typical by now</th></tr></thead><tbody>' + reasonRows + '</tbody></table></div></div>' +
+      '<div class="divider"></div>' + head('Rest reasons today', '', '', 3) +
+      scroll('Rest reasons today') + '<table><thead><tr><th>Reason</th><th>Today</th><th>Typical by now</th></tr></thead><tbody>' + reasonRows + '</tbody></table></div></div>' +
     '<div class="card">' + head('Mind and load', 'today') + '<div class="tiles two">' +
       tile('brain', 'Mind at hunt start', mind.start_avg == null ? '--' : Math.round(mind.start_avg) + '%', 'average') +
       tile('brain', 'Mind at hunt end', mind.end_avg == null ? '--' : Math.round(mind.end_avg) + '%', plural(mind.samples, 'hunt')) +
@@ -198,18 +203,18 @@ export function detailHtml(c, range, width) {
       tile('bag', 'Encumbrance at start', enc.today == null ? '--' : Math.round(enc.today) + '%', enc.typical == null ? 'no baseline yet' : 'typical ' + Math.round(enc.typical) + '%') +
     '</div><p class="small muted note-p">Mind percentages need mind capacity, recorded from this update on.</p></div></section>';
 
-  var grounds = c.grounds.length ? '<div class="scroll"><table><thead><tr><th>Profile</th><th>Hours</th><th>Exp / hunt hr</th><th>Kills / hunt hr</th><th title="Silver from creatures per hour of hunting">Silver / hr</th><th>Deaths</th></tr></thead><tbody>' +
+  var grounds = c.grounds.length ? scroll('Hunting grounds') + '<table><thead><tr><th>Profile</th><th>Hours</th><th>Exp / hunt hr</th><th>Kills / hunt hr</th><th title="Silver from creatures per hour of hunting">Silver / hr</th><th>Deaths</th></tr></thead><tbody>' +
     c.grounds.map(function (g) {
       var cur = c.state.profile && g.profile === c.state.profile;
       return '<tr' + (cur ? ' class="mark"' : '') + '><td>' + esc(g.profile) + (cur ? ' <span class="tag t-live"><i></i>now</span>' : '') + '</td><td>' + g.hours + '</td><td>' + num(g.exp_hr) + '</td><td>' + g.kills_hr +
         '</td><td>' + short(g.silver_hr) + '</td><td>' + g.deaths + '</td></tr>'; }).join('') + '</tbody></table></div>'
     : '<div class="empty small">Needs at least an hour of hunting in a profile.</div>';
-  var recent = c.recent_bounties.length ? '<div class="scroll"><table><thead><tr><th>Received</th><th class="l">Type</th><th class="l">Target</th><th class="l">Status</th><th>Took</th><th>Silver</th><th>Exp</th></tr></thead><tbody>' +
+  var recent = c.recent_bounties.length ? scroll('Recent bounties') + '<table><thead><tr><th>Received</th><th class="l">Type</th><th class="l">Target</th><th class="l">Status</th><th>Took</th><th>Silver</th><th>Exp</th></tr></thead><tbody>' +
     c.recent_bounties.map(function (r) {
       return '<tr><td>' + clock(r.received) + '</td><td class="l">' + esc(r.type) + '</td><td class="l wrapcell">' + esc(r.target) + '</td><td class="l">' + statusTag(r.status) + '</td><td>' + dur(r.took) +
         '</td><td>' + short(r.silver) + '</td><td>' + short(r.exp) + '</td></tr>'; }).join('') + '</tbody></table></div>'
     : '<div class="empty small">No bounties yet.</div>';
-  var offers = c.offers.recent.length ? '<div class="scroll"><table><thead><tr><th>Offered</th><th class="l">Task</th><th class="l">Outcome</th><th class="l">Voucher</th></tr></thead><tbody>' +
+  var offers = c.offers.recent.length ? scroll('Task offers') + '<table><thead><tr><th>Offered</th><th class="l">Task</th><th class="l">Outcome</th><th class="l">Voucher</th></tr></thead><tbody>' +
     c.offers.recent.map(function (o) {
       return '<tr' + (o.outcome === 'removed' ? ' class="mark"' : '') + '><td>' + clock(o.at) + '</td><td class="l wrapcell">' + esc(o.task) + '</td><td class="l">' + statusTag(o.outcome) +
         '</td><td class="l">' + (o.expedited ? 'expedited' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
@@ -225,9 +230,9 @@ export function detailHtml(c, range, width) {
 export function navHtml(ov, chars, who) {
   return chars.map(function (c) {
     var on = c.id === who, lv = c.light.level;
-    return '<button type="button" class="nav-ch' + (on ? ' on' : '') + '" data-who="' + esc(c.id) + '"' + (on ? ' aria-current="page"' : '') + '>' +
+    return '<a class="nav-ch' + (on ? ' on' : '') + '" data-who="' + esc(c.id) + '" href="' + hrefFor(c.id) + '"' + (on ? ' aria-current="page"' : '') + '>' +
       avatar(c, 'sm') + '<span class="nav-txt"><span class="nav-name">' + esc(shown(c.name)) + '</span>' +
       '<span class="nav-sub">' + esc(({ hunt: 'Hunting', rest: 'Resting', idle: 'Idle', dead: 'Dead', offline: 'Offline' })[c.state.type] || c.state.type) + ' ' + DOT + ' ' + short(c.pace.silver.so_far) + '</span></span>' +
-      (lv === 'red' || lv === 'amber' ? status(lv, 'nav-flag') : '') + '</button>';
+      (lv === 'red' || lv === 'amber' ? status(lv, 'nav-flag') : '') + '</a>';
   }).join('');
 }
