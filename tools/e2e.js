@@ -45,6 +45,9 @@ try {
   const cards = await page.$$eval('.card[data-who]', (els) => els.map((el) => el.getAttribute('data-who')));
   check(cards.length === 5, `live: five character cards (${cards.join(', ')})`);
   check(/^Live/.test(await page.textContent('#statusText')), 'live: header says Live');
+  const shownText = await page.$$eval('.ch-name, .tl-name, .alert b, #who option, tbody td b', (els) => els.map((el) => el.textContent).join('|'));
+  check(/\(GS4\)/.test(shownText) && !/GS3/.test(shownText) && cards.includes('GS3:Splinter'),
+    'live: names show GemStone IV as GS4, while ids stay GS3 (as Lich and the database have it)');
   check(await page.isHidden('#source'), 'live: the source chooser is closed once connected');
   const alerts = await page.$$eval('.alert', (els) => els.length);
   check(alerts > 3, `live: alerts listed (${alerts})`);
@@ -61,7 +64,7 @@ try {
   await page.click('#tabs button[data-r="weekly"]');
   await page.waitForFunction(() => document.querySelectorAll('.chart').length === 6);
   check(true, 'detail: the This Week tab adds the kills chart');
-  check((await page.evaluate(() => location.hash)) === '#GS3%3ASplinter', 'detail: the URL hash names the character');
+  check((await page.evaluate(() => location.hash)) === '#GS4%3ASplinter', 'detail: the URL hash names the character');
   if (shots) await page.screenshot({ path: `${shots}/detail-live.png`, fullPage: true });
   check(problems.length === 0, `live: no console errors or CSP violations${problems.length ? `: ${problems.join(' | ')}` : ''}`);
   await context.close();

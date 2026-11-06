@@ -45,8 +45,8 @@ async function shot(name, { hash = '', scheme = 'light', width = 1280, height = 
 
 try {
   await shot('overview', {});
-  await shot('character', { hash: '#GS3%3ASplinter', range: 'weekly' });
-  await shot('character-dark', { hash: '#GS3%3ASplinter', scheme: 'dark' });
+  await shot('character', { hash: '#GS4%3ASplinter', range: 'weekly' });
+  await shot('character-dark', { hash: '#GS4%3ASplinter', scheme: 'dark' });
   await shot('phone', { width: 390, height: 844, preview: 620 });
 } finally {
   await browser.close();
