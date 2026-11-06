@@ -48,7 +48,6 @@ These are the rest, which need more than that:
 | The Lumnis cycle's end time, and experience per Lumnis cycle as the leveling pace | both | Needs a quiet `LUMNIS INFO`, at most hourly once the known end has passed. analytics.lic sends no command for this yet, so this is a design decision first |
 | Targets with ETAs: reach level N, or N training points past the cap | site | Per browser, like pins. The Progress page has the pace and the maths |
 | Post-cap skill goals ("303 Dodging") and ascension (ATP) goals, with ETAs at an absorption setting | both | Needs `SKILLS BASE`, `ASC EXP` and `ASC INFO` snapshots, and each profession's training cost tables. Large; exphistory.lic does it well, so consider leaving it there |
-| Read exphistory.lic's CSV to fill in experience history from before analytics.lic ran | site | One more source in the page, read once like a file |
 
 ## Done
 
