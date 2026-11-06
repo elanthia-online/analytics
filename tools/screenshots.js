@@ -1,5 +1,8 @@
 // The README's screenshots, from the synthetic fixture (made-up characters),
 // served live by the mock API in demo mode so the day looks like today.
+// Each view is saved twice: <name>.png, the whole page (what the README links
+// to), and <name>-preview.png, its top at one fixed shape, so the previews line
+// up in the README's grid.
 //
 //   npm run screenshots        (needs Playwright's Chromium; writes docs/images/)
 import { spawn } from 'node:child_process';
@@ -22,7 +25,7 @@ await new Promise((resolve, reject) => {
 
 const browser = await chromium.launch();
 const problems = [];
-async function shot(name, { hash = '', scheme = 'light', width = 1280, height = 900, full = true, range = null }) {
+async function shot(name, { hash = '', scheme = 'light', width = 1280, height = 800, preview = height, range = null }) {
   const context = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, deviceScaleFactor: width < 600 ? 2 : 1.5 });
   const page = await context.newPage();
   page.on('pageerror', (e) => problems.push(`${name}: ${e.message}`));
@@ -34,16 +37,17 @@ async function shot(name, { hash = '', scheme = 'light', width = 1280, height = 
     await page.waitForFunction((r) => document.querySelector('#tabs button.on')?.getAttribute('data-r') === r, range);
   }
   await page.waitForTimeout(800); // let the 1-second timers settle
-  await page.screenshot({ path: `${OUT}${name}.png`, fullPage: full });
+  await page.screenshot({ path: `${OUT}${name}.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}${name}-preview.png`, clip: { x: 0, y: 0, width, height: preview } });
   await context.close();
-  console.log(`docs/images/${name}.png`);
+  console.log(`docs/images/${name}.png, ${name}-preview.png`);
 }
 
 try {
   await shot('overview', {});
   await shot('character', { hash: '#GS3%3ASplinter', range: 'weekly' });
-  await shot('character-dark', { hash: '#GS3%3ASplinter', scheme: 'dark', full: false });
-  await shot('phone', { width: 390, height: 844, full: false });
+  await shot('character-dark', { hash: '#GS3%3ASplinter', scheme: 'dark' });
+  await shot('phone', { width: 390, height: 844, preview: 620 });
 } finally {
   await browser.close();
   mock.kill();

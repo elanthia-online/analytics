@@ -22,22 +22,30 @@ there. What's planned is in [docs/roadmap.md](docs/roadmap.md).
 ## Screenshots
 
 From the sample data in `test/fixtures/`: made-up characters, served live by the mock
-API (`npm run screenshots` regenerates them).
+API. Click one for the whole page. `npm run screenshots` regenerates them.
 
-**Overview**: today across every character, each character's state and pace against
-their typical day, the day's activity, alerts.
-
-![The overview: today's silver, experience, bounties, kills and hunting time for all characters, a card per character, the day's activity timeline and alerts](docs/images/overview.png)
-
-**A character**: right now, performance and trends for a day, week or month, rests,
-hunting grounds, bounties and task offers. Shown here for the week, and in dark mode.
-
-<p>
-  <img src="docs/images/character.png" alt="One character's page for the week: right-now tiles, performance figures, six trend charts against typical, rest steps, hunting grounds, recent bounties and task offers" width="66%">
-  <img src="docs/images/character-dark.png" alt="The top of the same character page in dark mode" width="32%">
-</p>
-
-**On a phone**: <img src="docs/images/phone.png" alt="The overview on a phone" width="240" align="top">
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/images/overview.png"><img src="docs/images/overview-preview.png" width="100%" alt="The overview: today's silver, experience, bounties, kills and hunting time for all characters, and a card per character"></a>
+      <br><b>Overview</b>: today across every character, each one's state and pace against a typical day, the day's activity and alerts.
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/images/character.png"><img src="docs/images/character-preview.png" width="100%" alt="One character's page for the week: right-now tiles, performance figures and trend charts against typical"></a>
+      <br><b>A character</b>, for the week: right now, performance and trends, rests, hunting grounds, bounties and task offers.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/images/character-dark.png"><img src="docs/images/character-dark-preview.png" width="100%" alt="The same character page in dark mode"></a>
+      <br><b>Dark mode</b>: follows the system, or pick Light or Dark.
+    </td>
+    <td width="50%" valign="top" align="center">
+      <a href="docs/images/phone.png"><img src="docs/images/phone-preview.png" width="40%" alt="The overview on a phone"></a>
+      <br><b>On a phone</b>
+    </td>
+  </tr>
+</table>
 
 ## Using it
 
@@ -90,7 +98,7 @@ Then open http://localhost:8000/?live=8080.
 
 - `npm run e2e` needs Playwright's Chromium (`npx playwright install chromium` if you don't
   have it).
-- `npm run screenshots` retakes the README's screenshots (`docs/images/`) from the sample
+- `npm run screenshots` retakes the README's screenshots (`docs/images/`: each page whole, plus a same-sized preview of its top) from the sample
   data, through the mock API in demo mode. Retake them when the UI changes.
 - `npm run vendor` refreshes `site/vendor/sql.js` after a sql.js version bump. Dependabot
   (`.github/dependabot.yml`, weekly) proposes bumps for the workflow actions and the npm dev
