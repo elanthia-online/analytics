@@ -578,6 +578,7 @@ svg .seg:hover { opacity: .8; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .enter > * { animation: rise .5s var(--ease) both; }
+.enter-soft { animation: fade .18s ease-out both; }
 .enter > *:nth-child(2) { animation-delay: .04s; } .enter > *:nth-child(3) { animation-delay: .08s; } .enter > *:nth-child(4) { animation-delay: .12s; }
 .enter > *:nth-child(5) { animation-delay: .16s; } .enter > *:nth-child(n+6) { animation-delay: .2s; }
 .enter .g-cards > * { animation: rise .5s var(--ease) both; }
@@ -678,6 +679,9 @@ input.sr:focus-visible + label { outline: 2px solid var(--accent); outline-offse
 }
 
 /* ---------- a character's pages ---------- */
+/* The bar and tabs are written in their own box, laid out as if they weren't,
+   so the bar stays sticky across the whole page */
+.detail-head { display: contents; }
 .sub-nav { margin: -6px 0 18px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .sub-nav::-webkit-scrollbar { display: none; }
 .sub-nav ul { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0 0 2px; border-bottom: 1px solid var(--line); min-width: max-content; }
