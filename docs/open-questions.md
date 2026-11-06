@@ -39,7 +39,11 @@ Things that need a decision or a check this repo can't do on its own. Move an it
 7. **`https://elanthia-online.github.io` is shared** by every Pages site in the org.
    Allowing that origin lets any of them read a running script's database. Fine as long as
    the org trusts its own repos. Otherwise give this site a custom domain
-   (e.g. `analytics.elanthia.online`) and allow only that origin.
+   (e.g. `analytics.elanthia.online`) and allow only that origin. The shared origin
+   also shares browser storage: every org Pages site can read this page's
+   `localStorage` (theme, pins, chosen source) and IndexedDB, which holds the saved
+   folder handle. The folder still needs the player's permission again before it can be
+   read. A custom domain fixes both.
 8. **Database size.** `/api/db` re-sends the whole database after every change, which
    while hunting can mean every few seconds. 0.4 MB is nothing; at 50 MB on localhost it's
    still fast but wasteful. Two ways to go past that:
@@ -53,3 +57,10 @@ Things that need a decision or a check this repo can't do on its own. Move an it
 10. **Text reports.** `;analytics report ...` still computes its own figures in Ruby. Two
     copies of similar logic (exp per hour, silver per hour) can drift. Accept it, or have
     the page show the same reports and retire them from the script later.
+11. **A file's "as of" time.** A picked file is shown as of its last-modified time. That's
+    right for the player's own file or a `maintenance backup`. But a copy that was
+    downloaded (e.g. sent over Discord) gets the download time, so it reads as "today"
+    with everyone offline. Options:
+    - use the newest timestamp inside the database instead
+    - let the player pick the moment
+    - have the script write the snapshot time into `metadata` when it makes a backup

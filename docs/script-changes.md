@@ -113,7 +113,7 @@ end
 def snapshot
   @lock.synchronize do
     conn = (@api_conn ||= Database.open_reader(Database.file)) # its own connection, see below
-    version = conn.fetch('PRAGMA data_version').get
+    version = conn.fetch('PRAGMA data_version').first.values.first
     if @snapshot.nil? || @snapshot[0] != version
       image = conn.synchronize { |raw| raw.serialize('main') }
       @snapshot = [version, "#{@boot_id}.#{version}", image]
@@ -134,7 +134,9 @@ Notes on `snapshot`:
   writer connection `@db` while the collector runs. `PRAGMA data_version` doesn't change
   for a connection's own commits, so with the writer connection the token would never
   move. `Database.open_reader(path)` (line 951) already opens a separate connection
-  through `Lich.open_sequel_sqlite`. Keep it in the module, and disconnect it in `stop`.
+  through `Lich.open_sequel_sqlite`, but it's under `private` (line 944). Move it above
+  `private`, or add a public `Database.api_reader` that calls it. Keep the connection in
+  the module, and disconnect it in `stop`.
 - `@boot_id = SecureRandom.hex(4)` in `start`, so a restarted server never repeats an old
   token with different data.
 - `@lock` stays a `Monitor` (several tabs, several request threads).

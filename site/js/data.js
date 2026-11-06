@@ -40,7 +40,8 @@ export class LiveSource {
     const response = await fetch(`${this.base}/api/db?token=${encodeURIComponent(meta.token)}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`analytics.lic answered ${response.status} for the database`);
     this.bytes = new Uint8Array(await response.arrayBuffer());
-    this.token = meta.token;
+    // The image can be newer than the token that asked for it; it says which it is
+    this.token = response.headers.get('X-Analytics-Token') || meta.token;
     return { bytes: this.bytes, changed: true, asOf: meta.now, meta };
   }
 }
