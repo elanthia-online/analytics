@@ -16,12 +16,9 @@ Nothing here is promised or scheduled. When an item is picked up, open an issue 
 | Idea | Where | Notes |
 |---|---|---|
 | Show the current rest step (selling, travelling, healing, banking) as the live state, not only "rest" | both | The script times rest steps already (`rest_steps`), but only writes them when the rest ends; the live step would need a column or a small table updated as it changes |
-| Compare selling locations across characters: silver a minute by town and shop | site | Schema 8 records each shop stop with its town (`vendor_visits`); a character's Income page has it per character already |
-| Cross-character comparisons of creatures and bounty types | site | From `kill_stats` and `bounties`; each character's Hunting and Bounties pages have them per character |
 | Searchable history across characters and over kills, bounties and silver too | site | A character's History page filters its cycles by type and text already |
-| Custom date ranges and a year view; sortable rankings | site | The aggregation takes `now` and a range today; a custom range is a new range kind |
+| Custom date ranges (from and to dates) | site | The pages after Summary have This Year and All Time already; a custom range is a new range kind for the aggregation |
 | Customizable layouts | site | Per-browser, in `localStorage` like the theme and pins |
-| Bank reconciliation: show when a `BANK ACCOUNT` listing differs from the tracked total, and by how much | site | The listing row's `delta_silver` is that difference already |
 
 ## Recording (the script)
 
@@ -46,7 +43,6 @@ These are the rest, which need more than that:
 | Idea | Where | Notes |
 |---|---|---|
 | The Lumnis cycle's end time, and experience per Lumnis cycle as the leveling pace | both | Needs a quiet `LUMNIS INFO`, at most hourly once the known end has passed. analytics.lic sends no command for this yet, so this is a design decision first |
-| Targets with ETAs: reach level N, or N training points past the cap | site | Per browser, like pins. The Progress page has the pace and the maths |
 | Post-cap skill goals ("303 Dodging") and ascension (ATP) goals, with ETAs at an absorption setting | both | Needs `SKILLS BASE`, `ASC EXP` and `ASC INFO` snapshots, and each profession's training cost tables. Large; exphistory.lic does it well, so consider leaving it there |
 
 ## Done
@@ -55,4 +51,8 @@ These are the rest, which need more than that:
 - Shop, bank and locksmith stops recorded from the map's room tags, with the town (schema 8)
 - Death's Sting, with how long each stretch lasted (schema 8, the Progress page)
 - Hiding characters from the overview
+- Compare page: every character's income, shop stops by town, creatures and bounty types side by side (2026-11-06)
+- This Year and All Time on a character's pages and Compare; sortable tables
+- Bank checks: listings that found the banks off from the tracked total, on Income
+- Targets with ETAs on the Progress page (level, training points past the cap, ascension points)
 

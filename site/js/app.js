@@ -4,9 +4,10 @@
 // See docs/architecture.md.
 import { Dashboard, LiveSource, FolderSource, FileSource, DemoSource, rememberSource, rememberedSource, savedFolder } from './data.js';
 import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml, plural } from './ui/util.js';
-import { overviewHtml, detailHtml, navHtml } from './ui/views.js';
+import { overviewHtml, detailHtml, navHtml, comparePageHtml } from './ui/views.js';
+import { sortState } from './ui/parts.js';
 import { SECTION_NAMES, historyRows } from './ui/sections.js';
-import { SECTIONS } from './aggregate/index.js';
+import { SECTIONS, RANGES, DETAIL_RANGES } from './aggregate/index.js';
 import { icon } from './ui/icons.js';
 import { nowMarkers, openTables } from './ui/charts.js';
 import './display.js'; // the theme and contrast controls (and the icons in the static HTML)
@@ -30,14 +31,22 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ap
 // ---------------- state ----------------
 // The URL hash names the character as players know it, and the page:
 // #GS4%3ASplinter (its summary) or #GS4%3ASplinter/income
+// #compare is the Compare page
 function readHash() {
   var text = decodeURIComponent(location.hash.slice(1)), at = text.lastIndexOf('/');
+  if (text === 'compare') return ['', 'summary', 'compare'];
   var sec = at > 0 ? text.slice(at + 1) : '';
   if (SECTIONS.indexOf(sec) < 0) sec = 'summary'; else text = text.slice(0, at);
-  return [storedId(text), sec];
+  return [storedId(text), sec, null];
 }
 var initial = readHash();
-var who = initial[0], section = initial[1]; // who is the database id
+var who = initial[0], section = initial[1], page = initial[2]; // who is the database id
+// The range the summary uses: it has no year or all-time view, so those show the month
+function summaryRange() { return RANGES[range] ? range : 'monthly'; }
+// Progress targets, per character, saved in this browser; and a target being typed
+var targets = {};
+try { targets = JSON.parse(localStorage.getItem('gs4a-targets') || '{}') || {}; } catch (e) { targets = {}; }
+var targetDraft = {};
 var range = 'daily', ov = null, det = null, failed = 0, dash = null, feed = null, errorText = '', sourceOpen = false;
 var lastView = null;
 // While a remembered or linked source connects, the page shows a loading
@@ -104,9 +113,11 @@ function renderNav() {
   if (!ov) { setHtml($('navChars'), ''); $('navCount').textContent = ''; return; }
   write($('navChars'), navHtml(ov, ordered(ov.characters), who, hidden, hiddenOpen));
   $('navCount').textContent = ov.characters.length;
-  var on = !who && !sourceOpen;
+  var on = !who && !page && !sourceOpen, cmp = !!page && !sourceOpen;
   $('navOverview').classList.toggle('on', on);
   if (on) $('navOverview').setAttribute('aria-current', 'page'); else $('navOverview').removeAttribute('aria-current');
+  $('navCompare').classList.toggle('on', cmp);
+  if (cmp) $('navCompare').setAttribute('aria-current', 'page'); else $('navCompare').removeAttribute('aria-current');
 }
 var sdata = null; // the current section's figures
 // The character view is two parts: the bar and page tabs (head), written in
@@ -120,7 +131,8 @@ function renderDetail() {
       '<nav class="sub-nav no-export" id="detailTabs"><ul></ul></nav></div><div id="detailBody"></div>';
     el._html = null;
   }
-  var parts = detailHtml(det, range, chartWidth(), section, sdata, histFilter);
+  var parts = detailHtml(det, section === 'summary' ? summaryRange() : range, chartWidth(), section, sdata, histFilter,
+    { target: targets[who] || null, draft: targetDraft[who] || null });
   $('detailTabs').setAttribute('aria-label', parts.label);
   var a = write($('detailBar'), parts.bar), n = write($('detailTabs').firstChild, parts.nav), b = write($('detailBody'), parts.body);
   a = a || n;
@@ -139,7 +151,9 @@ window.addEventListener('resize', function () {
   resizeTimer = setTimeout(function () { if (who) renderDetail(); else renderOverview(); }, 150);
 });
 function viewTitle() {
-  return who ? shown(det ? det.name : shownId(who)) + (section !== 'summary' ? ' ' + DOT + ' ' + SECTION_NAMES[section] : '') + (det && section !== 'progress' ? ' ' + DOT + ' ' + det.label : '')
+  var label = sdata && sdata.label ? sdata.label : det ? det.label : '';
+  if (page) return 'Compare characters ' + DOT + ' ' + (DETAIL_RANGES[range] || '');
+  return who ? shown(det ? det.name : shownId(who)) + (section !== 'summary' ? ' ' + DOT + ' ' + SECTION_NAMES[section] : '') + (label && section !== 'progress' ? ' ' + DOT + ' ' + label : '')
     : 'Everyone ' + DOT + ' Today';
 }
 
@@ -165,8 +179,17 @@ document.addEventListener('click', function (e) {
   var unhide = t.closest('[data-unhide]');
   if (unhide) { var uid = unhide.getAttribute('data-unhide'); setHidden(hidden.filter(function (h) { return h !== uid; })); announce('Shown on the overview again'); return; }
   if (t.closest('[data-unhide-all]')) { setHidden([]); announce('Every character is shown again'); return; }
-  var tab = t.closest('#tabs button[data-r]');
-  if (tab) { range = tab.getAttribute('data-r'); loadDetail(); return; }
+  var tab = t.closest('#tabs button[data-r], #cmpTabs button[data-r]');
+  if (tab) { range = tab.getAttribute('data-r'); if (page) renderCompare(); else loadDetail(); return; }
+  var sort = t.closest('[data-sort]');
+  if (sort) {
+    var key = sort.getAttribute('data-sort'), colN = Number(sort.getAttribute('data-col')), was = sortState[key];
+    // The same column again flips it; a new one starts highest first (A to Z for text)
+    sortState[key] = { col: colN, dir: was && was.col === colN ? (was.dir === 'asc' ? 'desc' : 'asc') : sort.getAttribute('data-text') === '1' ? 'asc' : 'desc' };
+    if (page) renderCompare(); else renderDetail();
+    return;
+  }
+  if (t.closest('[data-target-clear]')) { saveTarget(null); announce('Target cleared'); return; }
   if (t.closest('#back')) { setWho(''); return; }
   var w = t.closest('[data-who]');
   if (w) { e.preventDefault(); setWho(w.getAttribute('data-who'), true, w.getAttribute('data-sec') || 'summary'); }
@@ -179,9 +202,12 @@ function filterHistory() {
 }
 document.addEventListener('input', function (e) {
   if (e.target.id === 'histQ') { histFilter.q = e.target.value; filterHistory(); }
+  // A target being typed survives a live refresh of the page
+  if (e.target.id === 'targetValue') (targetDraft[who] = targetDraft[who] || {}).value = e.target.value;
 });
 document.addEventListener('change', function (e) {
   if (e.target.id === 'histType') { histFilter.type = e.target.value; filterHistory(); }
+  if (e.target.id === 'targetKind') { (targetDraft[who] = targetDraft[who] || {}).kind = e.target.value; renderDetail(); }
 });
 // A chart's data table stays open (or closed) across redraws
 document.addEventListener('toggle', function (e) {
@@ -190,12 +216,49 @@ document.addEventListener('toggle', function (e) {
   if (d.matches && d.matches('details.nav-hidden')) hiddenOpen = d.open;
 }, true);
 $('navOverview').onclick = function (e) { e.preventDefault(); setWho('', true); };
+$('navCompare').onclick = function (e) { e.preventDefault(); openCompare(true); };
+
+// ---------------- the Compare page ----------------
+function openCompare(focus) {
+  page = 'compare'; who = ''; section = 'summary'; det = null; sdata = null; sourceOpen = false;
+  if (location.hash !== '#compare') history[focus ? 'pushState' : 'replaceState'](null, '', location.pathname + location.search + '#compare');
+  drawer(false); show(); renderCompare(); renderNav(); setTitle(); window.scrollTo(0, 0);
+  if (focus) { var h = document.querySelector('#compare h1'); if (h) h.focus({ preventScroll: true }); }
+}
+function renderCompare() {
+  if (!page || !dash || !dash.conn || !ov) return;
+  if (!DETAIL_RANGES[range]) range = 'daily';
+  var names = dash.characterNames();
+  var ids = Object.keys(names).filter(function (id) { return hidden.indexOf(id) < 0; });
+  var entry = function (id) { return ov.characters.find(function (c) { return c.id === id; }); };
+  if (write($('compare'), comparePageHtml(dash.compare(ids, range), range, names, entry, Object.keys(names).length - ids.length))) tick();
+  enter($('compare'), 'compare');
+}
+
+// ---------------- Progress targets ----------------
+function saveTarget(t) {
+  if (t) targets[who] = t; else delete targets[who];
+  delete targetDraft[who];
+  try { if (Object.keys(targets).length) localStorage.setItem('gs4a-targets', JSON.stringify(targets)); else localStorage.removeItem('gs4a-targets'); } catch (e) {}
+  renderDetail();
+}
+document.addEventListener('submit', function (e) {
+  if (e.target.id !== 'targetForm') return;
+  e.preventDefault();
+  var value = Math.floor(Number($('targetValue').value));
+  if (!(value > 0)) { $('targetValue').focus(); return; }
+  var kind = $('targetKind').value, p = sdata && sdata.progress;
+  // Where it starts from, so its bar shows the way covered since
+  saveTarget({ kind: kind, value: value, from: p ? (kind === 'atp' ? p.ascension_exp : p.exp) : null });
+  announce('Target set');
+});
 $('home').onclick = function () { setWho('', true); };
 
 // focus: when the reader picked the view, move to its heading so a screen
 // reader announces it and the keyboard starts there
 function setWho(name, focus, sec) {
   var same = name === who && !!name;
+  page = null;
   who = name; sourceOpen = false; section = name ? sec || 'summary' : 'summary';
   // A page the reader chose is a new history entry, so Back returns to where they were
   var url = location.pathname + location.search + (name ? '#' + encodeURIComponent(shownId(name)) + (section !== 'summary' ? '/' + section : '') : '');
@@ -220,18 +283,21 @@ function setWho(name, focus, sec) {
 // Back, Forward, or an address typed with a different #...: show that page
 function followUrl() {
   var want = readHash();
-  if (want[0] !== who || want[1] !== section) setWho(want[0], false, want[1]);
+  if (want[2] === 'compare') { if (page !== 'compare') openCompare(false); return; }
+  if (want[0] !== who || want[1] !== section || page) setWho(want[0], false, want[1]);
 }
 window.addEventListener('popstate', followUrl);
 window.addEventListener('hashchange', followUrl);
 function setTitle() {
+  if (page) { document.title = 'Compare ' + DOT + ' GS4 Analytics'; return; }
   document.title = (who ? shown(det ? det.name : shownId(who)) + ' ' + DOT + ' ' + (section !== 'summary' ? SECTION_NAMES[section] + ' ' + DOT + ' ' : '') : ov && !sourceOpen ? 'Overview ' + DOT + ' ' : '') + 'GS4 Analytics';
 }
 function show() {
   var connected = !!ov;
   $('source').hidden = booting || (connected && !sourceOpen);
   $('source').classList.toggle('compact', connected);
-  $('overview').hidden = connected ? (!!who || sourceOpen) : !booting;
+  $('overview').hidden = connected ? (!!who || !!page || sourceOpen) : !booting;
+  $('compare').hidden = !connected || !page || sourceOpen;
   $('detail').hidden = !connected || !who || sourceOpen;
   if (who && !det && connected && !sourceOpen) setHtml($('detail'), skeleton('detail'));
   $('banner').hidden = !(feed && feed.kind === 'demo') || sourceOpen;
@@ -289,7 +355,7 @@ function loadOverview() {
     ov = dash.overview();
     clockState.offset = ov.generated_at - Date.now() / 1000;
     clockState.frozen = feed.live ? null : ov.generated_at;
-    renderNav(); if (!who) renderOverview(); show(); tick(); showWarning(st.warning);
+    renderNav(); if (page) renderCompare(); else if (!who) renderOverview(); show(); tick(); showWarning(st.warning);
   }).catch(function (e) {
     failed++; errorText = e && e.message ? e.message : String(e); tick();
     if (!ov) showSource(errorText);
@@ -298,7 +364,7 @@ function loadOverview() {
 function loadDetail() {
   if (!who || !dash || !dash.conn || !ov) return;
   var d = null;
-  try { d = dash.character(who, range); } catch (e) { d = null; }
+  try { d = dash.character(who, summaryRange()); } catch (e) { d = null; }
   if (d) {
     det = d;
     try { sdata = section !== 'summary' ? dash.details(who, section, range) : null; } catch (e) { sdata = null; }
@@ -385,13 +451,14 @@ function restore() {
 function exportName(ext) {
   var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
   var when = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
+  if (page) return 'gs4-analytics-compare-' + range + '-' + when + '.' + ext;
   return 'gs4-analytics-' + (who ? shownId(who).replace(/[^\w-]+/g, '_') + (section !== 'summary' ? '-' + section : '') + (section !== 'progress' ? '-' + range : '') : 'everyone') + '-' + when + '.' + ext;
 }
 $('export').onclick = function () {
   var btn = $('export'), label = $('exportLabel');
   if (!ov) return;
   btn.disabled = true; label.textContent = 'Saving...';
-  exportImage($(who ? 'detail' : 'overview'), viewTitle(), exportName, function (msg) {
+  exportImage($(page ? 'compare' : who ? 'detail' : 'overview'), viewTitle(), exportName, function (msg) {
     btn.disabled = false; label.textContent = msg || 'Saved'; announce(msg || 'Image saved');
     setTimeout(function () { label.textContent = 'Save image'; }, 2500);
   });

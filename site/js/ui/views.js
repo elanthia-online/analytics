@@ -5,7 +5,8 @@ import { DOT, esc, css, hrefFor, num, short, dur, clock, stamp, plural, ago, now
 import { timeline, dayStrip, trendChart, stepBar } from './charts.js';
 import { icon } from './icons.js';
 import { scroll, nameHtml, kpi, head, statusTag, tile, unit } from './parts.js';
-import { SECTION_NAMES, sectionIcon, incomeHtml, huntingHtml, bountiesHtml, progressHtml, historyHtml } from './sections.js';
+import { SECTION_NAMES, sectionIcon, incomeHtml, huntingHtml, bountiesHtml, progressHtml, historyHtml, compareHtml } from './sections.js';
+import { DETAIL_RANGES } from '../aggregate/details.js';
 import { barChart } from './charts.js';
 
 var CATEGORICAL = ['--k1', '--k2', '--k3', '--k4', '--k5', '--k6', '--k7', '--k8'];
@@ -131,16 +132,31 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
     '</section>';
 }
 
+export function rangeTabs(ranges, range) {
+  return Object.keys(ranges).map(function (k) {
+    return '<button type="button" data-r="' + k + '" class="' + (k === range ? 'on' : '') + '" aria-pressed="' + (k === range) + '">' + esc(ranges[k]) + '</button>'; }).join('');
+}
+
+// ---------------- comparing characters ----------------
+// names: id -> name; entry(id): its overview entry, if it has one today
+export function comparePageHtml(d, range, names, entry, hiddenCount) {
+  return '<div class="page-head"><div><div class="eyebrow">' + plural(d.characters, 'character') + (hiddenCount ? ' &middot; ' + hiddenCount + ' hidden' : '') + '</div>' +
+    '<h1 tabindex="-1">Compare characters</h1><p class="small muted">Each character\'s income, shop stops, creatures and bounties side by side. Choose a column heading to sort by it.</p></div>' +
+    '<div class="tabs" id="cmpTabs" role="group" aria-label="Range">' + rangeTabs(DETAIL_RANGES, range) + '</div></div>' +
+    '<div class="section-body">' + compareHtml(d, names, entry) + '</div>';
+}
+
 // ---------------- one character ----------------
 
 // section: one of SECTIONS; data: that page's figures; filter: the history filter.
 // Returns { bar, nav, label, body }: the insides of the bar and the page tabs,
 // whose boxes stay put when only the page changes, and the page itself.
-export function detailHtml(c, range, width, section, data, filter) {
+// ui: the reader's own state for the page (the Progress target)
+export function detailHtml(c, range, width, section, data, filter, ui) {
   section = section || 'summary';
   var t = c.trend, rs = c.range_stats, b = c.bounty, mind = c.mind, enc = c.encumbrance;
-  var tabs = Object.keys(c.ranges).map(function (k) {
-    return '<button type="button" data-r="' + k + '" class="' + (k === range ? 'on' : '') + '" aria-pressed="' + (k === range) + '">' + esc(c.ranges[k]) + '</button>'; }).join('');
+  // The summary keeps its three ranges (its trends are built for them); the other pages take five
+  var tabs = rangeTabs(section === 'summary' ? c.ranges : DETAIL_RANGES, range);
   var basis = t.hourly ? 'hours with ' + t.min_hunt_minutes + '+ min of hunting over the last ' + t.baseline_days + ' days'
                        : 'days with ' + (t.min_hunt_minutes / 60) + '+ hours of hunting over the last ' + t.baseline_days + ' days';
   var light = LIGHT[c.light.level] || LIGHT.gray;
@@ -161,7 +177,7 @@ export function detailHtml(c, range, width, section, data, filter) {
       '<div class="health-mini">' + status(c.light.level) + '<span>' + light[1] + '</span></div></div></div>';
     var body = !data ? '<div class="card empty">Nothing to show.</div>'
       : section === 'income' ? incomeHtml(data) : section === 'hunting' ? huntingHtml(data) : section === 'bounties' ? bountiesHtml(data)
-      : section === 'progress' ? progressHtml(data, width) : historyHtml(data, filter || { type: 'all', q: '' });
+      : section === 'progress' ? progressHtml(data, width, ui) : historyHtml(data, filter || { type: 'all', q: '' });
     return { bar: bar, nav: nav, label: label, body: slim + '<div class="section-body">' + body + '</div>' };
   }
 

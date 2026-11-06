@@ -186,6 +186,56 @@ try {
   await pg.waitForTimeout(6000); // a live refresh in between
   check(some < allRows && (await pg.evaluate(() => document.activeElement?.id)) === 'histQ' && (await pg.inputValue('#histQ')) === 'encumbered',
     `history: the filter narrows the rows (${allRows} -> ${some}) and keeps focus and text through a live refresh`);
+  // Longer ranges on the pages, the summary keeping its own
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#GS4%3ASplinter/income`);
+  await pg.waitForSelector('#detail .brows');
+  await pg.click('#tabs button[data-r="total"]');
+  await pg.waitForFunction(() => document.querySelector('#detail .kpi .stat-sub')?.textContent === 'All Time');
+  check(!!(await pg.$('#detail .card-head h2:text("Bank checks")')), 'ranges: All Time on Income, with its bank checks');
+  await pg.click('.sub-nav a[data-sec="summary"]');
+  await pg.waitForSelector('#detail .profile:not(.slim)');
+  check(await pg.getAttribute('#tabs button.on', 'data-r') === 'monthly', 'ranges: the summary shows the month for All Time (its own ranges stop there)');
+  // Sorting: the heading's button sorts, says so, and keeps focus through the redraw
+  await pg.click('.sub-nav a[data-sec="hunting"]');
+  await pg.waitForSelector('#detail table.sortable');
+  const silverCol = await pg.$eval('#detail [data-sort="creatures"]:text("Silver / kill")', (b) => b.getAttribute('data-col'));
+  await pg.click(`#detail [data-sort="creatures"][data-col="${silverCol}"]`);
+  const sorted = await pg.evaluate((col) => {
+    const th = document.querySelector(`#detail [data-sort="creatures"][data-col="${col}"]`).closest('th');
+    const idx = [...th.parentNode.children].indexOf(th);
+    const vals = [...th.closest('table').querySelectorAll('tbody tr')].map((tr) => Number(tr.children[idx].textContent.replace(/,/g, '')) || 0);
+    return { aria: th.getAttribute('aria-sort'), desc: vals.every((v, i) => i === 0 || vals[i - 1] >= v), focus: document.activeElement?.id };
+  }, silverCol);
+  check(sorted.aria === 'descending' && sorted.desc && sorted.focus === `sort-creatures-${silverCol}`, `sort: a heading sorts its column highest first, marked and focused (${JSON.stringify(sorted)})`);
+  await pg.click(`#detail [data-sort="creatures"][data-col="${silverCol}"]`);
+  check(await pg.$eval(`#detail [data-sort="creatures"][data-col="${silverCol}"]`, (b) => b.closest('th').getAttribute('aria-sort')) === 'ascending', 'sort: again flips it');
+  // A target on the Progress page
+  await pg.click('.sub-nav a[data-sec="progress"]');
+  await pg.waitForSelector('#targetForm');
+  await pg.fill('#targetValue', '90');
+  await pg.click('#targetForm button[type="submit"]');
+  await pg.waitForSelector('[data-target-clear]');
+  await pg.reload();
+  await pg.waitForSelector('#detail .prog');
+  check(/Level 90/.test(await pg.textContent('#detail')) && !!(await pg.$('[data-target-clear]')), 'target: set, and kept after a reload');
+  await pg.click('[data-target-clear]');
+  await pg.waitForFunction(() => !document.querySelector('[data-target-clear]'));
+  check(await pg.evaluate(() => localStorage.getItem('gs4a-targets')) === null, 'target: cleared');
+  // Compare
+  await pg.click('#navCompare');
+  await pg.waitForSelector('#compare .section-body table');
+  check((await pg.evaluate(() => location.hash)) === '#compare' && (await pg.getAttribute('#navCompare', 'aria-current')) === 'page' &&
+    (await pg.evaluate(() => document.activeElement?.matches('#compare h1'))), 'compare: opens from the menu, current, focus on its heading');
+  const tables = await pg.$$eval('#compare table', (t) => t.length);
+  await pg.click('#cmpTabs button[data-r="total"]');
+  await pg.waitForFunction(() => document.querySelector('#cmpTabs button.on')?.getAttribute('data-r') === 'total');
+  check(tables >= 4, `compare: income, stops, creatures and bounties side by side (${tables} tables)`);
+  await pg.click('#compare a[data-who="GS3:April"][data-sec="hunting"]');
+  await pg.waitForFunction(() => location.hash === '#GS4%3AApril/hunting');
+  check(true, 'compare: a character links to its own page');
+  await pg.goBack();
+  await pg.waitForSelector('#compare:not([hidden]) table');
+  check(true, 'compare: Back returns to it');
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
   await pg.waitForSelector('.card[data-who]');
   await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');

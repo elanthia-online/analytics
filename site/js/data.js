@@ -11,7 +11,8 @@
 import { Conn } from './db.js';
 import { readLive, applyWal } from './wal.js';
 import { shiftTimes, sameTimeToday } from './shift.js';
-import { buildOverview, buildCharacter, KNOWN_SCHEMAS, buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress } from './aggregate/index.js';
+import { buildOverview, buildCharacter, KNOWN_SCHEMAS, buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildReconciliation, buildCompare } from './aggregate/index.js';
+import { labels } from './aggregate/report.js';
 
 export const DB_NAME = 'analytics.db';
 export const API_VERSION = 1;
@@ -243,13 +244,24 @@ export class Dashboard {
     switch (section) {
       case 'progress':
         return this.memo(`progress|${who}`, (now) => ({ progress: buildProgress(this.conn, who, { now }), daily: buildDaily(this.conn, [who], { now }) }));
-      case 'income': build = buildIncome; break;
+      case 'income':
+        return this.memo(`income|${who}|${range}`, (now) => ({ ...buildIncome(this.conn, who, range, { now }), reconciliation: buildReconciliation(this.conn, who, range, { now }) }));
       case 'hunting': build = buildHunting; break;
       case 'bounties': build = buildBounties; break;
       case 'history': build = buildHistory; break;
       default: return null;
     }
     return this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now }));
+  }
+
+  // Every character in the database (not only today's), with its name
+  characterNames() {
+    return this.memo('names', () => Object.fromEntries(labels(this.conn)));
+  }
+
+  // The Compare page, for these characters
+  compare(ids, range) {
+    return this.memo(`compare|${ids.join(',')}|${range}`, (now) => buildCompare(this.conn, ids, range, { now }));
   }
 
   // Experience by day for the last four weeks, per character

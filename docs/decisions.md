@@ -2,6 +2,32 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: Compare, longer ranges, sortable tables, bank checks, targets
+
+**Decision.**
+- **Compare.** A Compare page (`#compare`) puts each character's Income, shop stops,
+  creatures and bounty types side by side, using the same builders as their own pages
+  (`buildCompare`).
+  - It covers every character in the database, not only today's, because a longer range
+    should include an alt played last week. Hidden characters are left out.
+- **This Year and All Time** on a character's pages after Summary, and on Compare. The
+  Summary keeps its three ranges, because its trends and their baselines are parity-bound
+  and built for those. Picking a longer range elsewhere shows the Summary for the month.
+- **Sortable tables.** Every table on those pages sorts by a column (`sortTable`).
+  - Each header is a button, and the sorted one carries `aria-sort`.
+  - The order stays across live refreshes, and focus stays on the button.
+- **Bank checks** on Income. They list listings whose `delta_silver` (the distance from the
+  tracked total) isn't zero, because silver per hour counts those differences as income or
+  spending without saying so.
+- **Targets** on Progress: a level, training points past the cap, or ascension points,
+  saved per browser with the experience at the time. The bar shows the way covered since
+  then, and the ETA uses the 7-day pace (`targetEta`).
+
+**Rejected.**
+- Sorting in the browser's DOM. Rows are sorted as they're drawn, so a refresh keeps the
+  order and the markup stays the same.
+- A target bar from zero. It read 96% for a level that was days away.
+
 ## 2026-11-06: Detail pages for each character, and schema 8
 
 **Decision.**

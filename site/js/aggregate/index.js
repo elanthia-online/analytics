@@ -3,9 +3,9 @@
 // reads the clock, the DOM or the network, so Node tests run it as is.
 import { buildOverview } from './overview.js';
 import { buildCharacter, RANGES } from './character.js';
-import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, SECTIONS } from './details.js';
+import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildReconciliation, buildCompare, targetEta, SECTIONS, DETAIL_RANGES } from './details.js';
 
-export { buildOverview, buildCharacter, RANGES, buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, SECTIONS };
+export { buildOverview, buildCharacter, RANGES, buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildReconciliation, buildCompare, targetEta, SECTIONS, DETAIL_RANGES };
 
 // analytics.lic schema versions this build has been checked against
 // (metadata.schema_version). Others load with a warning.
