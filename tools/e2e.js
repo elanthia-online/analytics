@@ -157,8 +157,15 @@ try {
   pg.on('console', (m) => { if (m.type() === 'error') pgProblems.push(m.text()); });
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#GS4%3ASplinter`);
   await pg.waitForSelector('.sub-nav');
+  // Switching pages redraws the page only: the bar and tabs stay the same elements, and
+  // the whole view doesn't replay its entrance (it did: the main column flashed)
+  await pg.waitForFunction(() => !document.getElementById('detail').classList.contains('enter')); // the first entrance is over
+  await pg.evaluate(() => { window.__bar = document.querySelector('#detail .subbar'); window.__tabs = document.querySelector('#detail .sub-nav'); });
   for (const [sec, ready] of [['income', '.brows'], ['hunting', '.brows'], ['bounties', '.kpi-grid'], ['progress', '.prog'], ['history', '#histBody tr']]) {
     await pg.click(`.sub-nav a[data-sec="${sec}"]`);
+    const steady = await pg.evaluate(() => document.querySelector('#detail .subbar') === window.__bar &&
+      document.querySelector('#detail .sub-nav') === window.__tabs && !document.getElementById('detail').classList.contains('enter'));
+    check(steady, `pages: opening ${sec} keeps the bar and tabs in place and doesn't replay the page's entrance`);
     await pg.waitForSelector(`#detail ${ready}`, { timeout: 10_000 });
     const ok = (await pg.evaluate(() => location.hash)) === `#GS4%3ASplinter/${sec}` &&
       (await pg.getAttribute(`.sub-nav a[data-sec="${sec}"]`, 'aria-current')) === 'page' &&

@@ -133,7 +133,9 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
 
 // ---------------- one character ----------------
 
-// section: one of SECTIONS; data: that page's figures; filter: the history filter
+// section: one of SECTIONS; data: that page's figures; filter: the history filter.
+// Returns { bar, nav, label, body }: the insides of the bar and the page tabs,
+// whose boxes stay put when only the page changes, and the page itself.
 export function detailHtml(c, range, width, section, data, filter) {
   section = section || 'summary';
   var t = c.trend, rs = c.range_stats, b = c.bounty, mind = c.mind, enc = c.encumbrance;
@@ -143,13 +145,15 @@ export function detailHtml(c, range, width, section, data, filter) {
                        : 'days with ' + (t.min_hunt_minutes / 60) + '+ hours of hunting over the last ' + t.baseline_days + ' days';
   var light = LIGHT[c.light.level] || LIGHT.gray;
 
-  var sub = '<div class="subbar no-export"><button type="button" id="back" class="back">' + icon('back') + '<span>Overview</span></button>' +
+  // The insides of the bar and of the page tabs; app.js keeps their boxes
+  var bar = '<button type="button" id="back" class="back">' + icon('back') + '<span>Overview</span></button>' +
     '<span class="sb-sep">/</span><span class="sb-name">' + nameHtml(c.name) + '</span><span class="spacer"></span>' +
-    (section === 'progress' ? '<span class="small muted">Pace from the last 7 days</span>' : '<div class="tabs" id="tabs" role="group" aria-label="Range">' + tabs + '</div>') + '</div>' +
-    '<nav class="sub-nav no-export" aria-label="' + esc(shown(c.name)) + ' pages"><ul>' + Object.keys(SECTION_NAMES).map(function (k) {
-      return '<li><a href="' + hrefFor(c.id, k) + '" data-who="' + esc(c.id) + '" data-sec="' + k + '"' + (k === section ? ' aria-current="page" class="on"' : '') + '>' +
-        icon(sectionIcon(k)) + '<span>' + SECTION_NAMES[k] + '</span></a></li>';
-    }).join('') + '</ul></nav>';
+    (section === 'progress' ? '<span class="small muted">Pace from the last 7 days</span>' : '<div class="tabs" id="tabs" role="group" aria-label="Range">' + tabs + '</div>');
+  var nav = Object.keys(SECTION_NAMES).map(function (k) {
+    return '<li><a href="' + hrefFor(c.id, k) + '" data-who="' + esc(c.id) + '" data-sec="' + k + '"' + (k === section ? ' aria-current="page" class="on"' : '') + '>' +
+      icon(sectionIcon(k)) + '<span>' + SECTION_NAMES[k] + '</span></a></li>';
+  }).join('');
+  var label = shown(c.name) + ' pages';
   if (section !== 'summary') {
     var slim = '<div class="card profile slim lv-' + esc(c.light.level) + '"><div class="profile-top">' + avatar(c) +
       '<div class="profile-id"><h1 class="ch-name" tabindex="-1">' + nameHtml(c.name) + ' <span class="page-of">' + SECTION_NAMES[section] + '</span></h1>' +
@@ -158,7 +162,7 @@ export function detailHtml(c, range, width, section, data, filter) {
     var body = !data ? '<div class="card empty">Nothing to show.</div>'
       : section === 'income' ? incomeHtml(data) : section === 'hunting' ? huntingHtml(data) : section === 'bounties' ? bountiesHtml(data)
       : section === 'progress' ? progressHtml(data, width) : historyHtml(data, filter || { type: 'all', q: '' });
-    return sub + slim + '<div class="section-body">' + body + '</div>';
+    return { bar: bar, nav: nav, label: label, body: slim + '<div class="section-body">' + body + '</div>' };
   }
 
   var profile = '<div class="card profile lv-' + esc(c.light.level) + '">' +
@@ -228,10 +232,10 @@ export function detailHtml(c, range, width, section, data, filter) {
         '</td><td class="l">' + (o.expedited ? 'expedited' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
     : '<div class="empty small">No tasks offered in this range.</div>';
 
-  return sub + profile + perf + rest +
+  return { bar: bar, nav: nav, label: label, body: profile + perf + rest +
     '<section class="card">' + head('Recent bounties') + recent + '</section>' +
     '<section class="card">' + head('Hunting grounds', 'last 30 days, best exp first') + grounds + '</section>' +
-    '<section class="card">' + head('Task offers', esc(c.label) + ' ' + DOT + ' removed in bold') + offers + '</section>';
+    '<section class="card">' + head('Task offers', esc(c.label) + ' ' + DOT + ' removed in bold') + offers + '</section>' };
 }
 
 // The sidebar's list of characters; hidden ones go in a group of their own

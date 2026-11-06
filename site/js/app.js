@@ -70,11 +70,13 @@ function ordered(list) {
 
 // ---------------- rendering ----------------
 // A view fades in when it first appears, not on every refresh
+// A page of the same character only cross-fades its content
 function enter(el, view) {
-  if (lastView === view) return;
+  var soft = el.id === 'detailBody', cls = soft ? 'enter-soft' : 'enter';
+  if (lastView === view && !soft) return;
   lastView = view;
-  el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter');
-  setTimeout(function () { el.classList.remove('enter'); }, 900);
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+  setTimeout(function () { el.classList.remove(cls); }, soft ? 300 : 900);
 }
 function skeleton(kind) {
   var b = function (cls) { return '<div class="skel ' + cls + '"></div>'; };
@@ -107,11 +109,28 @@ function renderNav() {
   if (on) $('navOverview').setAttribute('aria-current', 'page'); else $('navOverview').removeAttribute('aria-current');
 }
 var sdata = null; // the current section's figures
+// The character view is two parts: the bar and page tabs (head), written in
+// place, and the page (body). Switching pages on the same character redraws
+// and fades in only the body, so the bar and tabs never move.
 function renderDetail() {
   if (!det) return;
-  if (write($('detail'), detailHtml(det, range, chartWidth(), section, sdata, histFilter))) tick();
-  enter($('detail'), 'detail:' + who + '/' + section);
+  var el = $('detail');
+  if (!$('detailBar') || !el.contains($('detailBar'))) {
+    el.innerHTML = '<div class="detail-head"><div class="subbar no-export" id="detailBar"></div>' +
+      '<nav class="sub-nav no-export" id="detailTabs"><ul></ul></nav></div><div id="detailBody"></div>';
+    el._html = null;
+  }
+  var parts = detailHtml(det, range, chartWidth(), section, sdata, histFilter);
+  $('detailTabs').setAttribute('aria-label', parts.label);
+  var a = write($('detailBar'), parts.bar), n = write($('detailTabs').firstChild, parts.nav), b = write($('detailBody'), parts.body);
+  a = a || n;
+  if (a || b) tick();
+  var view = 'detail:' + who;
+  if (lastView !== view) enter(el, view);
+  else if (lastSection !== section) enter($('detailBody'), view);
+  lastSection = section;
 }
+var lastSection = null;
 // The width a full-card chart gets: the content column less the card's padding
 function chartWidth() { return Math.round(($('content').clientWidth || 1000) - (window.innerWidth <= 640 ? 32 + 40 : 72 + 42)); }
 var resizeTimer = null;
@@ -181,10 +200,18 @@ function setWho(name, focus, sec) {
   // A page the reader chose is a new history entry, so Back returns to where they were
   var url = location.pathname + location.search + (name ? '#' + encodeURIComponent(shownId(name)) + (section !== 'summary' ? '/' + section : '') : '');
   if (url !== location.pathname + location.search + location.hash) history[focus ? 'pushState' : 'replaceState'](null, '', url);
-  if (!same) det = null;
-  sdata = null; lastView = null; drawer(false); show();
+  if (!same) { det = null; lastView = null; }
+  sdata = null; drawer(false); show();
   if (name) loadDetail(); else if (ov) renderOverview();
-  renderNav(); window.scrollTo(0, 0); setTitle();
+  renderNav(); setTitle();
+  // A new page of the same character keeps the tabs where the reader clicked them
+  var tabs = same && document.querySelector('#detail .sub-nav');
+  if (!tabs) window.scrollTo(0, 0);
+  else {
+    var bar = document.querySelector('#detail .subbar'), under = bar ? bar.getBoundingClientRect().bottom : 0;
+    var top = tabs.getBoundingClientRect().top;
+    if (top < under) window.scrollBy(0, top - under); // scrolled past the tabs: bring them back under the bar
+  }
   if (focus) {
     var h = document.querySelector((name ? '#detail' : '#overview') + ' h1');
     if (h) h.focus({ preventScroll: true }); else $('content').focus({ preventScroll: true });
