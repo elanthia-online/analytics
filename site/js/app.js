@@ -26,7 +26,7 @@ function U(code) { return String.fromCharCode(code); }
   showTheme();
 })();
 (function () {
-  var who = decodeURIComponent(location.hash.slice(1)), range = 'daily';
+  var who = '', range = 'daily'; // who is the database id; the URL shows it as players know it (see shown)
   var ov = null, det = null, offset = 0, failed = 0, dash = null, feed = null, errorText = '';
   // Rest steps in a fixed order, each on its own categorical slot
   var STEP_ORDER = ['travel', 'selling', 'eloot', 'bounty', 'healing', 'spells', 'other scripts', 'waiting'];
@@ -85,6 +85,22 @@ function U(code) { return String.fromCharCode(code); }
     return '<span class="state"><i style="background:' + css(STATE_COL[st.type] || '--gray') + '"></i>' + esc(STATE_NAME[st.type] || st.type) + '</span>' +
            '<span class="timer" data-since="' + (st.since || '') + '" data-type="' + esc(st.type) + '"></span>';
   }
+  // Lich and the game servers still call GemStone IV "GS3", and so do the
+  // database and the ids the figures use ("GS3:Name", data-who). Players know
+  // it as GS4, so everything shown, the URL included, says GS4.
+  var SHOWN_GAME = { GS3: 'GS4' };
+  var STORED_GAME = { GS4: 'GS3' };
+  function shown(name) {
+    return String(name == null ? '' : name).replace(/\((\w+)\)$/, function (m, g) { return '(' + (SHOWN_GAME[g] || g) + ')'; });
+  }
+  function shownId(id) {
+    return String(id == null ? '' : id).replace(/^(\w+):/, function (m, g) { return (SHOWN_GAME[g] || g) + ':'; });
+  }
+  // A shown id (from the URL) back to the database's
+  function storedId(id) {
+    return String(id == null ? '' : id).replace(/^(\w+):/, function (m, g) { return (STORED_GAME[g.toUpperCase()] || g) + ':'; });
+  }
+  who = storedId(decodeURIComponent(location.hash.slice(1)));
   function initial(name) { return esc(String(name || '?').charAt(0).toUpperCase()); }
   function stat(lab, val, sub, cls) {
     return '<div' + (cls ? ' class="' + cls + '"' : '') + '><div class="stat-lab">' + lab + '</div><div class="stat-val">' + val + '</div>' +
@@ -113,7 +129,7 @@ function U(code) { return String.fromCharCode(code); }
   // ---------------- timeline (shared) ----------------
   function timeline(chars, dayStart) {
     var multi = chars.length > 1;
-    var longest = Math.max.apply(null, chars.map(function (c) { return String(c.name).length; }).concat([0]));
+    var longest = Math.max.apply(null, chars.map(function (c) { return shown(c.name).length; }).concat([0]));
     var rowH = 30, barH = 16, L = multi ? Math.min(220, Math.max(70, Math.round(longest * 7.5 + 16))) : 0, W = 1000, R = 4, top = 2, n = chars.length, H = top + n * rowH + 20;
     var span = 86400, now = nowSrv();
     function x(t) { return L + (W - L - R) * Math.min(Math.max((t - dayStart) / span, 0), 1); }
@@ -125,7 +141,7 @@ function U(code) { return String.fromCharCode(code); }
     }
     chars.forEach(function (c, i) {
       var y = top + i * rowH + (rowH - barH) / 2;
-      if (multi) svg += '<text class="tl-name" x="0" y="' + (y + 12) + '">' + esc(c.name) + '</text>';
+      if (multi) svg += '<text class="tl-name" x="0" y="' + (y + 12) + '">' + esc(shown(c.name)) + '</text>';
       svg += '<rect x="' + L + '" y="' + y + '" width="' + (W - L - R) + '" height="' + barH + '" rx="5" fill="var(--st-none)"/>';
       c.timeline.forEach(function (s) {
         var x1 = x(s[1]), x2 = x(s[2]);
@@ -165,7 +181,7 @@ function U(code) { return String.fromCharCode(code); }
     var on = pinned(c.id), b = c.bounty;
     return '<div class="card click" tabindex="0" data-who="' + esc(c.id) + '">' +
       '<div class="ch-head"><span class="avatar">' + initial(c.name) + '</span><div style="min-width:0">' +
-        '<div class="ch-name">' + esc(c.name) + '</div><div class="ch-meta">' + stateHtml(c.state) + '</div></div>' +
+        '<div class="ch-name">' + esc(shown(c.name)) + '</div><div class="ch-meta">' + stateHtml(c.state) + '</div></div>' +
         '<button class="pin no-export' + (on ? ' on' : '') + '" type="button" data-pin="' + esc(c.id) + '" title="' + (on ? 'Unpin' : 'Pin to the top') +
         '" aria-pressed="' + on + '">' + (on ? '&#9733;' : '&#9734;') + '</button></div>' +
       (c.light.reasons.length ? reasonsHtml(c.light)
@@ -198,12 +214,12 @@ function U(code) { return String.fromCharCode(code); }
       '</div></div>';
     var rows = chars.map(function (c) {
       var t = c.today;
-      return '<tr class="click" data-who="' + esc(c.id) + '"><td><b>' + esc(c.name) + '</b></td><td>' + short(c.pace.silver.so_far) + '</td><td>' + short(c.pace.exp.so_far) + '</td><td>' + num(c.pace.bounties.so_far) +
+      return '<tr class="click" data-who="' + esc(c.id) + '"><td><b>' + esc(shown(c.name)) + '</b></td><td>' + short(c.pace.silver.so_far) + '</td><td>' + short(c.pace.exp.so_far) + '</td><td>' + num(c.pace.bounties.so_far) +
         '</td><td>' + num(t.kills) + '</td><td>' + dur(t.hunt_s) + '</td><td>' + (t.uptime_pct == null ? '--' : t.uptime_pct + '%') +
         '</td><td>' + t.deaths + '</td><td>' + c.crashes.length + '</td><td>' + t.item_rests + '</td></tr>';
     }).join('');
     var alerts = ov.alerts.length ? '<div class="alerts">' + ov.alerts.map(function (a) {
-      return '<div class="alert" data-who="' + esc(a.id) + '">' + status(a.level) + '<span><b>' + esc(a.character) + '</b> &middot; ' + esc(a.text) + '</span></div>'; }).join('') + '</div>'
+      return '<div class="alert" data-who="' + esc(a.id) + '">' + status(a.level) + '<span><b>' + esc(shown(a.character)) + '</b> &middot; ' + esc(a.text) + '</span></div>'; }).join('') + '</div>'
       : '<div class="empty">' + status('green') + ' Nothing to flag</div>';
     var today = new Date(ov.day_start * 1000).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
     $('overview').innerHTML =
@@ -321,11 +337,11 @@ function U(code) { return String.fromCharCode(code); }
                          : 'days with ' + (t.min_hunt_minutes / 60) + '+ hours of hunting over the last ' + t.baseline_days + ' days';
     var light = LIGHT[c.light.level] || LIGHT.gray;
 
-    var head = '<div class="crumb"><button type="button" id="back">Everyone</button><span>/</span><span>' + esc(c.name) + '</span></div>' +
+    var head = '<div class="crumb"><button type="button" id="back">Everyone</button><span>/</span><span>' + esc(shown(c.name)) + '</span></div>' +
       '<div class="card">' +
         '<div class="ch-head" style="align-items:flex-start;flex-wrap:wrap;gap:14px">' +
           '<span class="avatar big">' + initial(c.name) + '</span>' +
-          '<div style="min-width:0;flex:1 1 260px"><div class="ch-name" style="font-size:26px;letter-spacing:-.02em">' + esc(c.name) + '</div>' +
+          '<div style="min-width:0;flex:1 1 260px"><div class="ch-name" style="font-size:26px;letter-spacing:-.02em">' + esc(shown(c.name)) + '</div>' +
             '<div class="ch-meta" style="margin-top:6px">' + stateHtml(c.state) +
             (c.state.profile ? '<span class="tag">' + esc(c.state.profile) + '</span>' : '') +
             (c.state.type === 'rest' && c.state.reason ? '<span class="small muted">resting: ' + esc(c.state.reason) + '</span>' : '') + '</div></div>' +
@@ -423,20 +439,20 @@ function U(code) { return String.fromCharCode(code); }
     });
   }
   function setWho(name) {
-    who = name; history.replaceState(null, '', name ? '#' + encodeURIComponent(name) : location.pathname);
+    who = name; history.replaceState(null, '', name ? '#' + encodeURIComponent(shownId(name)) : location.pathname);
     $('who').value = name; det = null; show(); if (name) loadDetail(); else if (ov) renderOverview(); window.scrollTo(0, 0);
   }
   function fillSelect() {
     var sel = $('who'), want = [''].concat(ov.names);
     var have = Array.prototype.map.call(sel.options, function (o) { return o.value; });
     if (have.join('|') !== want.join('|')) {
-      sel.innerHTML = '<option value="">Everyone</option>' + ov.characters.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>'; }).join('');
+      sel.innerHTML = '<option value="">Everyone</option>' + ov.characters.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(shown(c.name)) + '</option>'; }).join('');
     }
     sel.value = who;
   }
   function show() {
     $('overview').hidden = !!who; $('detail').hidden = !who;
-    if (who && !det) $('detail').innerHTML = '<div class="card empty">Loading ' + esc(who) + '...</div>';
+    if (who && !det) $('detail').innerHTML = '<div class="card empty">Loading ' + esc(shownId(who)) + '...</div>';
   }
   function tick() {
     Array.prototype.forEach.call(document.querySelectorAll('.timer'), function (el) {
@@ -473,7 +489,7 @@ function U(code) { return String.fromCharCode(code); }
     var d = null;
     try { d = dash.character(who, range); } catch (e) { d = null; }
     if (d) { det = d; renderDetail(); tick(); return; }
-    if (!det) $('detail').innerHTML = '<div class="card empty">No data for ' + esc(who) + '. <button class="tool" id="back" type="button">Back to everyone</button></div>';
+    if (!det) $('detail').innerHTML = '<div class="card empty">No data for ' + esc(shownId(who)) + '. <button class="tool" id="back" type="button">Back to everyone</button></div>';
     var bk = $('back'); if (bk && !det) bk.onclick = function () { setWho(''); };
   }
   // Live sources are polled; a snapshot file is read once
@@ -543,7 +559,7 @@ function U(code) { return String.fromCharCode(code); }
   function exportName(ext) {
     var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
     var stamp = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
-    return 'gs4-analytics-' + (who ? who.replace(/[^\w-]+/g, '_') + '-' + range : 'everyone') + '-' + stamp + '.' + ext;
+    return 'gs4-analytics-' + (who ? shownId(who).replace(/[^\w-]+/g, '_') + '-' + range : 'everyone') + '-' + stamp + '.' + ext;
   }
   function saveBlob(blob, ext) {
     var a = document.createElement('a');

@@ -2,6 +2,19 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-06: The page says GS4; the data says GS3
+
+**Decision.** Everything the page shows calls GemStone IV "GS4": character names, alerts,
+the picker, the URL hash (`#GS4:Name`), the loading and error messages and the saved
+image's file name. The database, the script, the figures and their ids keep `GS3`, which is
+what Lich and the game servers use. `app.js` maps at the edges: `shown` and `shownId` for
+display, `storedId` for a hash read back.
+
+**Why.** Players know the game as GS4. Changing the stored code would put the script out of
+step with Lich, and changing the figures' ids would break parity with the Ruby golden files
+for a display choice. Nothing had been released, so no `#GS3:` links needed keeping (they
+still resolve, since only GS4 is mapped back).
+
 ## 2026-11-06: Schema 7: no sessions table, no migrations before release
 
 **Decision.** analytics.lic's schema 7 drops the `sessions` table (one row per character
