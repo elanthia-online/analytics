@@ -54,14 +54,15 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-shell
-      # On a miss: the browser and its system libraries. On a hit nothing is
-      # installed: the runner image ships Google Chrome, so the libraries the
-      # headless shell needs are already there, and apt (the step that can
-      # stall for minutes on a slow mirror) is skipped.
+      # No --with-deps: the runner image already has every library the
+      # headless shell needs (it ships Google Chrome), and --with-deps adds
+      # optional font packages from the Ubuntu mirror, which has taken over
+      # five minutes to serve them. The browser itself comes from Playwright's
+      # CDN, and only on a cache miss.
       - name: Install Playwright's Chromium
         if: steps.browser-cache.outputs.cache-hit != 'true'
         timeout-minutes: 5
-        run: npx playwright install --with-deps --only-shell chromium
+        run: npx playwright install --only-shell chromium
       - name: Live, detail, file and error paths against the mock API
         timeout-minutes: 5
         run: npm run e2e
