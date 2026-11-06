@@ -1,0 +1,42 @@
+# Dependabot version updates. Options:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# What this repo depends on:
+# - github-actions: the actions in .github/workflows/, pinned by commit SHA
+#   with the version in a comment. Dependabot moves both.
+# - npm: the dev dependencies in package.json. The site has no runtime npm
+#   dependencies (no build step); these are the test tools.
+#   - playwright: CI installs the matching Chromium itself (npx playwright
+#     install), so a bump needs nothing else.
+#   - sql.js: the browser build is vendored in site/vendor/sql.js. CI's
+#     "Vendored sql.js matches package.json" check fails on a sql.js bump
+#     until `npm run vendor` is run on the Dependabot branch and committed.
+#     That failure is the guard working; don't merge around it.
+# test/wal-writer.py and tools/gen-fixtures.rb use only their standard
+# libraries, so there is nothing else to watch.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    # Conventional commit titles, as in AGENTS.md; without a prefix Dependabot
+    # copies whatever style it sees in recent history
+    commit-message:
+      prefix: "ci"
+    groups:
+      # checkout, setup-node and the Pages actions usually move together
+      actions:
+        patterns: ["*"]
+
+  # Not grouped: one PR per package, since a sql.js bump needs the vendored
+  # copy refreshed (see above) and a playwright bump doesn't
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
