@@ -72,6 +72,12 @@ fixture): seven made-up characters, served live by the mock API. Click one for t
   </tr>
   <tr>
     <td colspan="2" valign="top">
+      <a href="docs/images/settings.png"><img src="docs/images/settings-preview.png" width="100%" alt="The Settings page: whether the cards show totals or per hour, the figure beside each character in the menu, and which alerts show, grouped and explained, with their thresholds"></a>
+      <br><b>Settings</b>: totals or per hour on the cards, the menu's figure, and which alerts show and when. Kept in your browser.
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
       <a href="docs/images/character-contrast.png"><img src="docs/images/character-contrast-preview.png" width="100%" alt="The character page in high contrast: black text, strong borders, and the activity bars textured as well as coloured"></a>
       <br><b>High contrast</b>: on from the sidebar, or by itself when your system asks for more contrast. Works with light and dark.
     </td>
