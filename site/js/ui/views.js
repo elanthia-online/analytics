@@ -134,19 +134,23 @@ export function settingsPageHtml(display, a, dismissed, defaults) {
       '<div class="as-body"><label for="' + id + '" class="as-name">' + esc(i.label) + '<span class="as-level"><span class="status s-' + i.level + '" aria-hidden="true">!</span>' + lv[i.level] + '</span></label>' +
       '<p class="as-hint" id="' + id + '-hint">' + esc(i.hint) + '</p>' + (i.field ? field(i.field, !on, i.label) : '') + '</div></li>';
   };
-  var groups = ALERT_GROUPS.map(function (g) {
-    var anyOn = g.items.some(function (i) { return a[i.kind]; });
-    return '<fieldset class="as-group"><legend>' + esc(g.title) + '</legend>' + (g.note ? '<p class="as-note">' + esc(g.note) + '</p>' : '') +
+  // Groups are plain containers named by their title (role="group" / "radiogroup"),
+  // not fieldset and legend: WebKit (Safari, and every browser on iOS) lays
+  // those out by rules of its own, and the saved image came out unstyled
+  var groups = ALERT_GROUPS.map(function (g, n) {
+    var anyOn = g.items.some(function (i) { return a[i.kind]; }), id = 'as-g' + n;
+    return '<div class="as-group" role="group" aria-labelledby="' + id + '"><div class="as-legend" id="' + id + '">' + esc(g.title) + '</div>' +
+      (g.note ? '<p class="as-note">' + esc(g.note) + '</p>' : '') +
       '<ul class="as-items">' + g.items.map(item).join('') + '</ul>' +
       (g.fields ? '<div class="as-shared"><p class="as-shared-head">For both</p>' + g.fields.map(function (f) { return field(f, !anyOn, g.title); }).join('') + '</div>' : '') +
-      '</fieldset>';
+      '</div>';
   }).join('');
   var radios = function (name, legend, hint, options, value) {
-    return '<fieldset class="as-group"><legend>' + esc(legend) + '</legend><p class="as-note" id="disp-' + name + '-hint">' + esc(hint) + '</p>' +
-      '<div class="as-radios" role="radiogroup" aria-describedby="disp-' + name + '-hint">' + Object.keys(options).map(function (k) {
+    return '<div class="as-group"><div class="as-legend" id="disp-' + name + '-title">' + esc(legend) + '</div><p class="as-note" id="disp-' + name + '-hint">' + esc(hint) + '</p>' +
+      '<div class="as-radios" role="radiogroup" aria-labelledby="disp-' + name + '-title" aria-describedby="disp-' + name + '-hint">' + Object.keys(options).map(function (k) {
         return '<label class="as-radio"><input type="radio" name="disp-' + name + '" value="' + k + '" data-display="' + name + '"' + (k === value ? ' checked' : '') + '>' +
           '<span>' + esc(options[k]) + '</span></label>';
-      }).join('') + '</div></fieldset>';
+      }).join('') + '</div></div>';
   };
   var displayCard = '<section class="card" id="set-display">' + head('Display', 'what the overview and the menu show') +
     radios('card', 'Silver and experience on each character\'s card', 'On the overview. Either way, the arrow beside each says how today compares with your typical day.',

@@ -386,11 +386,11 @@ section { margin-top: 24px; }
                    background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; color: var(--ink-2); }
 .as-dismissed b { color: var(--ink); font-weight: 680; margin-right: 6px; }
 /* Alert settings: groups of alerts, each a checkbox with what it's for and its threshold as a sentence */
-.as-group { border: 0; margin: 0; padding: 16px 0 18px; border-top: 1px solid var(--line); min-width: 0; }
-.as-group:first-of-type { border-top: 0; padding-top: 4px; }
-.as-group legend { float: left; width: 100%; padding: 0; margin: 0 0 2px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); }
-.as-note { clear: both; margin: 0 0 10px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
-.as-items { clear: both; list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+.as-group { margin: 0; padding: 16px 0 18px; border-top: 1px solid var(--line); min-width: 0; }
+.card-head + .as-group { border-top: 0; padding-top: 4px; }
+.as-legend { margin: 0 0 2px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); }
+.as-note { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+.as-items { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
 .as-item { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 0 12px; align-items: start; }
 .as-item > input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
 .as-name { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: 14px; font-weight: 650; color: var(--ink); cursor: pointer; }
@@ -417,7 +417,7 @@ section { margin-top: 24px; }
   .as-shared { margin-left: 0; grid-template-columns: minmax(0, 1fr) 64px max-content; }
   .as-shared .as-input { width: 64px; }
 }
-.as-radios { clear: both; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.as-radios { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .as-radio { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2);
             font-size: 13.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
 .as-radio:has(input:checked) { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
