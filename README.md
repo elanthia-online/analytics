@@ -5,12 +5,15 @@ the Lich5 script that records your Gemstone IV hunting: hunt and rest cycles, si
 experience, kills, bounties and task offers. It is published at
 **https://analytics.elanthia.online/**.
 
+This repo is also **the script's home**: analytics.lic is published in elanthia-online/scripts,
+but it's developed here, and its issues, docs, rules and changelog live here.
+
 The page runs entirely in your browser. It opens your `analytics.db` with
 [sql.js](https://github.com/sql-js/sql.js) (SQLite compiled to WebAssembly) and works out
 every figure locally. Your data is never uploaded anywhere.
 
 > **Status:** analytics.lic serves this page its database as of
-> elanthia-online/scripts@0b41f063, schema 10 as of d18ceec8 (PR
+> elanthia-online/scripts@0b41f063, schema 10 as of d18ceec8, latest at bd01245a (PR
 > elanthia-online/scripts#2556, not merged yet). The
 > script no longer has a dashboard of its own. What changed is in
 > [docs/script-changes.md](docs/script-changes.md).
@@ -20,7 +23,9 @@ site's sample data (made-up characters).
 
 **How to install, run and configure analytics.lic is in the guide:
 https://analytics.elanthia.online/guide/** (`site/guide/`). The script's header points
-there. What's planned is in [docs/roadmap.md](docs/roadmap.md).
+there. What's changed, release by release, is on
+**https://analytics.elanthia.online/guide/changes.html** (`site/guide/changes.html`), and what's
+planned is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Screenshots
 
@@ -37,7 +42,7 @@ fixture): seven made-up characters, served live by the mock API. Click one for t
   <tr>
     <td width="50%" valign="top">
       <a href="docs/images/overview.png"><img src="docs/images/overview-preview.png" width="100%" alt="The overview: today's silver, experience, bounties, kills and hunting time for all characters, and a card per character"></a>
-      <br><b>Overview</b>: today across every character, each one's state and pace against a typical day, the day's activity and alerts.
+      <br><b>Overview</b>: today across every character, each one's state and pace against a typical day, the day's activity, everyone side by side with silver and experience per hour, and alerts you can dismiss for the day.
     </td>
     <td width="50%" valign="top">
       <a href="docs/images/character.png"><img src="docs/images/character-preview.png" width="100%" alt="One character's page for the week: right-now tiles, performance figures and trend charts against typical"></a>
@@ -60,8 +65,8 @@ fixture): seven made-up characters, served live by the mock API. Click one for t
       <br><b>Income</b>: where the silver came from, what was spent, the best sellers, and every shop stop by town.
     </td>
     <td width="50%" valign="top">
-      <a href="docs/images/progress.png"><img src="docs/images/progress-preview.png" width="100%" alt="A character's Progress page in dark mode: level and ascension milestones with ETAs, and experience by day"></a>
-      <br><b>Progress</b>: the next level or training point and ascension point with ETAs, experience by day, Death's Sting.
+      <a href="docs/images/progress.png"><img src="docs/images/progress-preview.png" width="100%" alt="A character's Progress page in dark mode: level and ascension milestones with ETAs, experience by day, and where it stands"></a>
+      <br><b>Progress</b>: the next level or training point and ascension point with ETAs, experience by day, Death's Sting, and resources from RESOURCE.
     </td>
   </tr>
   <tr>
@@ -107,16 +112,19 @@ device*. Allow it, because that's how the page reaches analytics.lic on `127.0.0
 site/                 the published site, served as is (no build step)
   index.html          page shell and Content-Security-Policy
   guide/index.html    the player guide: install, commands, reports, settings, FAQ
+  guide/changes.html  What's changed: the player-facing changelog, script and dashboard
   css/guide.css       the guide's reading layout (on dashboard.css's tokens)
-  css/dashboard.css   styles (from the script's page)
-  js/app.js           UI (from the script's page) + source chooser
+  css/dashboard.css   styles and the colour tokens (light, dark and high contrast)
+  js/app.js           the shell, routing, sources and the reader's choices (pins, hidden, settings)
+  js/ui/              the views: overview, character pages, Compare, Settings, charts
   js/data.js          sources (live API, folder, file) and the open database
   js/wal.js           rebuilds a live database from analytics.db + analytics.db-wal
   js/db.js            row access over sql.js
   js/aggregate/       every figure: a port of the script's Ruby dashboard
   vendor/sql.js/      sql.js 1.15.2 browser build, MIT, with checksums
 test/                 node --test suites and the parity fixtures
-tools/                dev server, mock analytics.lic API, e2e check, fixture generator
+tools/                dev server, mock analytics.lic API, e2e and a11y checks, screenshots,
+                      the sample builder, and the fixture generator and schema converters
 docs/                 working docs: start at docs/README.md
 ```
 
