@@ -4,7 +4,7 @@
 // See docs/architecture.md.
 import { Dashboard, LiveSource, FolderSource, FileSource, DemoSource, rememberSource, rememberedSource, savedFolder } from './data.js';
 import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml, plural } from './ui/util.js';
-import { overviewHtml, detailHtml, navHtml, comparePageHtml, alertsPageHtml } from './ui/views.js';
+import { overviewHtml, detailHtml, navHtml, comparePageHtml, settingsPageHtml, DISPLAY_DEFAULTS, NAV_FIGURES } from './ui/views.js';
 import { sortState } from './ui/parts.js';
 import { SECTION_NAMES, historyRows } from './ui/sections.js';
 import { SECTIONS, RANGES, DETAIL_RANGES } from './aggregate/index.js';
@@ -32,13 +32,14 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ap
 // ---------------- state ----------------
 // The URL hash names the character as players know it, and the page:
 // #GS4%3ASplinter (its summary) or #GS4%3ASplinter/income
-// #compare is the Compare page, #alerts the Alert settings page
+// #compare is the Compare page, #settings the Settings page (#alerts opens it at its Alerts section)
 function readHash() {
   // A cut-off link ("#GS4%3") is read as no page at all, not an error that stops the page
   var text = location.hash.slice(1);
   try { text = decodeURIComponent(text); } catch (e) { text = ''; }
   var at = text.lastIndexOf('/');
-  if (text === 'compare' || text === 'alerts') return ['', 'summary', text];
+  if (text === 'compare' || text === 'settings') return ['', 'summary', text];
+  if (text === 'alerts') return ['', 'summary', 'settings', 'alerts'];
   var sec = at > 0 ? text.slice(at + 1) : '';
   if (SECTIONS.indexOf(sec) < 0) sec = 'summary'; else text = text.slice(0, at);
   return [storedId(text), sec, null];
@@ -79,7 +80,19 @@ function saveAlerts() {
     if (dismissed.keys.length) localStorage.setItem('gs4a-dismissed', JSON.stringify(dismissed)); else localStorage.removeItem('gs4a-dismissed');
   } catch (e) {}
   pushAlertPrefs();
-  if (dash && dash.conn) { ov = dash.overview(); renderNav(); if (page === 'alerts') renderAlertsPage(); else if (!who && !page) renderOverview(); else if (who) loadDetail(); }
+  if (dash && dash.conn) { ov = dash.overview(); renderNav(); if (page === 'settings') renderSettings(); else if (!who && !page) renderOverview(); else if (who) loadDetail(); }
+}
+// What the cards and the menu show (gs4a-display: { card, nav }), in this browser
+var display = Object.assign({}, DISPLAY_DEFAULTS);
+try { Object.assign(display, JSON.parse(localStorage.getItem('gs4a-display') || '{}') || {}); } catch (e) { /* the defaults */ }
+if (['total', 'hour'].indexOf(display.card) < 0) display.card = DISPLAY_DEFAULTS.card;
+if (!Object.hasOwn(NAV_FIGURES, display.nav)) display.nav = DISPLAY_DEFAULTS.nav;
+function saveDisplay() {
+  try {
+    if (display.card === DISPLAY_DEFAULTS.card && display.nav === DISPLAY_DEFAULTS.nav) localStorage.removeItem('gs4a-display');
+    else localStorage.setItem('gs4a-display', JSON.stringify(display));
+  } catch (e) {}
+  renderNav(); if (page === 'settings') renderSettings(); else if (!who && !page) renderOverview();
 }
 var pins = [];
 try { pins = JSON.parse(localStorage.getItem('gs4a-pins') || '[]') || []; } catch (e) { pins = []; }
@@ -92,7 +105,7 @@ function setHidden(list) {
   try { if (hidden.length) localStorage.setItem('gs4a-hidden', JSON.stringify(hidden)); else localStorage.removeItem('gs4a-hidden'); } catch (e) {}
   renderOverview(); renderNav();
   if (page === 'compare') renderCompare();
-  if (page === 'alerts') renderAlertsPage();
+  if (page === 'settings') renderSettings();
 }
 var hiddenOpen = false;
 var histFilter = { type: 'all', q: '' };
@@ -152,17 +165,17 @@ function renderOverview() {
   var daily = dash && dash.conn ? dash.daily(shownChars.map(function (c) { return c.id; })) : null;
   var dismissedHere = todaysDismissed().filter(function (k) { return ov.names.indexOf(k.slice(0, k.lastIndexOf('|'))) >= 0; }).length;
   if (write($('overview'), overviewHtml(ov, shownChars, pinned, chartWidth(), { hidden: hidden.filter(function (id) { return ov.names.indexOf(id) >= 0; }), daily: daily,
-    dismissedCount: dismissedHere }))) tick();
+    dismissedCount: dismissedHere, display: display }))) tick();
   if (!who && !sourceOpen) enter($('overview'), 'overview');
 }
 function renderNav() {
   if (!ov) { setHtml($('navChars'), ''); $('navCount').textContent = ''; return; }
-  write($('navChars'), navHtml(ov, ordered(ov.characters), who, hidden, hiddenOpen));
+  write($('navChars'), navHtml(ov, ordered(ov.characters), who, hidden, hiddenOpen, display));
   $('navCount').textContent = ov.characters.length;
   var current = function (el, on) { el.classList.toggle('on', on); if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current'); };
   current($('navOverview'), !who && !page && !sourceOpen);
   current($('navCompare'), page === 'compare' && !sourceOpen);
-  current($('navAlerts'), page === 'alerts' && !sourceOpen);
+  current($('navSettings'), page === 'settings' && !sourceOpen);
 }
 var sdata = null; // the current section's figures
 // The character view is two parts: the bar and page tabs (head), written in
@@ -197,7 +210,7 @@ window.addEventListener('resize', function () {
 });
 function viewTitle() {
   var label = sdata && sdata.label ? sdata.label : det ? det.label : '';
-  if (page === 'alerts') return 'Alert settings';
+  if (page === 'settings') return 'Settings';
   if (page) return 'Compare characters ' + DOT + ' ' + (DETAIL_RANGES[range] || '');
   return who ? shown(det ? det.name : shownId(who)) + (section !== 'summary' ? ' ' + DOT + ' ' + SECTION_NAMES[section] : '') + (label && section !== 'progress' ? ' ' + DOT + ' ' + label : '')
     : 'Everyone ' + DOT + ' Today';
@@ -240,14 +253,14 @@ document.addEventListener('click', function (e) {
     var gone = one.getAttribute('data-undismiss-one');
     dismissed = { day: localDay(), keys: todaysDismissed().filter(function (k) { return k !== gone; }) };
     saveAlerts(); announce('Shown again');
-    (document.querySelector('#alertsPage [data-undismiss-one]') || document.querySelector('#alertsPage h1')).focus({ preventScroll: true });
+    (document.querySelector('#settingsPage [data-undismiss-one]') || document.querySelector('#settingsPage #set-alerts h2')).focus({ preventScroll: true });
     return;
   }
   var toAlerts = t.closest('a[href="#alerts"]');
-  if (toAlerts && toAlerts.id !== 'navAlerts') { e.preventDefault(); openAlerts(true); return; }
+  if (toAlerts) { e.preventDefault(); openSettings(true, 'alerts'); return; }
   if (t.closest('[data-undismiss]')) {
     dismissed = { day: localDay(), keys: [] }; saveAlerts(); announce('Dismissed alerts shown again');
-    (page === 'alerts' ? document.querySelector('#alertsPage h1') : document.querySelector('#alertsCard [data-dismiss]') || $('content')).focus({ preventScroll: true });
+    (page === 'settings' ? document.querySelector('#settingsPage #set-alerts h2') : document.querySelector('#alertsCard [data-dismiss]') || $('content')).focus({ preventScroll: true });
     return;
   }
   if (t.closest('[data-alerts-reset]')) { alertPrefs = {}; saveAlerts(); announce('Alerts back to the defaults'); return; }
@@ -278,6 +291,8 @@ document.addEventListener('input', function (e) {
   if (e.target.id === 'targetValue') (targetDraft[who] = targetDraft[who] || {}).value = e.target.value;
 });
 document.addEventListener('change', function (e) {
+  var disp = e.target.getAttribute && e.target.getAttribute('data-display');
+  if (disp && e.target.checked) { display[disp] = e.target.value; saveDisplay(); announce('Saved'); return; }
   var on = e.target.getAttribute && e.target.getAttribute('data-alert-on');
   if (on) { alertPrefs[on] = e.target.checked; if (alertPrefs[on] === ALERT_DEFAULTS[on]) delete alertPrefs[on]; saveAlerts(); return; }
   var numKey = e.target.getAttribute && e.target.getAttribute('data-alert-num');
@@ -297,24 +312,31 @@ document.addEventListener('toggle', function (e) {
 }, true);
 $('navOverview').onclick = function (e) { e.preventDefault(); setWho('', true); };
 $('navCompare').onclick = function (e) { e.preventDefault(); openCompare(true); };
-$('navAlerts').onclick = function (e) { e.preventDefault(); openAlerts(true); };
+$('navSettings').onclick = function (e) { e.preventDefault(); openSettings(true); };
 
 // ---------------- the Alert settings page ----------------
-function openAlerts(focus) {
-  page = 'alerts'; who = ''; section = 'summary'; det = null; sdata = null; sourceOpen = false;
-  if (location.hash !== '#alerts') history[focus ? 'pushState' : 'replaceState'](null, '', location.pathname + location.search + '#alerts');
-  drawer(false); show(); renderAlertsPage(); renderNav(); setTitle(); window.scrollTo(0, 0);
-  if (focus) { var h = document.querySelector('#alertsPage h1'); if (h) h.focus({ preventScroll: true }); }
+// part: 'alerts' opens it at its Alerts section (the Alert settings links)
+function openSettings(focus, part) {
+  page = 'settings'; who = ''; section = 'summary'; det = null; sdata = null; sourceOpen = false;
+  var hash = part === 'alerts' ? '#alerts' : '#settings';
+  if (location.hash !== hash) history[focus ? 'pushState' : 'replaceState'](null, '', location.pathname + location.search + hash);
+  drawer(false); show(); renderSettings(); renderNav(); setTitle(); window.scrollTo(0, 0);
+  var target = part === 'alerts' ? document.querySelector('#set-alerts') : null;
+  if (target) target.scrollIntoView({ block: 'start' });
+  if (focus) {
+    var h = document.querySelector(part === 'alerts' ? '#set-alerts h2' : '#settingsPage h1');
+    if (h) { if (!h.hasAttribute('tabindex')) h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+  }
 }
-function renderAlertsPage() {
-  if (page !== 'alerts' || !ov) return;
+function renderSettings() {
+  if (page !== 'settings' || !ov) return;
   var names = dash && dash.conn ? dash.characterNames() : {};
   var list = todaysDismissed().map(function (k) {
     var i = k.lastIndexOf('|'), id = k.slice(0, i);
     return { key: k, name: names[id] || shownId(id), kind: k.slice(i + 1) };
   });
-  if (write($('alertsPage'), alertsPageHtml(alertSettings(alertPrefs), list))) tick();
-  enter($('alertsPage'), 'alerts');
+  if (write($('settingsPage'), settingsPageHtml(display, alertSettings(alertPrefs), list, ALERT_DEFAULTS))) tick();
+  enter($('settingsPage'), 'settings');
 }
 
 // ---------------- the Compare page ----------------
@@ -384,13 +406,13 @@ function setWho(name, focus, sec) {
 function followUrl() {
   var want = readHash();
   if (want[2] === 'compare') { if (page !== 'compare') openCompare(false); return; }
-  if (want[2] === 'alerts') { if (page !== 'alerts') openAlerts(false); return; }
+  if (want[2] === 'settings') { if (page !== 'settings' || want[3]) openSettings(false, want[3]); return; }
   if (want[0] !== who || want[1] !== section || page) setWho(want[0], false, want[1]);
 }
 window.addEventListener('popstate', followUrl);
 window.addEventListener('hashchange', followUrl);
 function setTitle() {
-  if (page) { document.title = (page === 'alerts' ? 'Alert settings' : 'Compare') + ' ' + DOT + ' GS4 Analytics'; return; }
+  if (page) { document.title = (page === 'settings' ? 'Settings' : 'Compare') + ' ' + DOT + ' GS4 Analytics'; return; }
   document.title = (who ? shown(det ? det.name : shownId(who)) + ' ' + DOT + ' ' + (section !== 'summary' ? SECTION_NAMES[section] + ' ' + DOT + ' ' : '') : ov && !sourceOpen ? 'Overview ' + DOT + ' ' : '') + 'GS4 Analytics';
 }
 function show() {
@@ -399,7 +421,7 @@ function show() {
   $('source').classList.toggle('compact', connected);
   $('overview').hidden = connected ? (!!who || !!page || sourceOpen) : !booting;
   $('compare').hidden = !connected || page !== 'compare' || sourceOpen;
-  $('alertsPage').hidden = !connected || page !== 'alerts' || sourceOpen;
+  $('settingsPage').hidden = !connected || page !== 'settings' || sourceOpen;
   $('detail').hidden = !connected || !who || sourceOpen;
   if (who && !det && connected && !sourceOpen) setHtml($('detail'), skeleton('detail'));
   $('banner').hidden = !(feed && feed.kind === 'demo') || sourceOpen;
@@ -458,7 +480,7 @@ function loadOverview() {
     ov = dash.overview();
     clockState.offset = ov.generated_at - Date.now() / 1000;
     clockState.frozen = feed.live ? null : ov.generated_at;
-    renderNav(); if (page === 'compare') renderCompare(); else if (page === 'alerts') renderAlertsPage(); else if (!who) renderOverview(); show(); tick(); showWarning(st.warning);
+    renderNav(); if (page === 'compare') renderCompare(); else if (page === 'settings') renderSettings(); else if (!who) renderOverview(); show(); tick(); showWarning(st.warning);
   }).catch(function (e) {
     if (e && e.superseded) return; // overtaken by a newer refresh or another source: nothing to show
     failed++; errorText = e && e.message ? e.message : String(e); tick();
@@ -559,14 +581,14 @@ function restore() {
 function exportName(ext) {
   var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
   var when = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
-  if (page) return 'gs4-analytics-' + (page === 'alerts' ? 'alerts' : 'compare-' + range) + '-' + when + '.' + ext;
+  if (page) return 'gs4-analytics-' + (page === 'settings' ? 'settings' : 'compare-' + range) + '-' + when + '.' + ext;
   return 'gs4-analytics-' + (who ? shownId(who).replace(/[^\w-]+/g, '_') + (section !== 'summary' ? '-' + section : '') + (section !== 'progress' ? '-' + range : '') : 'everyone') + '-' + when + '.' + ext;
 }
 $('export').onclick = function () {
   var btn = $('export'), label = $('exportLabel');
   if (!ov) return;
   btn.disabled = true; label.textContent = 'Saving...';
-  exportImage($(page === 'alerts' ? 'alertsPage' : page ? 'compare' : who ? 'detail' : 'overview'), viewTitle(), exportName, function (msg) {
+  exportImage($(page === 'settings' ? 'settingsPage' : page ? 'compare' : who ? 'detail' : 'overview'), viewTitle(), exportName, function (msg) {
     btn.disabled = false; label.textContent = msg || 'Saved'; announce(msg || 'Image saved');
     setTimeout(function () { label.textContent = 'Save image'; }, 2500);
   });

@@ -313,15 +313,15 @@ try {
   await pg.waitForFunction((n) => document.querySelectorAll('#alertsCard .alert').length === n, alertsBefore);
   check(await pg.evaluate(() => localStorage.getItem('gs4a-dismissed')) === null, 'alerts: Show them again brings it back');
   // Alert settings: a page of its own (#alerts), reached from the Alerts card, a character's page and the menu
-  const onAlertsPage = () => pg.waitForFunction(() => location.hash === '#alerts' && !document.querySelector('#alertsPage').hidden &&
-    document.querySelector('#navAlerts').getAttribute('aria-current') === 'page');
+  const onAlertsPage = () => pg.waitForFunction(() => ['#alerts', '#settings'].includes(location.hash) && !document.querySelector('#settingsPage').hidden &&
+    document.querySelector('#navSettings').getAttribute('aria-current') === 'page');
   await pg.click('#alertsCard a.al-settings');
   await onAlertsPage();
-  check(await pg.evaluate(() => document.activeElement?.matches('#alertsPage h1') && document.querySelector('#overview').hidden),
-    'alerts: the Alerts card opens the Alert settings page, current in the menu, focus on its heading');
+  check(await pg.evaluate(() => location.hash === '#alerts' && document.activeElement?.matches('#set-alerts h2') && document.querySelector('#overview').hidden),
+    'alerts: the Alerts card opens Settings at its Alerts section, current in the menu, focus on that heading');
   // Turning a kind off is saved and hides those alerts on the overview
   const kind = firstKey.slice(firstKey.lastIndexOf('|') + 1);
-  await pg.uncheck(`#alertsPage [data-alert-on="${kind}"]`);
+  await pg.uncheck(`#settingsPage [data-alert-on="${kind}"]`);
   await pg.waitForFunction((k) => JSON.parse(localStorage.getItem('gs4a-alerts') || '{}')[k] === false, kind);
   await pg.goBack();
   await pg.waitForSelector('#overview:not([hidden]) #alertsCard');
@@ -333,12 +333,30 @@ try {
   await onAlertsPage();
   await pg.click('#navOverview');
   await pg.waitForSelector('#overview:not([hidden]) #alertsCard');
-  await pg.click('#navAlerts');
+  await pg.click('#navSettings');
   await onAlertsPage();
-  check(true, "alerts: a character's page and the menu open it too");
+  check(await pg.evaluate(() => location.hash === '#settings' && document.activeElement?.matches('#settingsPage h1')), "alerts: a character's page and the menu's Settings open it too");
+  // Display: the cards' silver and experience per hour, and the menu's figure
+  await pg.check('#settingsPage input[data-display="card"][value="hour"]');
+  await pg.check('#settingsPage input[data-display="nav"][value="exp_hr"]');
+  await pg.waitForFunction(() => JSON.parse(localStorage.getItem('gs4a-display') || '{}').nav === 'exp_hr' && /exp\/hr/.test(document.querySelector('#navChars .nav-sub')?.textContent || ''));
+  await pg.click('#navOverview');
+  await pg.waitForSelector('#overview:not([hidden]) .ch-card');
+  const cardLabels = await pg.$eval('.ch-card .kpis', (k) => k.textContent);
+  check(/Silver \/ hr/.test(cardLabels) && /Exp \/ hr/.test(cardLabels), 'settings: the cards show silver and experience per hour, and the menu experience per hour, when chosen');
+  await pg.reload();
+  await pg.waitForSelector('#overview:not([hidden]) .ch-card');
+  check(/Silver \/ hr/.test(await pg.$eval('.ch-card .kpis', (k) => k.textContent)), 'settings: the display choice is remembered after a reload');
+  await pg.click('#navSettings');
+  await onAlertsPage();
+  await pg.check('#settingsPage input[data-display="card"][value="total"]');
+  await pg.check('#settingsPage input[data-display="nav"][value="silver"]');
+  await pg.waitForFunction(() => localStorage.getItem('gs4a-display') === null);
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#settings`);
+  await onAlertsPage();
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#alerts`);
   await onAlertsPage();
-  check(true, 'alerts: its address opens it directly, like a bookmark');
+  check(true, 'settings: its addresses (#settings, and #alerts for its Alerts section) open it directly, like a bookmark');
   // What's dismissed today is listed there, and can be shown again one by one
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
   await pg.waitForSelector('#alertsCard [data-dismiss]');
@@ -347,13 +365,21 @@ try {
   await pg.waitForSelector('#alertsCard [data-undismiss]');
   await pg.click('#alertsCard a.al-settings');
   await onAlertsPage();
-  check((await pg.$$eval('#alertsPage [data-undismiss-one]', (b) => b.map((x) => x.getAttribute('data-undismiss-one')))).join() === another,
+  check((await pg.$$eval('#settingsPage [data-undismiss-one]', (b) => b.map((x) => x.getAttribute('data-undismiss-one')))).join() === another,
     'alerts: the page lists what was dismissed today');
-  await pg.click('#alertsPage [data-undismiss-one]');
-  await pg.waitForFunction(() => !document.querySelector('#alertsPage [data-undismiss-one]') && localStorage.getItem('gs4a-dismissed') === null);
+  await pg.click('#settingsPage [data-undismiss-one]');
+  await pg.waitForFunction(() => !document.querySelector('#settingsPage [data-undismiss-one]') && localStorage.getItem('gs4a-dismissed') === null);
   check(true, 'alerts: Show again brings one back');
-  await pg.click('#alertsPage [data-alerts-reset]');
-  await pg.waitForFunction(() => localStorage.getItem('gs4a-alerts') === null && document.querySelector('#alertsPage [data-alert-on]').checked);
+  // A threshold is greyed out while its alert is off, and says its default once changed
+  await pg.uncheck('#settingsPage [data-alert-on="no_kills"]');
+  await pg.waitForFunction(() => document.querySelector('#al-num-no_kill_minutes')?.disabled);
+  await pg.fill('#al-num-mind_pct', '80');
+  await pg.press('#al-num-mind_pct', 'Enter');
+  await pg.waitForFunction(() => /default 90/.test(document.querySelector('#al-num-mind_pct')?.parentElement.textContent || ''));
+  check(await pg.$eval('#al-num-encumbrance_points', (el) => !el.disabled && el.labels[0]?.textContent === 'When'),
+    'alerts: a threshold is greyed out while its alert is off, labelled, and shows its default once changed');
+  await pg.click('#settingsPage [data-alerts-reset]');
+  await pg.waitForFunction(() => localStorage.getItem('gs4a-alerts') === null && document.querySelector('#settingsPage [data-alert-on]').checked);
   check(true, 'alerts: Back to the defaults restores them');
   check(pgProblems.length === 0, `pages: no console errors${pgProblems.length ? `: ${pgProblems.join(' | ')}` : ''}`);
   await pages.close();
