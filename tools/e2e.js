@@ -107,8 +107,10 @@ try {
   await page.waitForFunction(() => document.querySelector('.sb-name')?.textContent.includes('GSF'));
   await page.waitForTimeout(1200);
   const quiet = await rewritesOf(page, ['#detailBar', '#detailTabs ul', '#detailBody'], 16_000);
-  // A new hour legitimately redraws the hourly trend labels
-  check(quiet.rewrites === 0 || quiet.newHour, `live: refreshes with nothing new leave a character's page alone (${quiet.rewrites} rewrites in three refreshes)`);
+  // A new hour legitimately redraws the hourly trend labels. Within it, what's shown to
+  // the minute (a stretch still going, "idle for N min", each on its own minute) may
+  // redraw once each; the per-hour figures are taken to the minute too
+  check(quiet.rewrites <= 2 || quiet.newHour, `live: refreshes with nothing new leave a character's page alone, but for the minute turning (${quiet.rewrites} rewrites in three refreshes)`);
   // The overview and the menu, on a source with no new writes at all; a stretch still
   // going is drawn to the minute, so a minute turning over may redraw once
   const still = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT + 2), '--demo', '--still'],
@@ -291,6 +293,35 @@ try {
   await pg.click('[data-unhide-all]');
   await pg.waitForSelector('.card[data-who="GS3:Bebop"]');
   check(await pg.evaluate(() => localStorage.getItem('gs4a-hidden')) === null, 'hide: Show them brings everyone back');
+  // The side-by-side table: per-hour figures beside the totals, no crashes or item rests
+  const allHeads = await pg.$$eval('#overview table thead th', (ths) => ths.map((th) => th.textContent.trim()));
+  const sideHeads = allHeads.slice(allHeads.indexOf('Character'));
+  check(sideHeads.join(',').startsWith('Character,Silver,Silver / hr,Exp,Exp / hr') && !sideHeads.includes('Crashes') && !sideHeads.includes('Items'),
+    `side by side: silver and exp per hour beside the totals (${sideHeads.join(', ')})`);
+  // Alerts: dismissed for today, remembered, and shown again
+  const alertCount = () => pg.$$eval('#alertsCard .alert', (a) => a.length);
+  const alertsBefore = await alertCount();
+  const firstKey = await pg.getAttribute('#alertsCard [data-dismiss]', 'data-dismiss');
+  await pg.click('#alertsCard [data-dismiss]');
+  await pg.waitForFunction((n) => document.querySelectorAll('#alertsCard .alert').length === n - 1, alertsBefore);
+  check((await pg.evaluate(() => document.activeElement?.matches('#alertsCard [data-dismiss], #alertsCard [data-undismiss]'))) &&
+    !!(await pg.$('#alertsCard [data-undismiss]')), `alerts: one dismissed for today (${alertsBefore} -> ${alertsBefore - 1}), focus stays in the list, with a way back`);
+  await pg.reload();
+  await pg.waitForSelector('#alertsCard [data-undismiss]');
+  check(await alertCount() === alertsBefore - 1 && !(await pg.$(`#alertsCard [data-dismiss="${firstKey}"]`)), 'alerts: the dismissal is remembered after a reload');
+  await pg.click('#alertsCard [data-undismiss]');
+  await pg.waitForFunction((n) => document.querySelectorAll('#alertsCard .alert').length === n, alertsBefore);
+  check(await pg.evaluate(() => localStorage.getItem('gs4a-dismissed')) === null, 'alerts: Show them again brings it back');
+  // Settings: turning a kind off hides it everywhere; a threshold moves when one shows
+  await pg.click('#alertsCard .alert-settings summary');
+  const kind = firstKey.slice(firstKey.lastIndexOf('|') + 1);
+  await pg.uncheck(`#alertsCard [data-alert-on="${kind}"]`);
+  await pg.waitForFunction((k) => !document.querySelector(`#alertsCard [data-dismiss$="|${k}"]`), kind);
+  check((await pg.$eval('#alertsCard .alert-settings', (d) => d.open)) && JSON.parse(await pg.evaluate(() => localStorage.getItem('gs4a-alerts')))[kind] === false,
+    `alerts: turning off "${kind}" hides those alerts and is saved, and the settings stay open`);
+  await pg.click('#alertsCard [data-alerts-reset]');
+  await pg.waitForFunction((k) => !!document.querySelector(`#alertsCard [data-dismiss$="|${k}"]`), kind);
+  check(await pg.evaluate(() => localStorage.getItem('gs4a-alerts')) === null, 'alerts: Back to the defaults restores them');
   check(pgProblems.length === 0, `pages: no console errors${pgProblems.length ? `: ${pgProblems.join(' | ')}` : ''}`);
   await pages.close();
 

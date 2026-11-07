@@ -21,6 +21,7 @@ var P = {
   code: '<path d="M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   back: '<path d="M19 12H5.5M11 6l-6 6 6 6"/>',
   arrow: '<path d="M5 12h13.5M13 6l6 6-6 6"/>',
   chevron: '<path d="M9.5 6l6 6-6 6"/>',

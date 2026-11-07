@@ -9,10 +9,10 @@ import { local, BASE_DAYS, DAY_HUNT, HOUR_HUNT, buildStatusFor } from './overvie
 export const RANGES = { daily: 'Today', weekly: 'This Week', monthly: 'This Month' };
 
 // +overview+ is the buildOverview result for the same database and now
-export function buildCharacter(conn, overview, id, range, { now }) {
+export function buildCharacter(conn, overview, id, range, { now, alerts, dismissed }) {
   if (!Object.hasOwn(RANGES, range)) range = 'daily';
   const wanted = String(id).toLowerCase();
-  const base = overview.characters.find((entry) => entry.id.toLowerCase() === wanted) ?? buildStatusFor(conn, id, { now });
+  const base = overview.characters.find((entry) => entry.id.toLowerCase() === wanted) ?? buildStatusFor(conn, id, { now, alerts, dismissed });
   if (!base) return null;
 
   return {

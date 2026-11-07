@@ -10,6 +10,30 @@ export const NO_KILL_WARN = 900; // seconds hunting without a kill before red
 export const DAY_HUNT = 7200; // hunting seconds for a day to count toward "typical"
 export const HOUR_HUNT = 1200; // hunting seconds for an hour to count toward "typical"
 export const BASE_DAYS = 30;
+
+// The overview's alerts, and the thresholds they show at: what a reader can
+// change on the page (saved in their browser). These defaults are the Ruby
+// dashboard's, so an overview built without settings matches the golden figures.
+export const ALERT_DEFAULTS = Object.freeze({
+  dead: true,
+  idle: true, idle_minutes: IDLE_WARN / 60, // red at twice this
+  no_kills: true, no_kill_minutes: NO_KILL_WARN / 60,
+  pace_silver: true, pace_exp: true, pace_amber_pct: 20, pace_red_pct: 50, // behind typical, after an hour of hunting
+  deaths: true, item_rests: true, crashes: true, bounty: true, rest_reasons: true,
+  encumbrance: true, encumbrance_points: 10, // above the typical starting encumbrance
+  mind: true, mind_pct: 90, // the average starting mind
+});
+
+// A reader's settings over the defaults: only known keys, of the right type
+export function alertSettings(saved) {
+  const out = { ...ALERT_DEFAULTS };
+  for (const [key, value] of Object.entries(saved && typeof saved === 'object' ? saved : {})) {
+    if (!Object.hasOwn(ALERT_DEFAULTS, key)) continue;
+    if (typeof ALERT_DEFAULTS[key] === 'boolean' && typeof value === 'boolean') out[key] = value;
+    else if (typeof ALERT_DEFAULTS[key] === 'number' && Number.isFinite(value) && value >= 0) out[key] = value;
+  }
+  return out;
+}
 export const MIN_SAMPLES = 5;
 // The cycle each crash reason is recorded on. Up to schema 8 the script wrote
 // 'unhandled exit' on any hunt that went idle without a rest, a stop by hand
@@ -25,26 +49,31 @@ const tod = (col) =>
   `(CAST(strftime('%H', ${local(col)}) AS INTEGER) * 3600 + CAST(strftime('%M', ${local(col)}) AS INTEGER) * 60 ` +
   `+ CAST(strftime('%S', ${local(col)}) AS INTEGER))`;
 
-function context(now, latestFrom) {
+// opts.alerts: the reader's alert settings (alertSettings), and opts.dismissed:
+// "id\u0000kind" pairs dismissed for today. With either, each alert carries its
+// kind; without, the output is the Ruby dashboard's shape exactly.
+function context(now, latestFrom, opts = {}) {
   const today = dayOf(now);
   const dayStart = midnight(today);
   return { now, dayStart, todayS: dayStr(today), todNow: clockSeconds(now), baseFrom: midnight(addDays(today, -BASE_DAYS)), today,
-           latestFrom: latestFrom ?? now - 7 * 86_400 };
+           latestFrom: latestFrom ?? now - 7 * 86_400,
+           alerts: alertSettings(opts.alerts), dismissed: new Set(opts.dismissed || []),
+           kinds: opts.alerts != null || opts.dismissed != null };
 }
 
 // The overview entry for one character the overview leaves out (not played in
 // the last day): the same figures, with its last cycle found however old it is.
 // null when the database has nothing for that character.
-export function buildStatusFor(conn, id, { now }) {
-  const ctx = context(now, Number.MIN_SAFE_INTEGER);
+export function buildStatusFor(conn, id, { now, alerts, dismissed }) {
+  const ctx = context(now, Number.MIN_SAFE_INTEGER, { alerts, dismissed });
   const data = overviewData(conn, ctx);
   const wanted = String(id).toLowerCase();
   const found = [...data.labels.keys()].find((key) => key.toLowerCase() === wanted);
   return found == null ? null : buildStatus(found, data.labels.get(found) || found, ctx, data);
 }
 
-export function buildOverview(conn, { now }) {
-  const ctx = context(now);
+export function buildOverview(conn, { now, alerts, dismissed }) {
+  const ctx = context(now, undefined, { alerts, dismissed });
   const data = overviewData(conn, ctx);
 
   const names = uniq([
@@ -53,11 +82,11 @@ export function buildOverview(conn, { now }) {
   ]);
   const chars = sortBy(names, (id) => String(data.labels.get(id) ?? '').toLowerCase())
     .map((id) => buildStatus(id, data.labels.get(id) || id, ctx, data));
-  const alerts = sortBy(
-    chars.flatMap((char) => char.light.reasons.map((r) => ({ id: char.id, character: char.name, level: r.level, text: r.text }))),
+  const alertList = sortBy(
+    chars.flatMap((char) => char.light.reasons.map((r) => ({ id: char.id, character: char.name, level: r.level, text: r.text, ...(ctx.kinds ? { kind: r.kind } : {}) }))),
     (alert) => [alert.level === 'red' ? 0 : 1, alert.character],
   );
-  return { generated_at: now, day_start: ctx.dayStart, characters: chars, alerts, names: chars.map((char) => char.id) };
+  return { generated_at: now, day_start: ctx.dayStart, characters: chars, alerts: alertList, names: chars.map((char) => char.id) };
 }
 
 function overviewData(conn, ctx) {
@@ -218,7 +247,10 @@ function buildStatus(id, label, ctx, data) {
   const bounty = bountyFor(id, data, now);
   const encBase = data.encBase.get(id) ?? null;
 
-  const [reds, ambers] = lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, bounty, reasonRows, encBase, encToday, mindStart);
+  const shown = (r) => !ctx.dismissed.has(`${id}\u0000${r.kind}`);
+  const [reds, ambers] = lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, bounty, reasonRows, encBase, encToday, mindStart, ctx.alerts)
+    .map((list) => list.filter(shown));
+  const reason = (lv) => (r) => (ctx.kinds ? { level: lv, text: r.text, kind: r.kind } : { level: lv, text: r.text });
   let level = 'green';
   if (state.type === 'offline') level = 'gray';
   else if (reds.length) level = 'red';
@@ -228,7 +260,7 @@ function buildStatus(id, label, ctx, data) {
   const absorbedExp = absorbed.reduce((a, x) => a + x[0], 0);
   return {
     id, name: label, state, timeline,
-    light: { level, reasons: [...reds.map((t) => ({ level: 'red', text: t })), ...ambers.map((t) => ({ level: 'amber', text: t }))] },
+    light: { level, reasons: [...reds.map(reason('red')), ...ambers.map(reason('amber'))] },
     pace, last_kill: lastKill, last_bounty: data.lastBounty.get(id) ?? null,
     today: {
       hunt_s: huntS, rest_s: restS, idle_s: idleS, deaths, kills: toI(data.killsToday.get(id)),
@@ -302,37 +334,40 @@ function bountyFor(id, data, now) {
 }
 
 // The status light: what turns a character amber or red
-function lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, bounty, reasonRows, encBase, encToday, mindStart) {
+// Each alert is { kind, text }; a: the alert settings
+function lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, bounty, reasonRows, encBase, encToday, mindStart, a) {
   const reds = [];
   const ambers = [];
+  const add = (list, kind, text) => { if (a[kind]) list.push({ kind, text }); };
   const since = state.since != null ? now - state.since : 0;
-  if (state.type === 'dead') reds.push(`Dead for ${idiv(since, 60)} min`);
-  if (state.type === 'idle' && since > IDLE_WARN) (since > IDLE_WARN * 2 ? reds : ambers).push(`Idle for ${idiv(since, 60)} min`);
-  if (state.type === 'hunt' && since > NO_KILL_WARN && lastKill != null && now - lastKill > NO_KILL_WARN) {
-    reds.push(`No kills for ${idiv(now - lastKill, 60)} min while hunting`);
+  const idleWarn = a.idle_minutes * 60, noKill = a.no_kill_minutes * 60;
+  if (state.type === 'dead') add(reds, 'dead', `Dead for ${idiv(since, 60)} min`);
+  if (state.type === 'idle' && since > idleWarn) add(since > idleWarn * 2 ? reds : ambers, 'idle', `Idle for ${idiv(since, 60)} min`);
+  if (state.type === 'hunt' && since > noKill && lastKill != null && now - lastKill > noKill) {
+    add(reds, 'no_kills', `No kills for ${idiv(now - lastKill, 60)} min while hunting`);
   }
   if (huntS >= 3600) {
     for (const [metric, label] of [['silver', 'Silver'], ['exp', 'Exp']]) {
       const p = pace[metric].pct;
       if (p == null) continue;
-      if (p <= -50) reds.push(`${label} ${rround(p)}% vs typical by this time`);
-      else if (p <= -20) ambers.push(`${label} ${rround(p)}% vs typical by this time`);
+      if (p <= -a.pace_red_pct) add(reds, `pace_${metric}`, `${label} ${rround(p)}% vs typical by this time`);
+      else if (p <= -a.pace_amber_pct) add(ambers, `pace_${metric}`, `${label} ${rround(p)}% vs typical by this time`);
     }
   }
-  if (deaths > 0) ambers.push(`${deaths} death${deaths === 1 ? '' : 's'} today`);
-  if (itemRests > 0) ambers.push(`${itemRests} item limit rest${itemRests === 1 ? '' : 's'} today`);
-  if (crashes.length) ambers.push(`${crashes.length} crash / idle recovery today`);
-  if (bounty && bounty.stuck) ambers.push(`Bounty running ${idiv(bounty.age, 60)} min (typical ${idiv(bounty.typical, 60)} min)`);
+  if (deaths > 0) add(ambers, 'deaths', `${deaths} death${deaths === 1 ? '' : 's'} today`);
+  if (itemRests > 0) add(ambers, 'item_rests', `${itemRests} item limit rest${itemRests === 1 ? '' : 's'} today`);
+  if (crashes.length) add(ambers, 'crashes', `${crashes.length} crash / idle recovery today`);
+  if (bounty && bounty.stuck) add(ambers, 'bounty', `Bounty running ${idiv(bounty.age, 60)} min (typical ${idiv(bounty.typical, 60)} min)`);
   for (const row of reasonRows) {
     if (row.reason === '(none)' || row.typical == null) continue;
     if (row.today >= 3 && row.today >= row.typical * 2 + 1) {
-      ambers.push(`${row.reason}: ${row.today} rests today (typical ${floatStr(row.typical)} by now)`);
+      add(ambers, 'rest_reasons', `${row.reason}: ${row.today} rests today (typical ${floatStr(row.typical)} by now)`);
     }
   }
-  if (encBase && encBase[1] >= 10 && encToday.length >= 3 && mean(encToday) >= encBase[0] + 10) {
-    ambers.push(`Starting hunts at ${rround(mean(encToday))}% encumbrance (typical ${rround(encBase[0])}%)`);
+  if (encBase && encBase[1] >= 10 && encToday.length >= 3 && mean(encToday) >= encBase[0] + a.encumbrance_points) {
+    add(ambers, 'encumbrance', `Starting hunts at ${rround(mean(encToday))}% encumbrance (typical ${rround(encBase[0])}%)`);
   }
-  if (mindStart.length >= 3 && mean(mindStart) >= 90) ambers.push(`Starting hunts with mind ${rround(mean(mindStart))}% full`);
+  if (mindStart.length >= 3 && mean(mindStart) >= a.mind_pct) add(ambers, 'mind', `Starting hunts with mind ${rround(mean(mindStart))}% full`);
   return [reds, ambers];
 }
 

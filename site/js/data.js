@@ -304,12 +304,24 @@ export class Dashboard {
     return this.cache.get(full);
   }
 
+  // The reader's alert settings and today's dismissals (app.js keeps them in
+  // the browser); the overview and character views are built with them
+  setAlerts(prefs) {
+    this.alertPrefs = { alerts: prefs.alerts || {}, dismissed: [...(prefs.dismissed || [])].sort() };
+    this.alertKey = JSON.stringify(this.alertPrefs);
+  }
+
   overview() {
-    return this.memo('overview', (now) => buildOverview(this.conn, { now }));
+    const prefs = this.alertPrefs || { alerts: {}, dismissed: [] };
+    return this.memo(`overview|${this.alertKey || ''}`, (now) => buildOverview(this.conn, { now, ...prefs }));
   }
 
   character(who, range) {
-    return this.memo(`char|${who}|${range}`, (now) => buildCharacter(this.conn, this.overview(), who, range, { now }));
+    const prefs = this.alertPrefs || { alerts: {}, dismissed: [] };
+    // The range figures (per hour and the rest) are taken to the minute, like the
+    // overview's: a refresh with nothing new leaves the page alone until it turns
+    return this.memo(`char|${who}|${range}|${this.alertKey || ''}`,
+      (now) => buildCharacter(this.conn, this.overview(), who, range, { now: Math.floor(now / 60) * 60, ...prefs }));
   }
 
   // One of a character's detail pages (aggregate/details.js). The section
