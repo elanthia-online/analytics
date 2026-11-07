@@ -375,7 +375,8 @@ section { margin-top: 24px; }
 .alert-row .alert { flex: 1; min-width: 0; }
 .al-x { align-self: center; flex: none; color: var(--muted); }
 .as-undo { margin: 0 0 10px; }
-.alert-settings { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+#alertsCard { scroll-margin-top: 16px; }
+.alert-settings { margin: -4px 0 14px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .alert-settings summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 650; color: var(--ink-2); padding: 4px 2px; }
 .alert-settings summary .ic { width: 16px; height: 16px; }
 .alert-settings[open] summary { margin-bottom: 6px; }

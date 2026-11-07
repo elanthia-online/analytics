@@ -5,15 +5,25 @@ Guidance for coding agents (and humans) working in this repo. `CLAUDE.md` points
 ## What this is
 
 A static site (GitHub Pages, no build step) that opens an analytics.lic SQLite database in
-the browser with sql.js and renders the hunting dashboard. analytics.lic lives in
-elanthia-online/scripts (`scripts/analytics.lic`, PR elanthia-online/scripts#2556). It
-writes the database and serves it over a small local API ([docs/api.md](docs/api.md));
-[docs/script-changes.md](docs/script-changes.md) records how the script was changed for that.
+the browser with sql.js and renders the hunting dashboard. analytics.lic is published in
+elanthia-online/scripts (`scripts/analytics.lic`, PR elanthia-online/scripts#2556), but
+**this repo is its home**: its development, issues, docs, rules and changelog all live
+here, not in the scripts repo. It writes the database and serves it over a small local API
+([docs/api.md](docs/api.md)); [docs/script-changes.md](docs/script-changes.md) records how
+the script was changed for that.
 
 `site/guide/` is the player documentation for the script. The script's header links to
 it, so keep it in step with the script: a new setting, command or report belongs in the
 guide in the same change that adds it. Ideas not built yet go in
 [docs/roadmap.md](docs/roadmap.md).
+
+`site/guide/changes.html` is the player-facing changelog for the script and the dashboard
+together, linked from the script's header, the guide and the dashboard's footer. Any change
+a player can see (a new figure, setting, command or alert, a fix to a number they'd have
+noticed, a schema change that needs a fresh database) gets an entry in the same PR: under
+the release it ships in, marked Script or Dashboard, written for players (what changed and
+what to do, not how). A dashboard-only change that goes live on merge gets its own dated
+entry. Internal changes (tests, tooling, refactors) don't.
 
 Read [docs/README.md](docs/README.md) first; it indexes the working docs.
 

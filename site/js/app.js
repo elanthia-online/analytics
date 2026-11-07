@@ -491,6 +491,17 @@ $('pickFile').onchange = function () { if (this.files.length) connect(new FileSo
 $('demoBtn').onclick = function () { if (dash) connectDemo(); };
 $('connectBtn').onclick = function () { $('connect').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('port').focus({ preventScroll: true }); };
 $('bannerConnect').onclick = function () { sourceOpen = true; show(); renderNav(); drawer(false); window.scrollTo(0, 0); };
+// Opens the Alerts card's settings on the overview, from any page
+$('alertSettingsBtn').onclick = function () {
+  if (!ov) { sourceOpen = true; show(); renderNav(); drawer(false); return; }
+  alertsOpen = true;
+  setWho('', false);
+  var d = document.querySelector('#alertsCard .alert-settings');
+  if (!d) return;
+  d.open = true;
+  $('alertsCard').scrollIntoView({ block: 'start' });
+  d.querySelector('summary').focus({ preventScroll: true });
+};
 $('sourceBtn').onclick = function () { sourceOpen = !sourceOpen || !ov; show(); renderNav(); drawer(false); window.scrollTo(0, 0); };
 $('sourceClose').onclick = function () { sourceOpen = false; show(); renderNav(); if (who) loadDetail(); else renderOverview(); };
 if (FolderSource.supported()) {

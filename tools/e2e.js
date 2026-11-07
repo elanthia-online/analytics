@@ -319,6 +319,14 @@ try {
   await pg.waitForFunction((k) => !document.querySelector(`#alertsCard [data-dismiss$="|${k}"]`), kind);
   check((await pg.$eval('#alertsCard .alert-settings', (d) => d.open)) && JSON.parse(await pg.evaluate(() => localStorage.getItem('gs4a-alerts')))[kind] === false,
     `alerts: turning off "${kind}" hides those alerts and is saved, and the settings stay open`);
+  // The menu's Alert settings opens it from a character's page
+  await pg.click('#alertsCard .alert-settings summary'); // closed again
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#GS4%3ABebop`);
+  await pg.waitForSelector('#detailBody');
+  await pg.click('#alertSettingsBtn');
+  await pg.waitForFunction(() => location.hash === '' && document.querySelector('#alertsCard .alert-settings')?.open &&
+    document.activeElement?.matches('#alertsCard .alert-settings summary'));
+  check(true, 'alerts: the menu\'s Alert settings opens them on the overview, from any page, with focus there');
   await pg.click('#alertsCard [data-alerts-reset]');
   await pg.waitForFunction((k) => !!document.querySelector(`#alertsCard [data-dismiss$="|${k}"]`), kind);
   check(await pg.evaluate(() => localStorage.getItem('gs4a-alerts')) === null, 'alerts: Back to the defaults restores them');
@@ -454,7 +462,7 @@ try {
   const guideResponse = await guide.goto(`http://localhost:${SITE_PORT}/guide/`);
   check(guideResponse.ok(), `guide: served (${guideResponse.status()})`);
   const sections = await guide.$$eval('main section[id]', (els) => els.map((el) => el.id));
-  const tocTargets = await guide.$$eval('.toc a', (els) => els.map((a) => a.getAttribute('href').slice(1)));
+  const tocTargets = await guide.$$eval('.toc ol a', (els) => els.map((a) => a.getAttribute('href').slice(1)));
   check(sections.length >= 10 && JSON.stringify(sections) === JSON.stringify(tocTargets), `guide: every section is in the contents (${sections.length})`);
   const anchors = await guide.$$eval('a[href^="#"]', (els) => els.map((a) => a.getAttribute('href').slice(1)));
   const missing = [];
@@ -466,6 +474,15 @@ try {
   check(icons.length === 3 && served.every(Boolean), `favicon: the SVG, PNG and touch icons are linked and served, and /favicon.ico (${served.filter(Boolean).length}/${served.length})`);
   check(guideProblems.length === 0, `guide: no console errors or CSP violations${guideProblems.length ? `: ${guideProblems.join(' | ')}` : ''}`);
   if (shots) await guide.screenshot({ path: `${shots}/guide.png`, fullPage: true });
+  // What's changed: linked from the guide, and its links into the guide land
+  await guide.click('.toc-more a[href="changes.html"]');
+  await guide.waitForSelector('.changes section[id]');
+  const intoGuide = await guide.$$eval('.changes a[href^="./#"]', (els) => els.map((a) => a.getAttribute('href').slice(3)));
+  await guide.goto(`http://localhost:${SITE_PORT}/guide/`);
+  const gone = [];
+  for (const id of intoGuide) if (!(await guide.$(`[id="${id}"]`))) gone.push(id);
+  check(intoGuide.length > 0 && gone.length === 0, `changes: linked from the guide, and every link into the guide has a target${gone.length ? ` (missing ${gone.join(', ')})` : ''}`);
+  check(guideProblems.length === 0, `changes: no console errors or CSP violations${guideProblems.length ? `: ${guideProblems.join(' | ')}` : ''}`);
   await guideContext.close();
 } finally {
   await browser.close();

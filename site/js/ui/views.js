@@ -80,7 +80,7 @@ function alertSettingsHtml(a, open) {
     return '<label class="fl as-num"><span>' + esc(label) + '</span><input type="number" inputmode="numeric" min="' + min + '" max="' + max + '" step="1" data-alert-num="' +
       key + '" value="' + esc(String(a[key])) + '"></label>';
   };
-  return '<details class="alert-settings no-export"' + (open ? ' open' : '') + '><summary>' + icon('settings') + '<span>Choose which alerts show</span></summary>' +
+  return '<details class="alert-settings no-export"' + (open ? ' open' : '') + '><summary>' + icon('settings') + '<span>Alert settings: choose which alerts show</span></summary>' +
     '<p class="small muted">Saved in this browser only. The script\'s in-game and Discord alerts are set in its settings file.</p>' +
     '<fieldset class="as-list"><legend class="sr">Alerts to show</legend>' + ALERT_KINDS.map(function (k) {
       return '<div class="as-row"><label class="as-check"><input type="checkbox" data-alert-on="' + k[0] + '"' + (a[k[0]] ? ' checked' : '') + '><span>' + esc(k[1]) + '</span></label>' +
@@ -172,7 +172,7 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
       barChart('ov-daily', opts.daily.labels, [{ name: 'Experience', color: '--k1', values: opts.daily.labels.map(function (_, i) {
         return chars.reduce(function (a, c) { var s = opts.daily.series[c.id]; return a + (s ? s.exp[i] : 0); }, 0); }) }], short, width, 'Experience by day, all shown characters') + '</section>' : '') +
     '<section class="card" id="alertsCard">' + head('Alerts', ov.alerts.filter(function (a) { return visible(a.id); }).length ? plural(ov.alerts.filter(function (a) { return visible(a.id); }).length, 'item') : '') +
-      alertsHtml(ov, visible, opts.dismissedCount || 0) + (opts.alertSettings ? alertSettingsHtml(opts.alertSettings, opts.alertSettingsOpen) : '') + '</section>' +
+      (opts.alertSettings ? alertSettingsHtml(opts.alertSettings, opts.alertSettingsOpen) : '') + alertsHtml(ov, visible, opts.dismissedCount || 0) + '</section>' +
     '<section>' +
       '<div class="card">' + head('Side by side', 'today') + scroll('Side by side, today') + '<table><thead><tr><th>Character</th><th>Silver</th><th title="Silver per hour the script ran today">Silver / hr</th><th>Exp</th>' +
       '<th title="Experience per hour the script ran today">Exp / hr</th><th>Bounties</th><th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +

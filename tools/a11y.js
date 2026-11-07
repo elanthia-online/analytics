@@ -72,6 +72,7 @@ const VIEWS = [
   ['choosing another source', '/?demo', '#banner:not([hidden])', async (page) => { await page.click('#bannerConnect'); }],
   ['unreachable source', '/?live=1', '#sourceError:not([hidden])'],
   ['guide', '/guide/', 'main section[id]'],
+  ['what\'s changed', '/guide/changes.html', '.changes section[id]'],
 ];
 const PHONE_VIEWS = [
   ['phone overview', live, '.card[data-who]'],

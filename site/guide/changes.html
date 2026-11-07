@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- A static page: no data, and no scripts but the theme loader and the theme and contrast controls. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="What changed in analytics.lic and its dashboard, release by release, and anything you need to do.">
+<title>What's changed</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script src="../js/theme-init.js"></script>
+<script type="module" src="../js/display.js"></script>
+<link rel="stylesheet" href="../css/dashboard.css">
+<link rel="stylesheet" href="../css/guide.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="../" title="Open the dashboard">
+      <span class="logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="9" width="3" height="7" rx="1.2" fill="#fff" opacity=".75"/><rect x="7.5" y="5" width="3" height="11" rx="1.2" fill="#fff" opacity=".9"/><rect x="13" y="2" width="3" height="14" rx="1.2" fill="#fff"/></svg></span>
+      <span><h1>GS4 Analytics</h1><small>What's changed</small></span>
+    </a>
+    <span class="spacer"></span>
+    <nav class="controls" aria-label="Site">
+      <a class="btn sm primary" href="../">Open the dashboard</a>
+      <a class="btn sm" href="./">Guide</a>
+      <a class="btn sm" href="https://github.com/elanthia-online/analytics">GitHub</a>
+      <span class="land-ctl">
+        <fieldset class="seg-ctl theme-seg"><legend class="sr">Theme</legend>
+          <label title="Follow the system"><input type="radio" name="theme-changes" value="auto"><i data-icon="monitor"></i><span>Auto</span></label>
+          <label title="Light"><input type="radio" name="theme-changes" value="light"><i data-icon="sun"></i><span>Light</span></label>
+          <label title="Dark"><input type="radio" name="theme-changes" value="dark"><i data-icon="moon"></i><span>Dark</span></label>
+        </fieldset>
+        <button class="contrast-btn" type="button" aria-pressed="false" title="High contrast"><i data-icon="contrast"></i><span>High contrast</span></button>
+      </span>
+    </nav>
+  </header>
+
+  <main>
+  <div class="page-head"><div><h2>What's changed</h2>
+    <p>Changes to analytics.lic and its dashboard, newest first. Each says whether it's the <b>script</b> (update the script to get it) or the <b>dashboard</b> (live on this site as soon as it's out), and anything you need to do.</p></div></div>
+
+  <div class="doc changes">
+    <!-- Newest first. One section per release, id="v<version>" (script releases) or
+         id="d<yyyy-mm-dd>" (a dashboard-only change). Mark each item Script or Dashboard.
+         Write for players: what changed, and what to do about it, if anything. -->
+    <section id="v1.0.0" class="card">
+      <h3>1.0.0 &middot; the first release</h3>
+      <p class="note">Not released yet: this entry is the draft for the day it ships.</p>
+      <ul>
+        <li><span class="chip">Script</span> analytics.lic records each character's hunts, rests, deaths and idle time, kills, silver (bank balances, sales, boxes, coins off the floor, bounty rewards, and what you spend),
+          bounties and every task offered, shop stops, and where each character stands (level, experience, ascension, training points, Death's Sting, Lumnis and your resources). It never sends a game command beyond one quiet <code>BANK ACCOUNT</code> per character.</li>
+        <li><span class="chip">Script</span> Text reports in the game window, alerts in the game and on Discord, and a daily digest.</li>
+        <li><span class="chip">Script</span> Settings in two files: one for every character with the defaults, and one per character for overrides. See <a href="./#settings">Settings</a>.</li>
+        <li><span class="chip">Dashboard</span> This site: an overview of every character, a page per character (Summary, Income, Hunting, Bounties, Progress, History) and Compare, reading your database in your browser.</li>
+        <li><span class="chip">Dashboard</span> Alerts you can dismiss for the day, and choose which show and when. See <a href="./#dashboard-alerts">Alerts on the dashboard</a>.</li>
+      </ul>
+      <h4>What to do</h4>
+      <ul>
+        <li>Have your rest script type <code>EXPERIENCE</code> and <code>RESOURCE</code> once a rest, so fame, Death's Sting, training points and your resources are recorded. See <a href="./#first-run">First run</a>.</li>
+        <li>If you tested an earlier build, move its <code>analytics.db</code> aside: the script refuses a database from another build and starts a fresh one. Delete your character's old <code>analytics.yaml</code> too, to get the new blank one.</li>
+      </ul>
+    </section>
+  </div>
+  </main>
+  <footer class="foot"><a href="../">Dashboard</a> &middot; <a href="./">Guide</a> &middot; <a href="https://github.com/elanthia-online/analytics">Source</a> &middot; <a href="https://github.com/elanthia-online/analytics/blob/main/docs/roadmap.md">Roadmap</a></footer>
+</div>
+</body>
+</html>
