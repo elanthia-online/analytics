@@ -263,6 +263,12 @@ try {
   await pg.goBack();
   await pg.waitForSelector('#compare:not([hidden]) table');
   check(true, 'compare: Back returns to it');
+  await pg.click('#compare a[data-who="GS3:Raphael"]');
+  await pg.waitForSelector('#detail h1');
+  check(!/No data for/.test(await pg.textContent('#detail')) && /Raphael/.test(await pg.textContent('#detail h1')),
+    'compare: a character not played today still opens its page');
+  await pg.goBack();
+  await pg.waitForSelector('#compare:not([hidden]) table');
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
   await pg.waitForSelector('.card[data-who]');
   await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');

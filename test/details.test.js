@@ -223,3 +223,15 @@ test('Dashboard.details answers only the known pages, whatever the URL says', as
   assert.ok(dash.details(ID, 'income', 'daily').sources);
   assert.ok(dash.details(ID, 'progress', 'daily').progress.available);
 });
+
+test('a character off the overview (not played in the last day) still has a page', async () => {
+  const { buildOverview, buildCharacter } = await import('../site/js/aggregate/index.js');
+  const overview = buildOverview(conn, { now });
+  assert.ok(!overview.names.includes('GS3:Raphael'), 'the fixture leaves Raphael off the overview');
+  const last = one("SELECT MAX(COALESCE(end_time, start_time)) AS t FROM cycles WHERE game = 'GS3' AND character = 'Raphael'").t;
+  const char = buildCharacter(conn, overview, 'gs3:raphael', 'weekly', { now });
+  assert.equal(char.id, 'GS3:Raphael');
+  assert.equal(char.state.type, 'offline');
+  assert.equal(char.state.since, last, 'last seen at its last cycle, however old');
+  assert.equal(buildCharacter(conn, overview, 'GS3:Nobody', 'daily', { now }), null);
+});

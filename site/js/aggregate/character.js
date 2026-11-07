@@ -4,7 +4,7 @@
 import { toI, toF, rround, mean, percent, truthy, sortBy, autoMap } from './ruby.js';
 import { dayOf, addDays, midnight, dayStr, dateOf, hourLabel, hourOf } from './time.js';
 import { rangeFromArg, parseWho, shortProfile, bountyTarget, offerLabel, figures, loginFor } from './report.js';
-import { local, BASE_DAYS, DAY_HUNT, HOUR_HUNT } from './overview.js';
+import { local, BASE_DAYS, DAY_HUNT, HOUR_HUNT, buildStatusFor } from './overview.js';
 
 export const RANGES = { daily: 'Today', weekly: 'This Week', monthly: 'This Month' };
 
@@ -12,7 +12,7 @@ export const RANGES = { daily: 'Today', weekly: 'This Week', monthly: 'This Mont
 export function buildCharacter(conn, overview, id, range, { now }) {
   if (!Object.hasOwn(RANGES, range)) range = 'daily';
   const wanted = String(id).toLowerCase();
-  const base = overview.characters.find((entry) => entry.id.toLowerCase() === wanted);
+  const base = overview.characters.find((entry) => entry.id.toLowerCase() === wanted) ?? buildStatusFor(conn, id, { now });
   if (!base) return null;
 
   return {

@@ -22,10 +22,26 @@ const tod = (col) =>
   `(CAST(strftime('%H', ${local(col)}) AS INTEGER) * 3600 + CAST(strftime('%M', ${local(col)}) AS INTEGER) * 60 ` +
   `+ CAST(strftime('%S', ${local(col)}) AS INTEGER))`;
 
-export function buildOverview(conn, { now }) {
+function context(now, latestFrom) {
   const today = dayOf(now);
   const dayStart = midnight(today);
-  const ctx = { now, dayStart, todayS: dayStr(today), todNow: now - dayStart, baseFrom: midnight(addDays(today, -BASE_DAYS)), today };
+  return { now, dayStart, todayS: dayStr(today), todNow: now - dayStart, baseFrom: midnight(addDays(today, -BASE_DAYS)), today,
+           latestFrom: latestFrom ?? now - 7 * 86_400 };
+}
+
+// The overview entry for one character the overview leaves out (not played in
+// the last day): the same figures, with its last cycle found however old it is.
+// null when the database has nothing for that character.
+export function buildStatusFor(conn, id, { now }) {
+  const ctx = context(now, Number.MIN_SAFE_INTEGER);
+  const data = overviewData(conn, ctx);
+  const wanted = String(id).toLowerCase();
+  const found = [...data.labels.keys()].find((key) => key.toLowerCase() === wanted);
+  return found == null ? null : buildStatus(found, data.labels.get(found) || found, ctx, data);
+}
+
+export function buildOverview(conn, { now }) {
+  const ctx = context(now);
   const data = overviewData(conn, ctx);
 
   const names = uniq([
@@ -38,7 +54,7 @@ export function buildOverview(conn, { now }) {
     chars.flatMap((char) => char.light.reasons.map((r) => ({ id: char.id, character: char.name, level: r.level, text: r.text }))),
     (alert) => [alert.level === 'red' ? 0 : 1, alert.character],
   );
-  return { generated_at: now, day_start: dayStart, characters: chars, alerts, names: chars.map((char) => char.id) };
+  return { generated_at: now, day_start: ctx.dayStart, characters: chars, alerts, names: chars.map((char) => char.id) };
 }
 
 function overviewData(conn, ctx) {
@@ -63,7 +79,7 @@ function overviewData(conn, ctx) {
     `SELECT ${WHO} AS who, cycle_type, start_time, end_time, rest_reason, profile FROM cycles ` +
       'WHERE start_time >= ? AND start_time = (SELECT MAX(c2.start_time) FROM cycles c2 ' +
       'WHERE c2.game = cycles.game AND c2.character = cycles.character)',
-    now - 7 * 86_400,
+    ctx.latestFrom,
   ).map((row) => [row.who, row]));
 
   // per-day totals for pace: the full day, and up to this time of day
