@@ -15,14 +15,28 @@ function greeting(ts) {
   var h = new Date(ts * 1000).getHours();
   return h < 5 ? 'Late night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
-function paceKpi(lab, m) {
+// shownValue: what to show instead of today's total (a rate); the delta is still today against typical
+function paceKpi(lab, m, shownValue) {
   // Three to a card leaves no room for words beside the number: the tooltip says what it compares
   var sub = m.pct == null ? '<span class="muted" title="Not enough days yet to say what is typical">building<span class="sr"> a baseline</span></span>' : '<span title="vs typical by now">' + delta(m.pct, false, '') + '</span>';
-  return stat(lab, short(m.so_far), sub);
+  return stat(lab, shownValue != null ? shownValue : short(m.so_far), sub);
 }
 
+// Per hour the script ran today (hunting, resting or idle), as the reports
+// count it; null under ten minutes of that, too little to divide by
+export function perHourToday(c, value) {
+  var ran = c.today.hunt_s + c.today.rest_s + c.today.idle_s;
+  return ran >= 600 ? value * 3600 / ran : null;
+}
+var hourly = function (c, value) { var v = perHourToday(c, value); return v == null ? '--' : short(v); };
+
+// What the reader chose to see (Settings > Display; app.js keeps it in the browser)
+export var DISPLAY_DEFAULTS = { card: 'total', nav: 'silver' };
+export var NAV_FIGURES = { silver: 'Silver today', silver_hr: 'Silver per hour', exp: 'Experience today', exp_hr: 'Experience per hour' };
+
 // ---------------- everyone ----------------
-function card(c, ov, on) {
+// display.card: 'total' (today so far) or 'hour' (per hour the script ran today)
+function card(c, ov, on, display) {
   var b = c.bounty, level = c.light.level;
   return '<article class="card ch-card click lv-' + esc(level) + '" data-who="' + esc(c.id) + '">' +
     '<div class="ch-head">' + avatar(c) + '<div class="ch-id">' +
@@ -34,7 +48,9 @@ function card(c, ov, on) {
     dayStrip(c, ov.day_start, esc(c.id).replace(/\W/g, '_')) +
     (c.light.reasons.length ? reasonsHtml(c.light)
       : '<ul class="reasons"><li>' + status(level) + '<span>' + LIGHT[level][1] + '</span></li></ul>') +
-    '<div class="kpis">' + paceKpi('Silver', c.pace.silver) + paceKpi('Experience', c.pace.exp) + paceKpi('Bounties', c.pace.bounties) + '</div>' +
+    '<div class="kpis">' + (display && display.card === 'hour'
+      ? paceKpi('Silver / hr', c.pace.silver, hourly(c, c.pace.silver.so_far)) + paceKpi('Exp / hr', c.pace.exp, hourly(c, c.pace.exp.so_far))
+      : paceKpi('Silver', c.pace.silver) + paceKpi('Experience', c.pace.exp)) + paceKpi('Bounties', c.pace.bounties) + '</div>' +
     '<div class="facts">' +
       '<div class="fact-b"><div class="fact"><span>Active bounty</span><span>' + bountyText(b) + '</span></div>' + meter(b) + '</div>' +
       '<div class="fact"><span>Last kill</span><span data-ago="' + (c.last_kill || '') + '"></span></div>' +
@@ -96,9 +112,10 @@ export function alertSettingsLink(cls) {
   return '<a class="al-settings ' + (cls || '') + '" href="#alerts">' + icon('settings') + '<span>Alert settings</span></a>';
 }
 
-// The Alert settings page (#alerts): which alerts show and their thresholds,
-// and what's dismissed today. a: alertSettings; dismissed: [{ key, name, kind }]
-export function alertsPageHtml(a, dismissed, defaults) {
+// The Settings page (#settings; #alerts opens it at Alerts): what the overview
+// and the menu show, which alerts show and their thresholds, and what's dismissed
+// today. display: { card, nav }; a: alertSettings; dismissed: [{ key, name, kind }]
+export function settingsPageHtml(display, a, dismissed, defaults) {
   defaults = defaults || {};
   var lv = { red: 'A problem', amber: 'Needs a look' };
   var label = function (kind) { var k = ALERT_KINDS.find(function (x) { return x[0] === kind; }); return k ? k[1] : kind; };
@@ -124,17 +141,29 @@ export function alertsPageHtml(a, dismissed, defaults) {
       (g.fields ? '<div class="as-shared"><p class="as-shared-head">For both</p>' + g.fields.map(function (f) { return field(f, !anyOn, g.title); }).join('') + '</div>' : '') +
       '</fieldset>';
   }).join('');
-  var which = '<section class="card">' + head('Which alerts show', 'on the overview and each character') + groups +
+  var radios = function (name, legend, hint, options, value) {
+    return '<fieldset class="as-group"><legend>' + esc(legend) + '</legend><p class="as-note" id="disp-' + name + '-hint">' + esc(hint) + '</p>' +
+      '<div class="as-radios" role="radiogroup" aria-describedby="disp-' + name + '-hint">' + Object.keys(options).map(function (k) {
+        return '<label class="as-radio"><input type="radio" name="disp-' + name + '" value="' + k + '" data-display="' + name + '"' + (k === value ? ' checked' : '') + '>' +
+          '<span>' + esc(options[k]) + '</span></label>';
+      }).join('') + '</div></fieldset>';
+  };
+  var displayCard = '<section class="card" id="set-display">' + head('Display', 'what the overview and the menu show') +
+    radios('card', 'Silver and experience on each character\'s card', 'On the overview. Either way, the arrow beside each says how today compares with your typical day.',
+      { total: 'Total today', hour: 'Per hour today' }, display.card) +
+    radios('nav', 'Beside each character in the menu', 'After what the character is doing, such as Hunting.', NAV_FIGURES, display.nav) +
+    '<p class="small muted note-p">Per hour is per hour the script ran today, hunting, resting or idle, as the reports count it.</p></section>';
+  var which = '<section class="card" id="set-alerts">' + head('Alerts', 'which show, on the overview and each character', '', 2) + groups +
     '<div class="as-foot"><button type="button" class="btn" data-alerts-reset>Back to the defaults</button></div></section>';
-  var gone = '<section class="card">' + head('Dismissed today', dismissed.length ? plural(dismissed.length, 'alert') : '') +
+  var gone = '<section class="card">' + head('Dismissed alerts', dismissed.length ? plural(dismissed.length, 'alert') + ', until midnight' : 'today') +
     (dismissed.length ? '<ul class="as-dismissed">' + dismissed.map(function (d) {
       return '<li><span><b>' + esc(shown(d.name)) + '</b> ' + esc(label(d.kind)) + '</span><button type="button" class="link-btn" data-undismiss-one="' + esc(d.key) +
         '" aria-label="Show again: ' + esc(shown(d.name)) + ', ' + esc(label(d.kind)) + '">Show again</button></li>';
     }).join('') + '</ul><button type="button" class="btn" data-undismiss>Show them all again</button>'
       : '<p class="small muted note-p first">Nothing dismissed. Dismiss an alert with its &times; on the overview; it stays hidden until midnight.</p>') + '</section>';
-  return '<div class="page-head"><div><div class="eyebrow">Alerts</div><h1 tabindex="-1">Alert settings</h1>' +
-    '<p class="small muted">Which of the dashboard\'s alerts show, and when. Saved in this browser only; the script\'s in-game and Discord alerts are set in its settings file.</p></div></div>' +
-    which + gone;
+  return '<div class="page-head"><div><h1 tabindex="-1">Settings</h1>' +
+    '<p class="small muted">How the dashboard shows your characters, and which of its alerts show. Saved in this browser only; the script\'s own settings, ' +
+    'including its in-game and Discord alerts, are in its settings files.</p></div></div>' + displayCard + which + gone;
 }
 
 function alertsHtml(ov, visible, dismissedCount) {
@@ -155,7 +184,7 @@ function alertsHtml(ov, visible, dismissedCount) {
   }).join('') + '</div>';
 }
 
-// opts: { hidden: [ids], daily: buildDaily for the shown characters, dismissedCount }
+// opts: { hidden: [ids], daily: buildDaily for the shown characters, dismissedCount, display }
 export function overviewHtml(ov, chars, pinned, width, opts) {
   opts = opts || {};
   var hidden = opts.hidden || [];
@@ -194,10 +223,7 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
 
   // Per hour the script ran today (hunting, resting or idle), as the reports
   // count it; under ten minutes of that is too little to divide by
-  var perHour = function (c, value) {
-    var ran = c.today.hunt_s + c.today.rest_s + c.today.idle_s;
-    return ran >= 600 ? short(value * 3600 / ran) : '--';
-  };
+  var perHour = hourly;
   var rows = chars.map(function (c) {
     var t = c.today;
     return '<tr class="click" data-who="' + esc(c.id) + '"><td><a class="cell-ch" href="' + hrefFor(c.id) + '">' + avatar(c, 'xs') + '<b>' + esc(shown(c.name)) + '</b></a></td>' +
@@ -211,7 +237,7 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
     '<section><div class="sec-head"><h2>Characters</h2><span class="note">Star a character to keep it first</span>' +
       (hidden.length ? '<span class="note">' + plural(hidden.length, 'hidden character') + ' &middot; <button type="button" class="link-btn" data-unhide-all>Show ' +
         (hidden.length === 1 ? 'it' : 'them') + '</button></span>' : '') + '</div>' +
-      (chars.length ? '<div class="grid g-cards">' + chars.map(function (c) { return card(c, ov, pinned(c.id)); }).join('') + '</div>'
+      (chars.length ? '<div class="grid g-cards">' + chars.map(function (c) { return card(c, ov, pinned(c.id), opts.display); }).join('') + '</div>'
         : '<div class="card empty">Every character is hidden. <button type="button" class="link-btn" data-unhide-all>Show them</button></div>') + '</section>' +
     (chars.length ? '<section class="card">' + head('Activity today', 'Hover a stretch for its times') + timeline(chars, ov.day_start, 'ov', width) + '</section>' : '') +
     (opts.daily ? '<section class="card">' + head('Experience by day', 'last ' + opts.daily.labels.length + ' days' + (hidden.length ? ', shown characters' : ', every character')) +
@@ -355,13 +381,21 @@ export function detailHtml(c, range, width, section, data, filter, ui) {
 }
 
 // The sidebar's list of characters; hidden ones go in a group of their own
-export function navHtml(ov, chars, who, hidden, hiddenOpen) {
+// display.nav: the figure beside each character (NAV_FIGURES)
+export function navHtml(ov, chars, who, hidden, hiddenOpen, display) {
   hidden = hidden || [];
+  var pick = (display && display.nav) || 'silver';
+  var figure = function (c) {
+    if (pick === 'exp') return short(c.pace.exp.so_far) + ' exp';
+    if (pick === 'silver_hr') return hourly(c, c.pace.silver.so_far) + '/hr';
+    if (pick === 'exp_hr') return hourly(c, c.pace.exp.so_far) + ' exp/hr';
+    return short(c.pace.silver.so_far);
+  };
   var link = function (c) {
     var on = c.id === who, lv = c.light.level;
     return '<a class="nav-ch' + (on ? ' on' : '') + '" data-who="' + esc(c.id) + '" href="' + hrefFor(c.id) + '"' + (on ? ' aria-current="page"' : '') + '>' +
       avatar(c, 'sm') + '<span class="nav-txt"><span class="nav-name">' + esc(shown(c.name)) + '</span>' +
-      '<span class="nav-sub">' + esc(({ hunt: 'Hunting', rest: 'Resting', idle: 'Idle', dead: 'Dead', offline: 'Offline' })[c.state.type] || c.state.type) + ' ' + DOT + ' ' + short(c.pace.silver.so_far) + '</span></span>' +
+      '<span class="nav-sub">' + esc(({ hunt: 'Hunting', rest: 'Resting', idle: 'Idle', dead: 'Dead', offline: 'Offline' })[c.state.type] || c.state.type) + ' ' + DOT + ' ' + figure(c) + '</span></span>' +
       (lv === 'red' || lv === 'amber' ? status(lv, 'nav-flag') : '') + '</a>';
   };
   var shownChars = chars.filter(function (c) { return hidden.indexOf(c.id) < 0; });

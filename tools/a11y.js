@@ -32,11 +32,11 @@ const live = `/?live=${API_PORT}`;
 const VIEWS = [
   ['first visit', '/', '#source:not([hidden]) #demoBtn'],
   ['overview', live, '.card[data-who]'],
-  ['alert settings, one dismissed', live, '.card[data-who]', async (page) => {
+  ['settings, one alert dismissed', live, '.card[data-who]', async (page) => {
     await page.click('#alertsCard [data-dismiss]');
     await page.waitForSelector('#alertsCard [data-undismiss]');
     await page.click('#alertsCard a.al-settings');
-    await page.waitForSelector('#alertsPage:not([hidden]) [data-undismiss-one]');
+    await page.waitForSelector('#settingsPage:not([hidden]) [data-undismiss-one]');
   }],
   ['character, today', `${live}#GS4%3ASplinter`, '#tabs'],
   ['character, this month', `${live}#GS4%3ASplinter`, '#tabs', async (page) => {
