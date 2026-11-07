@@ -9,6 +9,7 @@ import { Conn } from '../site/js/db.js';
 import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress } from '../site/js/aggregate/index.js';
 import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
 import { rangeFromArg } from '../site/js/aggregate/report.js';
+import { windowDay, clockSeconds, dayOf, addDays, dayStr, midnight, dateOf } from '../site/js/aggregate/time.js';
 
 const SQL = await initSqlJs();
 const golden = JSON.parse(readFileSync(new URL('fixtures/afternoon.json', import.meta.url)));
@@ -26,7 +27,7 @@ test('income: every silver event in the window, plus coins searched from creatur
     const events = one("SELECT SUM(amount) AS s FROM silver_events WHERE game = ? AND character = ? AND source_category <> 'expense' AND timestamp >= ? AND timestamp <= ?", ...W, from, now).s ?? 0;
     const spent = one("SELECT SUM(amount) AS s FROM silver_events WHERE game = ? AND character = ? AND source_category = 'expense' AND timestamp >= ? AND timestamp <= ?", ...W, from, now).s ?? 0;
     const coins = one('SELECT SUM(total_silver) AS s FROM kill_stats WHERE game = ? AND character = ? AND date >= ? AND date <= ?',
-      ...W, new Date(from * 1000).toLocaleDateString('sv'), new Date(now * 1000).toLocaleDateString('sv')).s ?? 0;
+      ...W, windowDay(from), new Date(now * 1000).toLocaleDateString('sv')).s ?? 0;
     assert.equal(inc.total_in, events + coins, `${range}: in`);
     assert.equal(inc.total_out, spent, `${range}: out`);
     assert.equal(inc.net, inc.total_in - inc.total_out);
@@ -234,4 +235,40 @@ test('a character off the overview (not played in the last day) still has a page
   assert.equal(char.state.type, 'offline');
   assert.equal(char.state.since, last, 'last seen at its last cycle, however old');
   assert.equal(buildCharacter(conn, overview, 'GS3:Nobody', 'daily', { now }), null);
+});
+
+test('DST: date-keyed windows start on the day they mean; the pace cut-off is the wall clock', () => {
+  // the Wednesday after spring-forward: the week's seconds start an hour early, the evening before
+  const spring = Math.floor(new Date(2027, 2, 17, 15).getTime() / 1000);
+  const from = rangeFromArg('weekly', spring)[1];
+  assert.equal(dateOf(from), '2027-03-10');
+  assert.equal(windowDay(from), '2027-03-11');
+  assert.equal(windowDay(rangeFromArg('monthly', spring)[1]), dayStr(addDays(dayOf(spring), -29)));
+  // and after fall-back (the fixture's week) an hour late, the same day
+  assert.equal(windowDay(rangeFromArg('weekly', now)[1]), dayStr(addDays(dayOf(now), -6)));
+  // 15:00 on the 25-hour fall-back day is 16 hours after midnight, 15 on the clock
+  const fallBack = Math.floor(new Date(2026, 10, 1, 15).getTime() / 1000);
+  assert.equal(fallBack - midnight(dayOf(fallBack)), 16 * 3600);
+  assert.equal(clockSeconds(fallBack), 15 * 3600);
+});
+
+test('DST: on the fall-back day, pace compares the same wall-clock hours', async () => {
+  const { buildOverview } = await import('../site/js/aggregate/index.js');
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  for (const [name] of d.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values) d.run(`DELETE FROM "${name}"`);
+  const at = (day, h, m = 0) => Math.floor(new Date(2026, 9, day, h, m).getTime() / 1000);
+  let exp = 0;
+  const hunt = (from, to, gain) => {
+    d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, exp_total_start, exp_total_end) VALUES (?, 'GS3', 'April', 'hunt', ?, ?, ?, ?, ?)",
+      [`c${from}`, from, to, to - from, exp, exp += gain]);
+  };
+  for (let day = 20; day <= 32; day++) {           // Oct 20 .. Nov 1 (day 32), the 25-hour day
+    hunt(at(day, 10), at(day, 14), 1000);
+    if (day < 32) hunt(at(day, 15, 10), at(day, 15, 50), 500);   // done after 15:00 on the clock
+  }
+  const now = at(32, 15);                            // 15:00 on Nov 1, 16 hours after midnight
+  const char = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April');
+  assert.equal(char.pace.exp.typical_now, 1000, 'baseline days count only what was done before 15:00');
+  assert.equal(char.pace.exp.pct, 0);
+  d.close();
 });

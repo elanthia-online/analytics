@@ -6,7 +6,7 @@
 // Every function copes with an older database: a missing table or column
 // gives an empty section, never an error.
 import { toI } from './ruby.js';
-import { dayOf, addDays, midnight, dayStr, dateOf } from './time.js';
+import { dayOf, addDays, midnight, dayStr, dateOf, windowDay } from './time.js';
 import { rangeFromArg, parseWho, shortProfile } from './report.js';
 
 export const SECTIONS = ['summary', 'income', 'hunting', 'bounties', 'progress', 'history'];
@@ -65,7 +65,7 @@ export function buildIncome(conn, id, range, { now }) {
   const out = { label, from, sources: [], expenses: [], items: [], shops: [], towns: [], total_in: 0, total_out: 0, net: 0 };
   const creature = hasTable(conn, 'kill_stats')
     ? toI(conn.one('SELECT SUM(total_silver) AS s FROM kill_stats WHERE game = ? AND character = ? AND date >= ? AND date <= ?',
-      ...who, dateOf(from), dateOf(now)).s)
+      ...who, windowDay(from), dateOf(now)).s)
     : 0;
   const sums = new Map(SOURCES.map(([key, name]) => [key, { key, label: name, amount: 0, count: 0 }]));
   if (hasTable(conn, 'silver_events')) {
@@ -132,7 +132,7 @@ export function buildHunting(conn, id, range, { now }) {
   const creature = hasColumn(conn, 'kill_stats', 'creature') ? 'creature' : "'creatures'";
   const rows = conn.all(`SELECT ${creature} AS creature, SUM(kill_count) AS kills, SUM(total_silver) AS silver, ${boxes} AS boxes, ` +
     'MAX(last_kill_at) AS last, GROUP_CONCAT(DISTINCT profile) AS profiles FROM kill_stats WHERE game = ? AND character = ? ' +
-    'AND date >= ? AND date <= ? GROUP BY 1 ORDER BY kills DESC, 1', ...who, dateOf(from), dateOf(now));
+    'AND date >= ? AND date <= ? GROUP BY 1 ORDER BY kills DESC, 1', ...who, windowDay(from), dateOf(now));
   const creatures = rows.map((r) => {
     const kills = toI(r.kills), silver = toI(r.silver), box = toI(r.boxes);
     return { creature: r.creature, kills, silver, boxes: box, silver_per_kill: kills ? Math.round(silver / kills) : null,

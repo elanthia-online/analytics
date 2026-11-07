@@ -1,7 +1,7 @@
 // The "Everyone" view: today, every character. A port of
 // GS4Analytics::Dashboard.build_overview and everything under it.
 import { toI, toF, rround, idiv, floatStr, mean, median, percent, sortBy, uniq, autoMap } from './ruby.js';
-import { dayOf, addDays, midnight, dayStr, dateOf } from './time.js';
+import { dayOf, addDays, midnight, dayStr, dateOf, clockSeconds } from './time.js';
 import { WHO_SQL as WHO, labels as reportLabels, shortProfile, bountyTarget, parseWho } from './report.js';
 
 export const IDLE_WARN = 480; // seconds idle before amber/red, matches the cycle manager
@@ -25,7 +25,7 @@ const tod = (col) =>
 function context(now, latestFrom) {
   const today = dayOf(now);
   const dayStart = midnight(today);
-  return { now, dayStart, todayS: dayStr(today), todNow: now - dayStart, baseFrom: midnight(addDays(today, -BASE_DAYS)), today,
+  return { now, dayStart, todayS: dayStr(today), todNow: clockSeconds(now), baseFrom: midnight(addDays(today, -BASE_DAYS)), today,
            latestFrom: latestFrom ?? now - 7 * 86_400 };
 }
 
