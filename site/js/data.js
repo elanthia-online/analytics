@@ -188,6 +188,8 @@ const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 // ---- the open database and the views over it --------------------------------
 
+
+const LONG_RANGES = new Set(['ytd', 'total']);
 export class Dashboard {
   constructor(SQL) {
     this.SQL = SQL;
@@ -266,9 +268,14 @@ export class Dashboard {
 
   // Built at most once per database image and second, so the overview and
   // the character view of one refresh share their work
-  memo(key, build) {
+  // A long range (This Year, All Time) is kept for up to a minute while the
+  // image is unchanged: it reads all of history, and a refresh with nothing new
+  // would rebuild it every 5 seconds for figures that differ only by an open
+  // stretch's last seconds.
+  memo(key, build, range) {
     const now = this.now();
-    const full = `${this.version}|${now}|${key}`;
+    const when = LONG_RANGES.has(range) ? `m${Math.floor(now / 60)}` : now;
+    const full = `${this.version}|${when}|${key}`;
     if (!this.cache.has(full)) {
       if (this.cache.size > 50) this.cache.clear();
       this.cache.set(full, build(now));
@@ -293,13 +300,13 @@ export class Dashboard {
       case 'progress':
         return this.memo(`progress|${who}`, (now) => ({ progress: buildProgress(this.conn, who, { now }), daily: buildDaily(this.conn, [who], { now }) }));
       case 'income':
-        return this.memo(`income|${who}|${range}`, (now) => ({ ...buildIncome(this.conn, who, range, { now }), reconciliation: buildReconciliation(this.conn, who, range, { now }) }));
+        return this.memo(`income|${who}|${range}`, (now) => ({ ...buildIncome(this.conn, who, range, { now }), reconciliation: buildReconciliation(this.conn, who, range, { now }) }), range);
       case 'hunting': build = buildHunting; break;
       case 'bounties': build = buildBounties; break;
       case 'history': build = buildHistory; break;
       default: return null;
     }
-    return this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now }));
+    return this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now }), range);
   }
 
   // Every character in the database (not only today's), with its name
@@ -309,7 +316,7 @@ export class Dashboard {
 
   // The Compare page, for these characters
   compare(ids, range) {
-    return this.memo(`compare|${ids.join(',')}|${range}`, (now) => buildCompare(this.conn, ids, range, { now }));
+    return this.memo(`compare|${ids.join(',')}|${range}`, (now) => buildCompare(this.conn, ids, range, { now }), range);
   }
 
   // Experience by day for the last four weeks, per character

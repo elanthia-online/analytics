@@ -68,3 +68,20 @@ test('of two overlapping refreshes of one source, the older is thrown away (#18)
   assert.equal(dash.asOf, 2, 'the older answer never overwrote the newer');
   dash.close();
 });
+
+test('a long range is built once a minute while the image is unchanged; short ranges every second (#37)', async () => {
+  const { SQL } = counting();
+  const dash = new Dashboard(SQL);
+  dash.setSource(source(fixture));
+  await dash.refresh();
+  let clock = 1793824620;
+  dash.now = () => clock;
+  const ids = ['GS3:April'];
+  const year = dash.compare(ids, 'ytd'), today = dash.compare(ids, 'daily');
+  clock += 5;   // a refresh with nothing new, a few seconds on (the same minute: ...620 is 0 s into it)
+  assert.equal(dash.compare(ids, 'ytd'), year, 'the same object, not rebuilt');
+  assert.notEqual(dash.compare(ids, 'daily'), today, 'a short range is rebuilt');
+  clock += 60;
+  assert.notEqual(dash.compare(ids, 'ytd'), year, 'rebuilt once the minute turns');
+  dash.close();
+});

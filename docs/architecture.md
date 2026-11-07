@@ -52,6 +52,14 @@ Ruby dashboard used the Lich computer's zone. They're the same zone whenever the
 browser and Lich run on the same computer, which is the only setup the live source
 allows.
 
+A file source has no such guarantee. `kill_stats.date` is the Lich process's own local
+date, written as text, while every timestamp is placed in the browser's zone. A `.db`
+copied from another machine, or written by a Lich running with a different `TZ` (a VPS,
+WSL or a container set to UTC), puts that day's kills a day off near midnight, and every
+day bucket shifts by the zone difference. The page has no way to know: the database
+doesn't record the zone it was written in. Open such a file in a browser set to the same
+zone as the Lich that wrote it.
+
 ## Security model
 
 - The site is static and has no backend. A database the player opens never leaves their

@@ -310,3 +310,25 @@ sources it's the browser clock.
 
 **Why.** Every figure is relative to now. Showing last week's backup against today's clock
 would show everyone offline and today empty, which looks like a bug.
+
+## 2026-11-06: Long ranges are rebuilt at most once a minute on an unchanged image
+
+**Decision.** The This Year and All Time pages, and Compare on those ranges, are cached on
+the database image and the minute (`LONG_RANGES` in `data.js`). Shorter ranges are still
+rebuilt every second.
+
+**Why.** On a live source the page refreshes every 5 seconds, and those ranges read all of
+history: tens of milliseconds a refresh at twelve times the sample's size, and more for a
+player with years of data. With nothing new written, the only thing that changes is how
+long an open stretch has run, which those pages show to the minute anyway. A new write
+changes the image and rebuilds them at once.
+
+## 2026-11-06: A file source is read in the browser's zone
+
+**Decision.** The page doesn't try to learn the zone a database was written in. The
+limit is written down in architecture.md (Time zones).
+
+**Why.** The live source can only be the same computer, so its zone always matches. A
+copied file from a machine in another zone is possible but nobody is known to do it; the
+script would have to record its zone in `metadata` first. Raised in #37; revisit if a
+player reports kills on the wrong day.
