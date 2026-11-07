@@ -82,7 +82,9 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
   }
   var sum = function (f) { return chars.reduce(function (a, c) { return a + (f(c) || 0); }, 0); };
   var silver = sum(function (c) { return c.pace.silver.so_far; }), exp = sum(function (c) { return c.pace.exp.so_far; });
-  var hours = Math.max((nowSrv() - ov.day_start) / 3600, 0.01);
+  // To the minute, like the stretches still going: a refresh with nothing new
+  // leaves the figure (and so the overview) alone until the minute turns
+  var hours = Math.max((Math.floor(nowSrv() / 60) * 60 - ov.day_start) / 3600, 1 / 60);
   var hunting = chars.filter(function (c) { return c.state.type === 'hunt'; }).length;
   var online = chars.filter(function (c) { return c.state.type !== 'offline'; }).length;
   var flagged = chars.filter(function (c) { return c.light.level === 'red'; }).length;
