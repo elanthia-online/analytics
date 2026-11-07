@@ -360,6 +360,7 @@ function loadOverview() {
     clockState.frozen = feed.live ? null : ov.generated_at;
     renderNav(); if (page) renderCompare(); else if (!who) renderOverview(); show(); tick(); showWarning(st.warning);
   }).catch(function (e) {
+    if (e && e.superseded) return; // overtaken by a newer refresh or another source: nothing to show
     failed++; errorText = e && e.message ? e.message : String(e); tick();
     if (!ov) showSource(errorText);
   });
@@ -396,6 +397,7 @@ function connect(source) {
   $('overview').hidden = false;
   setHtml($('overview'), skeleton('overview'));
   return loadOverview().then(function () {
+    if (dash.source !== source) return; // the reader picked another source meanwhile
     if (!ov) { setHtml($('overview'), ''); show(); return; }
     rememberSource(source); show(); loadDetail(); setTitle();
     announce(source.kind === 'demo' ? 'Showing sample data' : 'Connected to ' + source.label);

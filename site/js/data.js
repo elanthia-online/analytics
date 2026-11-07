@@ -33,6 +33,9 @@ export class LiveSource {
 
   get label() { return `analytics.lic on port ${this.port}`; }
 
+  // The last image didn't open: ask for it again next time (see Dashboard.refresh)
+  forget() { this.token = null; this.bytes = null; }
+
   // { bytes, changed, asOf, meta } or throws
   async load() {
     const meta = await getJson(`${this.base}/api/meta`);
@@ -112,11 +115,14 @@ export class FileSource {
     const list = [...files];
     this.kind = 'file';
     this.live = false;
-    this.main = list.find((f) => !f.name.endsWith('-wal')) || list[0];
+    // The main file: not the -wal beside it, nor the -shm (a shared-memory index, never a database)
+    this.main = list.find((f) => !/-(?:wal|shm)$/.test(f.name)) || list[0];
     this.wal = list.find((f) => f !== this.main && f.name.endsWith('-wal')) || null;
   }
 
   get label() { return this.main.name; }
+
+  forget() { this.bytes = null; }
 
   async load() {
     if (this.bytes) return { bytes: this.bytes, changed: false, asOf: this.asOf };
@@ -160,6 +166,13 @@ export class DemoSource {
   }
 }
 
+// A refresh overtaken by a newer one, or by a change of source
+function superseded() {
+  const error = new Error('superseded');
+  error.superseded = true;
+  return error;
+}
+
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 // ---- the open database and the views over it --------------------------------
@@ -170,6 +183,7 @@ export class Dashboard {
     this.source = null;
     this.db = null;
     this.version = 0;
+    this.generation = 0; // counts refreshes, so an overtaken one is ignored
     this.cache = new Map();
   }
 
@@ -187,21 +201,44 @@ export class Dashboard {
 
   // Loads the source again (cheap when nothing changed). Returns a status
   // { asOf, live, warning } for the header.
+  //
+  // A load that finishes after the source was switched, or after a newer
+  // refresh started, is thrown away (error.superseded): it must never land
+  // on the source that replaced it.
   async refresh() {
-    if (!this.source) throw new Error('No data source chosen');
-    const { bytes, changed, asOf } = await this.source.load();
+    const source = this.source;
+    if (!source) throw new Error('No data source chosen');
+    const generation = ++this.generation;
+    const stale = () => this.source !== source || generation !== this.generation;
+    let loaded;
+    try {
+      loaded = await source.load();
+    } catch (error) {
+      throw stale() ? superseded() : error;
+    }
+    if (stale()) throw superseded();
+    const { bytes, changed, asOf } = loaded;
     if (changed || !this.db) {
-      const db = new this.SQL.Database(bytes);
-      const conn = new Conn(db);
-      if (!conn.tableExists('cycles')) {
-        db.close();
-        throw new Error('That file is not an analytics.lic database (it has no cycles table).');
+      let db = null;
+      try {
+        db = new this.SQL.Database(bytes);
+        const conn = new Conn(db);
+        if (!conn.tableExists('cycles')) throw new Error('That file is not an analytics.lic database (it has no cycles table).');
+        this.close();
+        this.db = db;
+        this.conn = conn;
+        this.schema = conn.metadata('schema_version');
+        this.version++;
+      } catch (error) {
+        // Not adopted: freed now (WASM memory is never collected), and the
+        // source forgets it, so a live one asks for the image again
+        if (db && db !== this.db) db.close();
+        source.forget?.();
+        if (/not a database|file is encrypted|malformed/i.test(error.message)) {
+          throw new Error("That file isn't an analytics.lic database (it isn't an SQLite database at all).");
+        }
+        throw error;
       }
-      this.close();
-      this.db = db;
-      this.conn = conn;
-      this.schema = conn.metadata('schema_version');
-      this.version++;
     }
     this.asOf = asOf;
     const warning = this.schema && !KNOWN_SCHEMAS.includes(String(this.schema))
