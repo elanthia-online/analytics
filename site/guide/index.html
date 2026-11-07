@@ -258,6 +258,7 @@
             <tr><td><code>alerts.daily_digest</code></td><td><code>true</code></td><td>Send yesterday's summary once a day.</td></tr>
             <tr><td><code>alerts.death</code></td><td><code>true</code></td><td>Alert when this character dies.</td></tr>
             <tr><td><code>discord</code></td><td><code>true</code></td><td>Also send alerts through discordhook (see <a href="#alerts">Alerts</a>).</td></tr>
+            <tr><td><code>dashboard.autostart</code></td><td><code>false</code></td><td>Feed the dashboard every time <code>;analytics</code> starts, as if you'd typed <code>;analytics --dashboard</code>. Skipped when another character's session already feeds it on the same port (they share one database, so one is enough). If that session stops, type <code>;analytics serve</code> in this one.</td></tr>
             <tr><td><code>dashboard.port</code></td><td><code>8080</code></td><td>The port <code>--dashboard</code> and <code>serve</code> use. <code>;analytics --dashboard=9000</code> overrides it.</td></tr>
             <tr><td><code>dashboard.site_url</code></td><td><code>https://analytics.elanthia.online/</code></td><td>The page the script's link opens. Change it only for a fork or your own copy of the site.</td></tr>
             <tr><td><code>dashboard.allowed_origins</code></td><td><code>[]</code></td><td>Extra sites allowed to read the script, as exact origins such as <code>https://someone.github.io</code>. The project site and pages on your own computer are always allowed.</td></tr>
@@ -359,7 +360,7 @@ end</code></pre>
         <h3>Troubleshooting</h3>
         <dl class="qa">
           <dt>The dashboard says it could not reach analytics.lic</dt>
-          <dd>Check the script is running with <code>--dashboard</code> (<code>;analytics status</code> shows the link), and that the port matches. In Chrome or Edge, check the site's <i>Local network access</i> permission is Allow (the icon left of the address).</dd>
+          <dd>Check the script is running with <code>--dashboard</code> or <code>dashboard.autostart: true</code> (<code>;analytics status</code> shows the link), and that the port matches. In Chrome or Edge, check the site's <i>Local network access</i> permission is Allow (the icon left of the address).</dd>
           <dt>"Port 8080 is already in use"</dt>
           <dd>Another program has it. Use another: <code>;analytics --dashboard=9000</code>, or set <code>dashboard.port</code>.</dd>
           <dt>Rests show as idle</dt>
