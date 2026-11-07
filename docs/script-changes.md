@@ -302,8 +302,8 @@ For the character detail pages; analytics.lic as of elanthia-online/scripts@7bfc
 
 ## Schema 9 (2026-11-06)
 
-From MahtraDR's review of elanthia-online/scripts#2556 (analytics.lic as of
-elanthia-online/scripts@1a03e72e, and da37cb4b for the sting row). Still before the first
+From MahtraDR's reviews of elanthia-online/scripts#2556 and of this repo (analytics.lic as
+of elanthia-online/scripts@1a03e72e, da37cb4b for the sting row and 8798c180 for the zone). Still before the first
 release, so the schema changed rather than gaining a migration.
 
 - `progress` is a `WITHOUT ROWID` table: its primary key `(game, character, timestamp)` is
@@ -328,6 +328,10 @@ release, so the schema changed rather than gaining a migration.
 - New spending: warehouse storage fees paid from hand (`vendor_type = 'warehouse'`). A
   locksmith quote counts only when it's told to you, and coins a fossil charm returns only
   when they're returned to you: another player's in the same room were counted before.
+- `metadata` records the zone Lich runs in: `utc_offset` (seconds) and `zone`, with
+  `updated_at` the moment they were read, written on every start in the same transaction as
+  the schema version (elanthia-online/scripts@8798c180). `kill_stats.date` and the reports'
+  days are that computer's dates; the page warns when its own offset at that moment differs.
 - `SCHEMA_VERSION` 9; `KNOWN_SCHEMAS` is `['9']`. A schema 8 file is refused. The fixtures
   were converted by `tools/fixtures-schema9.js`.
 

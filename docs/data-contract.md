@@ -31,7 +31,7 @@ URL hash, the saved image's file name) and maps back at its edges (`shown`, `sho
 | `bounty_offers` | `game`, `character`, `offered_at`, `outcome`, `expedited`, `vouchers_left`, `bounty_type`, `creature`, `area`, `assignment`, `town`, `description`, `rowid` | Task offers. Optional: an older database without the table shows none |
 | `rest_steps` | `game`, `character`, `cycle_id`, `step`, `seconds`, `rest_start` | Average rest breakdown |
 | `logins` | `game`, `character`, `started_at`, `last_seen` | "This login" figures. Optional (`loginFor` tolerates its absence) |
-| `metadata` | `key = 'schema_version'` | The compatibility warning |
+| `metadata` | `key = 'schema_version'`; from schema 9 `utc_offset` (seconds east of UTC) and `zone` (its name), with `updated_at` the moment they were read | The compatibility warning; the warning that a file was written in another zone (`zoneWarning`). Without them the zone is unknown and nothing is shown |
 
 The character detail pages and Compare read more tables and columns; they're listed
 [below](#the-character-detail-pages-and-compare-sitejsaggregatedetailsjs).

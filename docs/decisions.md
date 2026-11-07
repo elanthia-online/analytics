@@ -323,15 +323,22 @@ player with years of data. With nothing new written, the only thing that changes
 long an open stretch has run, which those pages show to the minute anyway. A new write
 changes the image and rebuilds them at once.
 
-## 2026-11-06: A file source is read in the browser's zone
+## 2026-11-06: A file source is read in the browser's zone, and says when that's wrong
 
-**Decision.** The page doesn't try to learn the zone a database was written in. The
-limit is written down in architecture.md (Time zones).
+**Decision.** Figures stay in the browser's zone. Schema 9 records the zone Lich ran in
+(`metadata` `utc_offset` and `zone`, rewritten on every start), and the page warns when its
+own offset at that moment differs (`zoneWarning` in `data.js`). It doesn't convert: the
+warning says days can be a day off near midnight, and to open the file in a browser set to
+the same zone.
 
-**Why.** The live source can only be the same computer, so its zone always matches. A
-copied file from a machine in another zone is possible but nobody is known to do it; the
-script would have to record its zone in `metadata` first. Raised in #37; revisit if a
-player reports kills on the wrong day.
+**Why.** The live source can only be the same computer, so its zone always matches. A file
+copied from another machine, or written by a Lich in WSL or a container on UTC, files kills
+under that computer's dates while every timestamp is placed here. Converting would mean
+reading every figure in another zone, which sql.js's `'localtime'` can't do. Recording the
+zone cost one metadata row before the first release, and later it would have been a schema
+change. Raised in #37. Comparing the offsets at the moment the script read its own means a
+DST change since then is never taken for a different zone. The demo sample is moved into
+the reader's zone, so its offset is rewritten to the reader's.
 
 ## 2026-11-06: Schema 9, before the first release
 

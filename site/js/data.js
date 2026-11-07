@@ -189,6 +189,24 @@ const nowSeconds = () => Math.floor(Date.now() / 1000);
 // ---- the open database and the views over it --------------------------------
 
 
+
+// analytics.lic records the zone its Lich runs in (metadata utc_offset and
+// zone, read at updated_at). Days here are this browser's, and kill_stats.date
+// is that computer's date, so a different zone moves days. The offsets are
+// compared at the moment the script read its own, so DST alone never differs.
+export function zoneWarning(conn) {
+  let row = null;
+  try { row = conn.one("SELECT value, updated_at FROM metadata WHERE key = 'utc_offset'"); } catch { return null; }
+  if (!row || row.value == null || row.updated_at == null || !/^-?\d+$/.test(String(row.value))) return null;
+  const theirs = Number(row.value), ours = -new Date(Number(row.updated_at) * 1000).getTimezoneOffset() * 60;
+  if (theirs === ours) return null;
+  const utc = (s) => `UTC${s < 0 ? '\u2212' : '+'}${Math.floor(Math.abs(s) / 3600)}${Math.abs(s) % 3600 ? ':' + String(Math.abs(s) % 3600 / 60).padStart(2, '0') : ''}`;
+  const name = conn.metadata('zone');
+  return `This database was written by a Lich running at ${utc(theirs)}${name ? ` (${name})` : ''}, and this browser is at ${utc(ours)}. ` +
+    'Days here are this browser\'s, and kills are filed under that computer\'s dates, so near midnight they can land on the next or previous day. ' +
+    'Open it in a browser set to the same zone for exact days.';
+}
+
 const LONG_RANGES = new Set(['ytd', 'total']);
 export class Dashboard {
   constructor(SQL) {
@@ -254,9 +272,12 @@ export class Dashboard {
       }
     }
     this.asOf = asOf;
-    const warning = this.schema && !KNOWN_SCHEMAS.includes(String(this.schema))
-      ? `This database is schema ${this.schema}; this page was checked against ${KNOWN_SCHEMAS.join(', ')}. Some figures may be missing or wrong.`
-      : null;
+    const warning = [
+      this.schema && !KNOWN_SCHEMAS.includes(String(this.schema))
+        ? `This database is schema ${this.schema}; this page was checked against ${KNOWN_SCHEMAS.join(', ')}. Some figures may be missing or wrong.`
+        : null,
+      zoneWarning(this.conn),
+    ].filter(Boolean).join(' ') || null;
     return { asOf, live: this.source.live, warning, label: this.source.label, kind: this.source.kind };
   }
 

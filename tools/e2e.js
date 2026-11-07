@@ -380,6 +380,17 @@ try {
   check(JSON.stringify(shown) === JSON.stringify(want), 'file: the cards show the same alert texts as the Ruby dashboard did at that moment');
   check(fileProblems.length === 0, `file: no console errors${fileProblems.length ? `: ${fileProblems.join(' | ')}` : ''}`);
   if (shots) await filePage.screenshot({ path: `${shots}/overview-file.png`, fullPage: true });
+  check(await filePage.$eval('#warning', (el) => el.hidden), 'file: written in this browser\'s zone, so no zone warning');
+  // The same file read in another zone: the page says its days may not be that computer's
+  const tokyo = await browser.newContext({ viewport: { width: 1320, height: 900 }, timezoneId: 'Asia/Tokyo' });
+  const tokyoPage = await tokyo.newPage();
+  await tokyoPage.goto(`http://localhost:${SITE_PORT}/`);
+  await tokyoPage.waitForSelector('#source:not([hidden])');
+  await tokyoPage.setInputFiles('#pickFile', fixture);
+  await tokyoPage.waitForSelector('#warning:not([hidden])', { timeout: 15_000 });
+  check(/UTC\u22125 \(EST\), and this browser is at UTC\+9/.test(await tokyoPage.textContent('#warning')),
+    'file: one written in another zone says so, with both offsets');
+  await tokyo.close();
 
   // ---- a source that isn't there ---------------------------------------
   const deadPage = await fileContext.newPage();

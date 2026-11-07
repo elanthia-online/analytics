@@ -11,6 +11,10 @@
 //   and a row with deaths_sting 'None' alone when the sting wears off.
 // - bounties has an index on (game, character, received_time). The schema 8
 //   conversion missed it; results are the same, query plans aren't.
+// - metadata records the zone Lich ran in: utc_offset (seconds) and zone,
+//   read at updated_at. The fixtures were made in America/New_York, so the
+//   offset is New York's at the schema_version row's time. A file already at
+//   schema 9 without them gets them added.
 //
 // No golden figure reads progress (it was filled with synthetic rows by
 // tools/fixtures-schema8.js), so parity is unchanged. Which rows keep their
@@ -33,7 +37,24 @@ for (const name of FILES) {
     st.free(); return out;
   };
   const version = rows("SELECT value FROM metadata WHERE key = 'schema_version'")[0]?.value;
-  if (version === '9') { console.log(`${name}: already schema 9`); db.close(); continue; }
+  // The zone, as analytics.lic writes it on every start (record_zone)
+  const addZone = () => {
+    if (rows("SELECT 1 FROM metadata WHERE key = 'utc_offset'").length) return false;
+    const at = rows("SELECT updated_at FROM metadata WHERE key = 'schema_version'")[0].updated_at;
+    const offset = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'longOffset' })
+      .formatToParts(new Date(at * 1000)).find((p) => p.type === 'timeZoneName').value.replace(/^GMT/, '').replace(/^([+-])(\d\d):(\d\d)$/, (_, s, h, m) => `${s}${h * 3600 + m * 60}`) || 0);
+    const zone = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })
+      .formatToParts(new Date(at * 1000)).find((p) => p.type === 'timeZoneName').value;
+    db.run('INSERT INTO metadata (key, value, updated_at) VALUES (?, ?, ?), (?, ?, ?)', ['utc_offset', String(offset), at, 'zone', zone, at]);
+    return true;
+  };
+  if (version === '9') {
+    const added = addZone();
+    if (added) { db.run('VACUUM'); writeFileSync(path, db.export()); }
+    console.log(`${name}: already schema 9${added ? ', zone added' : ''}`);
+    db.close();
+    continue;
+  }
   if (version !== '8') throw new Error(`${name}: schema ${version}, expected 8`);
 
   db.run(`CREATE TABLE progress9 (game varchar(255) NOT NULL, character varchar(255) NOT NULL, timestamp integer NOT NULL,
@@ -69,6 +90,7 @@ for (const name of FILES) {
     });
   }
   db.run("UPDATE metadata SET value = '9' WHERE key = 'schema_version'");
+  addZone();
   db.run('VACUUM');
   writeFileSync(path, db.export());
   db.close();

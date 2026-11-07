@@ -308,6 +308,7 @@ dashboard:
             <tr><td><code>bank_snapshots</code></td><td>Bank listings and teller moves, with the tracked total.</td></tr>
             <tr><td><code>silver_events</code>, <code>item_sales</code></td><td>Box silver, sales, bounty silver and spending; each item sold.</td></tr>
             <tr><td><code>logins</code></td><td>Each game login: when Lich connected, and when the script last ran in it.</td></tr>
+            <tr><td><code>metadata</code></td><td>The schema version, and the time zone Lich runs in (rewritten on every start). Kills are filed by this computer's date, so the dashboard warns when it opens the file in a browser set to another zone.</td></tr>
             <tr><td><code>vendor_visits</code></td><td>Each stop at a shop, the bank or a locksmith: how long, the silver made and spent there, the room and the town. Recorded by itself from the map's room tags (the same tags <code>go2</code> and <code>eloot</code> travel by), so it works with any selling script. See <code>track_shops</code>.</td></tr>
           </tbody>
         </table></div>

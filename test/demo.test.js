@@ -152,3 +152,17 @@ test('kill dates land on the viewer\'s day, wherever the viewer is (#22)', async
     process.env.TZ = saved;
   }
 });
+
+test('the shifted sample reads as written in this zone, so it never warns about one', async () => {
+  const SQL = await initSqlJs();
+  const golden = JSON.parse(read('fixtures/afternoon.json'));
+  const db = new SQL.Database(read('../site/demo/sample.db'));
+  try {
+    db.run("UPDATE metadata SET value = '32400' WHERE key = 'utc_offset'"); // as if made in Tokyo
+    shiftTimes(db, 5 * 86400 + 1234, golden.now, golden.tz);
+    const [offset, at] = db.exec("SELECT value, updated_at FROM metadata WHERE key = 'utc_offset'")[0].values[0];
+    assert.equal(Number(offset), -new Date(at * 1000).getTimezoneOffset() * 60);
+  } finally {
+    db.close();
+  }
+});

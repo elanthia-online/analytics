@@ -43,6 +43,13 @@ export function shiftTimes(db, delta, from, tz) {
     db.run(`CREATE TEMP TABLE moved AS SELECT * FROM ${table}; DELETE FROM ${table};`);
     db.run(`INSERT INTO ${table} (${cols.map((c) => `"${c}"`).join(', ')}) SELECT ${cols.map((c) => (c === col ? `date("${c}", ${by})` : `"${c}"`)).join(', ')} FROM moved; DROP TABLE moved;`);
   }
+  // The dates now read as this computer's, so the zone they were written in is this one
+  const zone = db.exec("SELECT updated_at FROM metadata WHERE key = 'utc_offset'")[0]?.values[0];
+  if (zone) {
+    const offset = -new Date(Number(zone[0]) * 1000).getTimezoneOffset() * 60;
+    db.run("UPDATE metadata SET value = ? WHERE key = 'utc_offset'", [String(offset)]);
+    db.run("UPDATE metadata SET value = ? WHERE key = 'zone'", [Intl.DateTimeFormat().resolvedOptions().timeZone || 'local']);
+  }
   return delta;
 }
 

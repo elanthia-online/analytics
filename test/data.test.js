@@ -85,3 +85,24 @@ test('a long range is built once a minute while the image is unchanged; short ra
   assert.notEqual(dash.compare(ids, 'ytd'), year, 'rebuilt once the minute turns');
   dash.close();
 });
+
+test('a database written in another zone is flagged; the same zone, or no zone recorded, is not (#37)', async () => {
+  const { zoneWarning } = await import('../site/js/data.js');
+  const { Conn } = await import('../site/js/db.js');
+  const db = new real.Database(fixture);
+  const conn = new Conn(db);
+  try {
+    assert.equal(zoneWarning(conn), null, 'the fixture was written in New York, where npm test runs');
+    db.run("UPDATE metadata SET value = '32400' WHERE key = 'utc_offset'");
+    db.run("UPDATE metadata SET value = 'JST' WHERE key = 'zone'");
+    assert.match(zoneWarning(conn), /Lich running at UTC\+9 \(JST\), and this browser is at UTC−5\./);
+    // a DST change since doesn't count: the offset is compared at the moment it was read
+    const july = Math.floor(new Date(2026, 6, 1, 12).getTime() / 1000);
+    db.run("UPDATE metadata SET value = '-14400', updated_at = ? WHERE key = 'utc_offset'", [july]);
+    assert.equal(zoneWarning(conn), null, 'EDT in July is New York too');
+    db.run("DELETE FROM metadata WHERE key = 'utc_offset'");
+    assert.equal(zoneWarning(conn), null, 'an older file without it: unknown, not a warning');
+  } finally {
+    db.close();
+  }
+});
