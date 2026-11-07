@@ -332,3 +332,17 @@ limit is written down in architecture.md (Time zones).
 copied file from a machine in another zone is possible but nobody is known to do it; the
 script would have to record its zone in `metadata` first. Raised in #37; revisit if a
 player reports kills on the wrong day.
+
+## 2026-11-06: Schema 9, before the first release
+
+**Decision.** The script went to schema 9 for MahtraDR's review instead of adding the fixes
+to schema 8: `progress` became `WITHOUT ROWID`, its EXPERIENCE readings are NULL unless
+fresh, and a hunt stopped by hand is "hunt stopped", not a crash. The page admits only 9.
+The Progress page takes the latest non-NULL value of each reading and says when it was
+read. A Death's Sting stretch runs from the end of the `dead` cycle to the next None
+reading; its level is the last reading between, or "not read".
+
+**Why.** Nothing is released yet, so a schema change costs a fresh database and nothing
+more, and the script has no migrations by design. Leaving old readings stamped on every row
+made "fame now" and the sting's end look known when they weren't. A death is the real start
+of a sting; the first reading that shows it can come hours later.

@@ -80,12 +80,19 @@ export function buildSample(SQL, fixture, now) {
     }
     const rows = { cycles: [], kills: new Map(), banks: [], events: [], sales: [], visits: [], steps: [], bounties: [], offers: [], progress: [], logins: [] };
     let bounty = null, lastProgress = 0, sting = null;
-    const progress = (at, force) => {
+    // Rows as schema 9 writes them: the EXPERIENCE readings (fame, deeds, long-term
+    // exp, Death's Sting) only on a row a reading came before (fresh: typed at
+    // login and after a death), the training points once, and a None row when
+    // the sting fades
+    const progress = (at, force, fresh = false) => {
+      const lumnis = (t) => (who.lumnisDays && t < firstDay + who.lumnisDays * 86400 ? 1 : null);
+      if (sting && at >= sting) {
+        rows.progress.push({ at: sting, exp, asc, fame: null, sting: 'None', fresh: false, lumnis: lumnis(sting) });
+        sting = null;
+      }
       if (!force && at - lastProgress < 3600) return;
       lastProgress = at;
-      const level = levelOf(exp), capped = level >= 100;
-      rows.progress.push({ at, level, exp, asc, until: capped ? 2500 - ((exp - CAP_EXP) % 2500) : EXP_FOR_LEVEL[level + 1] - exp, fame,
-        sting: sting && at < sting ? 'Light' : 'None', lumnis: who.lumnisDays && at < firstDay + who.lumnisDays * 86400 ? 1 : null });
+      rows.progress.push({ at, exp, asc, fame: fresh ? fame : null, sting: fresh ? (sting ? 'Light' : 'None') : null, fresh, lumnis: lumnis(at) });
     };
 
     for (let d = 0; d < who.days; d++) {
@@ -95,7 +102,7 @@ export function buildSample(SQL, fixture, now) {
       const sessionEnd = isToday ? (who.nowHunting ? now : Math.min(now - 2 * 3600, at + 3 * 3600)) : Math.min(endAt, at + between(3, 6) * 3600);
       if (at >= sessionEnd) continue;
       const loginAt = at - 300;
-      progress(at, true);
+      progress(at, true, true); // EXPERIENCE at login
       while (at < sessionEnd) {
         // A hunt
         const huntLen = between(35, 55) * 60, open = who.nowHunting && isToday && at + huntLen > sessionEnd;
@@ -124,7 +131,7 @@ export function buildSample(SQL, fixture, now) {
           const dead = between(6, 11) * 60;
           rows.cycles.push({ cid: id('c'), type: 'dead', start: at, end: at + dead, reason: null, r0: exp, r1: exp, a0: asc, a1: asc, f0: fame, f1: fame, field: [0, 0], enc: [40, 40] });
           sting = at + dead + between(3, 5) * 3600;
-          at += dead; progress(at, true);
+          at += dead; progress(at, true, true); // EXPERIENCE after the death
         }
         // A rest: selling, the bank, maybe a bounty
         const restLen = Math.min(between(5, 12) * 60, sessionEnd - at), rid = id('c');
@@ -236,12 +243,16 @@ export function buildSample(SQL, fixture, now) {
     for (const l of rows.logins) {
       run('INSERT OR REPLACE INTO logins (game, character, started_at, first_seen, last_seen) VALUES (?,?,?,?,?)', [G, C, l.start, l.start, l.last]);
     }
+    let tpWritten = false;
     for (const p of rows.progress) {
       const e = R(p.exp), a = A(p.asc), level = levelOf(e), capped = level >= 100;
+      const tp = p.fresh && !tpWritten ? who.unspent : null;
+      if (tp) tpWritten = true;
       run(`INSERT OR REPLACE INTO progress (game, character, timestamp, level, exp, ascension_exp, until_next, fame, deeds, long_term_exp, deaths_sting,
            ptp, mtp, atp, lumnis, rpa, fashlonae) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [G, C, p.at, level, e, a, capped ? 2500 - ((e - CAP_EXP) % 2500) : EXP_FOR_LEVEL[level + 1] - e, p.fame, who.backfill ? 9 : who.name === 'Karai' ? 212 : 31,
-        between(0, 90), p.sting, who.unspent?.ptp ?? null, who.unspent?.mtp ?? null, who.unspent?.atp ?? null, p.lumnis, null, null]);
+      [G, C, p.at, level, e, a, capped ? 2500 - ((e - CAP_EXP) % 2500) : EXP_FOR_LEVEL[level + 1] - e, p.fame,
+        p.fresh ? (who.backfill ? 9 : who.name === 'Karai' ? 212 : 31) : null, p.fresh ? between(0, 90) : null, p.sting,
+        tp?.ptp ?? null, tp?.mtp ?? null, tp?.atp ?? null, p.lumnis, null, null]);
     }
   }
   db.run('VACUUM');

@@ -11,7 +11,10 @@ export const DAY_HUNT = 7200; // hunting seconds for a day to count toward "typi
 export const HOUR_HUNT = 1200; // hunting seconds for an hour to count toward "typical"
 export const BASE_DAYS = 30;
 export const MIN_SAMPLES = 5;
-// The cycle each crash reason is recorded on
+// The cycle each crash reason is recorded on. Up to schema 8 the script wrote
+// 'unhandled exit' on any hunt that went idle without a rest, a stop by hand
+// included; from schema 9 that is 'hunt stopped', which isn't a crash and
+// isn't listed. 'unhandled exit' stays for the golden figures.
 const CRASH_REASONS = { 'unhandled exit': 'hunt', 'idle recovery': 'rest' };
 
 // ---- SQL fragments ---------------------------------------------------------

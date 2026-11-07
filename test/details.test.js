@@ -103,20 +103,30 @@ test('progress, before the cap: level and the share of it done, from the last ro
   assert.equal(p.next_level.to_next, EXP_FOR_LEVEL[last.level + 1] - last.exp);
 });
 
-// A small schema 8 database, built here: one capped character
+// A small schema 9 database, built here: one capped character. Readings
+// (fame, deeds, long-term exp, Death's Sting) only on the rows an EXPERIENCE
+// reading came before, training points only once, and a None row when the
+// sting faded, as the script writes them.
 function capped() {
   const d = new SQL.Database();
   d.run(`CREATE TABLE progress (game TEXT, character TEXT, timestamp INTEGER, level INTEGER, exp INTEGER, ascension_exp INTEGER,
     until_next INTEGER, fame INTEGER, deeds INTEGER, long_term_exp INTEGER, deaths_sting TEXT, ptp INTEGER, mtp INTEGER, atp INTEGER,
-    lumnis INTEGER, rpa REAL, fashlonae INTEGER, PRIMARY KEY (game, character, timestamp))`);
+    lumnis INTEGER, rpa REAL, fashlonae INTEGER, PRIMARY KEY (game, character, timestamp)) WITHOUT ROWID`);
+  d.run('CREATE TABLE cycles (cycle_id TEXT, game TEXT, character TEXT, cycle_type TEXT, start_time INTEGER, end_time INTEGER)');
   const t0 = 1_800_000_000;
-  const row = (dt, exp, axp, sting, lumnis) => d.run('INSERT INTO progress VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    ['GS3', 'Rocksteady', t0 + dt, 100, exp, axp, null, 1000, 5, 10, sting, 36, 0, 6, lumnis, null, null]);
-  row(0, CAP_EXP + 10_000, 120_000, 'None', 1);
-  row(86400, CAP_EXP + 20_000, 130_000, 'Light', 1); // a death: Light sting
-  row(2 * 86400, CAP_EXP + 25_000, 135_000, 'Light', null);
-  row(3 * 86400, CAP_EXP + 30_500, 140_000, 'None', null); // cleared two days later
-  return { conn: new Conn(d), now: t0 + 3 * 86400, close: () => d.close() };
+  const row = (dt, exp, axp, lumnis, r = {}) => d.run('INSERT INTO progress VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    ['GS3', 'Rocksteady', t0 + dt, 100, exp, axp, null, r.fame ?? null, r.deeds ?? null, r.lte ?? null, r.sting ?? null,
+      r.ptp ?? null, r.mtp ?? null, r.atp ?? null, lumnis, null, null]);
+  const died = (end) => d.run("INSERT INTO cycles VALUES (?, 'GS3', 'Rocksteady', 'dead', ?, ?)", [`d${end}`, t0 + end - 300, t0 + end]);
+  row(0, CAP_EXP + 10_000, 120_000, 1, { fame: 1000, deeds: 5, lte: 10, sting: 'None', ptp: 36, mtp: 0, atp: 6 });
+  died(86400 - 3600);                                                  // a death, an hour before EXPERIENCE shows its sting
+  row(86400, CAP_EXP + 20_000, 130_000, 1, { fame: 1100, deeds: 5, lte: 12, sting: 'Light' });
+  row(2 * 86400, CAP_EXP + 25_000, 135_000, null);                     // the hourly heartbeat: no readings
+  row(3 * 86400, CAP_EXP + 30_500, 140_000, null, { sting: 'None' });  // the sting faded
+  died(3 * 86400 + 600);                                               // died again; it faded before any EXPERIENCE
+  row(3 * 86400 + 4200, CAP_EXP + 30_500, 140_000, null, { sting: 'None' });
+  died(3 * 86400 + 5000);                                              // and again, with nothing after it yet
+  return { conn: new Conn(d), now: t0 + 3 * 86400 + 6000, close: () => d.close() };
 }
 
 test('progress, past the cap: training points from regular experience, ATPs from ascension, ETAs at the recent pace', () => {
@@ -127,10 +137,16 @@ test('progress, past the cap: training points from regular experience, ATPs from
     assert.deepEqual([p.tp.earned, p.tp.to_next, p.tp.pct], [12, 2000, 20]); // 30,500 past the cap = 12 TPs + 500
     assert.deepEqual([p.atp.earned, p.atp.to_next], [2, 10_000]); // 140,000 = 2 ATPs + 40,000
     assert.equal(p.pace.days, 7);
-    assert.equal(p.pace.exp_per_day, Math.round(20_500 / 3));
-    assert.equal(p.tp.eta, Math.round(2000 / (20_500 / 3) * 86400));
-    assert.deepEqual(p.unspent, { ptp: 36, mtp: 0, atp: 6 });
-    assert.deepEqual(p.stings.map((s) => [s.level, s.seconds]), [['Light', 2 * 86400]]);
+    const days = (3 * 86400 + 4200) / 86400; // first row to the last
+    assert.equal(p.pace.exp_per_day, Math.round(20_500 / days));
+    assert.equal(p.tp.eta, Math.round(2000 / (20_500 / days) * 86400));
+    // the latest reading of each, wherever it is
+    assert.deepEqual(p.unspent, { ptp: 36, mtp: 0, atp: 6, at: 1_800_000_000 });
+    assert.deepEqual([p.fame, p.deeds, p.long_term_exp, p.read_at], [1100, 5, 12, 1_800_000_000 + 86400]);
+    assert.deepEqual([p.deaths_sting, p.sting_at], ['None', 1_800_000_000 + 3 * 86400 + 4200]);
+    // from the death to the None; a heartbeat with no reading doesn't end it; a sting
+    // never read has no level; a death with nothing after it isn't shown
+    assert.deepEqual(p.stings.map((s) => [s.level, s.seconds]), [[null, 3600], ['Light', 2 * 86400 + 3600]]);
     // Each step's gain counts toward Lumnis when the row before it had Lumnis active:
     // 20,000 (after row 0, active) + 10,000 (after row 1, active) of 20,000 + 10,000 + 10,500
     assert.equal(p.lumnis_share, Math.round(30_000 * 100 / 40_500));
@@ -308,6 +324,25 @@ test('history: an open cycle past the stale cap ended at an unknown time (#31)',
     const [fresh, crashed] = buildHistory(new Conn(d), ID, 'daily', { now }).cycles;
     assert.deepEqual([fresh.stale, fresh.seconds], [false, 600], 'still going');
     assert.deepEqual([crashed.stale, crashed.seconds, crashed.end], [true, null, null], 'no duration that grows');
+  } finally {
+    d.close();
+  }
+});
+
+test('a hunt stopped by hand is not a crash; the old unhandled exit still is (#25)', async () => {
+  const { buildOverview } = await import('../site/js/aggregate/index.js');
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  for (const [name] of d.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values) d.run(`DELETE FROM "${name}"`);
+  const crashes = (reason) => {
+    d.run('DELETE FROM cycles');
+    d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, rest_reason) VALUES ('h', 'GS3', 'April', 'hunt', ?, ?, 1800, ?)",
+      [now - 3600, now - 1800, reason]);
+    const char = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April');
+    return char.light.reasons.filter((r) => /crash/.test(r.text)).length;
+  };
+  try {
+    assert.equal(crashes('hunt stopped'), 0);
+    assert.equal(crashes('unhandled exit'), 1);
   } finally {
     d.close();
   }

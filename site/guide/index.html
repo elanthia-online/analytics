@@ -70,7 +70,7 @@
         <ul>
           <li><b>Cycles</b>: each stretch of hunting, resting, being dead or sitting idle, with why the hunt ended, and how long each step of a rest took (travel, looting, the bounty turn-in, healing...).</li>
           <li><b>Kills</b> by creature, with the silver on each corpse and the boxes found.</li>
-          <li><b>Silver</b>: bank balances (the figure every "silver per hour" uses), plus box silver, vendor sales, bounty rewards, and what you spend at the locksmith, the locksmith pool and the priestess.</li>
+          <li><b>Silver</b>: bank balances (the figure every "silver per hour" uses), plus box silver, vendor sales, bounty rewards, and what you spend at the locksmith, the locksmith pool and the priestess, and the warehouse storage fees you pay.</li>
           <li><b>Bounties</b>: every task the taskmaster offers, whether you keep it, remove it or used an expedite voucher; progress (7/11), time taken and the rewards.</li>
           <li><b>Experience, fame, mind and encumbrance</b> at the start and end of each cycle, and each login's totals.</li>
         </ul>
@@ -134,7 +134,7 @@
             <tr><td><code>exp</code></td><td>Experience and fame per character.</td></tr>
             <tr><td><code>bounty</code></td><td>This character's bounties: completed, abandoned, success rate, average time and rewards; by type and creature; value per hour; and the <b>task offers</b> section: offered, removed, expedited, vouchers left, and what you removed.</td></tr>
             <tr><td><code>cycle</code></td><td>Hunt, rest, dead and idle time: counts, averages, longest and shortest; exp and fame; encumbrance; rest reasons; deaths and the time between them.</td></tr>
-            <tr><td><code>silver</code></td><td>Where silver came from (corpses, boxes, sales, bounties) and went (locksmith, locksmith pool, priestess), the net, the bank change, and sales by vendor.</td></tr>
+            <tr><td><code>silver</code></td><td>Where silver came from (corpses, boxes, sales, bounties) and went (locksmith, locksmith pool, priestess, warehouse fees), the net, the bank change, and sales by vendor.</td></tr>
             <tr><td><code>kills</code></td><td>Kills, boxes, box rate and silver per kill by creature.</td></tr>
             <tr><td><code>session</code></td><td>This <b>login</b> next to today, the week, the month, the year and lifetime: silver, silver per hour and per hunting hour, exp and its rates, deaths, time logged in and hunting. A login lasts from when Lich connected to the game until you log out, even if that's days.</td></tr>
           </tbody>
@@ -230,7 +230,7 @@
         <div class="scroll" tabindex="0" role="region" aria-label="What is read from the game text"><table class="ref">
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
-            <tr><td><code>parse_sales</code></td><td><code>true</code></td><td>Record vendor sales (including promissory notes, gem pouches and containers) and spending at the locksmith, the locksmith pool and the priestess, so your selling scripts need no changes.</td></tr>
+            <tr><td><code>parse_sales</code></td><td><code>true</code></td><td>Record vendor sales (including promissory notes, gem pouches and containers) and spending at the locksmith, the locksmith pool, the priestess and the warehouse, so your selling scripts need no changes.</td></tr>
             <tr><td><code>track_shops</code></td><td><code>true</code></td><td>Record each stop at a gem shop, pawnshop, furrier, alchemist, consignment, herbalist, general store, locksmith, locksmith pool, bank, chronomage or debt collector, from the map's room tags, with the time spent and the silver made and spent there. Turn it off if your selling script reports its own visits through the <a href="#hooks">hooks</a>.</td></tr>
             <tr><td><code>parse_bank</code></td><td><code>true</code></td><td>Record <code>BANK ACCOUNT</code> listings, and move the tracked total by every deposit, withdrawal and note. With no total yet, one <code>BANK ACCOUNT</code> is sent quietly a few seconds after starting.</td></tr>
           </tbody>
@@ -300,7 +300,7 @@ dashboard:
           <thead><tr><th>Table</th><th>Holds</th></tr></thead>
           <tbody>
             <tr><td><code>cycles</code></td><td>Each hunt, rest, dead and idle stretch: start, end, reason, profile, exp (the total, and regular and ascension apart), fame, mind and encumbrance at both ends.</td></tr>
-            <tr><td><code>progress</code></td><td>Where each character stands: level, regular and ascension exp, exp to the next level or training point, fame, deeds, long-term exp, Death's Sting, unspent PTPs, MTPs and ATPs, and whether Lumnis, RPA or Fash'lo'nae is on. A row when something changes, experience at most every 5 minutes, and at least hourly. Read from what Lich already knows; no command is sent. Unspent training points come from <code>EXPERIENCE</code> output when anything (you or a script) types it.</td></tr>
+            <tr><td><code>progress</code></td><td>Where each character stands: level, regular and ascension exp, exp to the next level or training point, fame, deeds, long-term exp, Death's Sting, unspent PTPs, MTPs and ATPs, and whether Lumnis, RPA or Fash'lo'nae is on. A row when the level, Lumnis, RPA or Fash'lo'nae changes, when <code>EXPERIENCE</code> output is seen, when the Death's Sting wears off, and at least hourly. Read from what Lich already knows; no command is sent. Fame, deeds, long-term exp, Death's Sting and the unspent training points come from <code>EXPERIENCE</code> output when anything (you or a script) types it, so a row has them only when that output came since the row before; otherwise they're empty, never an old reading.</td></tr>
             <tr><td><code>rest_steps</code></td><td>Time per rest step.</td></tr>
             <tr><td><code>kill_stats</code></td><td>Kills, corpse silver and boxes, per character, day, profile and creature.</td></tr>
             <tr><td><code>bounties</code></td><td>Bounties you worked: type, target, area, count done of required, outcome, rewards.</td></tr>
@@ -311,7 +311,7 @@ dashboard:
             <tr><td><code>vendor_visits</code></td><td>Each stop at a shop, the bank or a locksmith: how long, the silver made and spent there, the room and the town. Recorded by itself from the map's room tags (the same tags <code>go2</code> and <code>eloot</code> travel by), so it works with any selling script. See <code>track_shops</code>.</td></tr>
           </tbody>
         </table></div>
-        <p>This is schema 8. The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
+        <p>This is schema 9. The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
           You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
       </section>
 
@@ -320,7 +320,9 @@ dashboard:
         <ul>
           <li><b>Silver per hour</b> comes from your bank balance, so it counts everything you deposit, whatever its source. Per hour means per hour logged in with the script running; per hunting hour divides by hunting time only.</li>
           <li><b>Creature silver</b> counts what a corpse had when you searched it. Coins picked up off the floor show up only in the bank balance.</li>
-          <li><b>Fame</b> is only as fresh as the last <code>EXPERIENCE</code> output Lich saw. To see fame per hunt and rest, have your rest script run <code>EXPERIENCE</code>.</li>
+          <li><b>Fame</b> is only as fresh as the last <code>EXPERIENCE</code> output Lich saw, and a hunt or rest gets fame only from output seen in the last two minutes. To see fame per hunt and rest, have your rest script run <code>EXPERIENCE</code>. The Progress page says when each reading was taken.</li>
+          <li><b>Death's Sting</b> runs from the death to the moment the game says it has faded. Its level is the last <code>EXPERIENCE</code> reading in between; if none came, the level shows as "not read".</li>
+          <li><b>A hunt that ends with no rest</b>, for example when you <code>;kill</code> the hunting script, is recorded with the reason "hunt stopped". It isn't counted as a crash.</li>
           <li><b>Bounties</b> are stored once hunting starts on them; a task you remove at the taskmaster still shows in <b>task offers</b>. Progress follows the game's "N more" text.</li>
           <li><b>Typical</b> on the dashboard is the average of your own recent hours or days with real hunting (20 minutes in an hour, 2 hours in a day), so it needs about five of them before it means anything.</li>
           <li><b>A login</b> starts when Lich connected to the game. Restarting the script keeps the same login.</li>

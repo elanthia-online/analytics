@@ -1,7 +1,7 @@
 // A character's detail pages: income, hunting, bounties, progress and
 // history, as HTML strings. Each takes the figures from aggregate/details.js;
 // everything from the database goes through esc().
-import { U, DOT, esc, num, short, dur, clock, stamp, plural, status as statusIcon, STATE_COL, STATE_NAME, css, shown, hrefFor, avatar } from './util.js';
+import { U, DOT, esc, num, short, dur, clock, stamp, ago, plural, status as statusIcon, STATE_COL, STATE_NAME, css, shown, hrefFor, avatar } from './util.js';
 import { scroll, head, kpi, tile, sortTable } from './parts.js';
 import { barChart, barRows } from './charts.js';
 import { targetEta } from '../aggregate/details.js';
@@ -197,7 +197,8 @@ export function progressHtml(d, width, ui) {
     (p.capped ? kpi('trend', 'Training points earned', num(p.tp.earned), 'past the level cap') : kpi('trend', 'Level', num(p.level), p.next_level.pct + '% of the way to ' + p.next_level.level)) +
     kpi('spark', 'Ascension points', num(p.atp.earned), short(p.ascension_exp) + ' ascension exp') +
     kpi('clock', 'Pace', p.pace ? short(p.pace.exp_per_day + p.pace.asc_per_day) : '--', p.pace ? 'exp a day, last ' + p.pace.days + ' days' : 'needs a few hours of rows') +
-    kpi('skull', 'Death\'s Sting', esc(p.deaths_sting || '--'), p.deaths_sting && p.deaths_sting !== 'None' ? 'a penalty is on' : 'no penalty') + '</div>';
+    kpi('skull', 'Death\'s Sting', esc(p.deaths_sting || '--'), p.deaths_sting == null ? 'shown after EXPERIENCE'
+      : (p.deaths_sting !== 'None' ? 'a penalty' : 'no penalty') + ', read ' + ago(p.sting_at)) + '</div>';
   var meters = '<section class="card">' + head('Next milestones', 'as of ' + clock(p.at)) + '<div class="progs">' +
     (p.capped
       ? meterRow('Next training point', p.tp.pct, short(p.tp.to_next) + ' exp to go', eta(p.tp.eta) + (p.tp.per_day ? ' ' + DOT + ' ' + p.tp.per_day + ' a day' : ''))
@@ -206,10 +207,10 @@ export function progressHtml(d, width, ui) {
     meterRow('Next ascension point', p.atp.pct, short(p.atp.to_next) + ' to go', 'ascension exp ' + DOT + ' ' + eta(p.atp.eta)) + '</div></section>';
   var u = p.unspent;
   var tiles = '<section class="card">' + head('Where it stands') + '<div class="tiles">' +
-    tile('layers', 'Unspent PTP / MTP', u.ptp == null ? '--' : num(u.ptp) + ' / ' + num(u.mtp), u.ptp == null ? 'shown after EXPERIENCE' : 'physical / mental') +
-    tile('spark', 'Unspent ATP', u.atp == null ? '--' : num(u.atp), u.atp == null ? 'shown after EXPERIENCE' : 'ascension') +
-    tile('star', 'Fame', p.fame == null ? '--' : short(p.fame), '') +
-    tile('scroll', 'Deeds', p.deeds == null ? '--' : num(p.deeds), '') +
+    tile('layers', 'Unspent PTP / MTP', u.ptp == null ? '--' : num(u.ptp) + ' / ' + num(u.mtp), u.ptp == null ? 'shown after EXPERIENCE' : 'physical / mental, read ' + ago(u.at)) +
+    tile('spark', 'Unspent ATP', u.atp == null ? '--' : num(u.atp), u.atp == null ? 'shown after EXPERIENCE' : 'ascension, read ' + ago(u.at)) +
+    tile('star', 'Fame', p.fame == null ? '--' : short(p.fame), p.fame == null ? 'shown after EXPERIENCE' : 'read ' + ago(p.read_at)) +
+    tile('scroll', 'Deeds', p.deeds == null ? '--' : num(p.deeds), p.deeds == null ? 'shown after EXPERIENCE' : '') +
     tile('brain', 'Long-term exp', p.long_term_exp == null ? '--' : num(p.long_term_exp), 'waiting to absorb') +
     tile('sparkles', 'Lumnis', p.lumnis ? 'Active' : 'Not active', p.lumnis_share == null ? '' : p.lumnis_share + '% of the last 7 days\' exp') +
     '</div></section>';
@@ -220,7 +221,7 @@ export function progressHtml(d, width, ui) {
     barChart('progress-daily', dl.labels, series, short, width, 'Experience by day') + '</section>';
   var stings = p.stings.length ? '<section class="card">' + head('Death\'s Sting', 'last 30 days') + scroll('Death\'s Sting') +
     '<table><thead><tr><th>From</th><th class="l">Level</th><th>Lasted</th></tr></thead><tbody>' + p.stings.map(function (x) {
-      return '<tr><td>' + stamp(x.from) + '</td><td class="l">' + esc(x.level) + '</td><td>' + (x.to ? dur(x.seconds) : dur(x.seconds) + ' so far') + '</td></tr>';
+      return '<tr><td>' + stamp(x.from) + '</td><td class="l">' + (x.level == null ? '<span class="muted">not read</span>' : esc(x.level)) + '</td><td>' + (x.to ? dur(x.seconds) : dur(x.seconds) + ' so far') + '</td></tr>';
     }).join('') + '</tbody></table></div></section>' : '';
   return top + meters + targetHtml(p, ui) + chart + tiles + stings;
 }
