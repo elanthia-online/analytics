@@ -227,18 +227,22 @@ function delta(p, highBad) {
 }
 
 // ---------------- rest steps ----------------
+// A step's colour slot. Only the object's own keys: a step named "constructor"
+// or "toString" would otherwise find a built-in function
+function stepColor(k) { return Object.prototype.hasOwnProperty.call(STEP_COL, k) ? STEP_COL[k] : '--gray'; }
 export function stepBar(steps) {
   var keys = Object.keys(steps).filter(function (k) { return steps[k] > 0; }).sort(function (a, b) {
     var ia = STEP_ORDER.indexOf(a), ib = STEP_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
   var total = keys.reduce(function (a, k) { return a + steps[k]; }, 0);
   if (!total) return '<div class="empty small">No step timing in this window yet.</div>';
-  var bar = '<div class="segbar" role="img" aria-label="Average rest: ' + keys.map(function (k) { return k + ' ' + dur(steps[k]); }).join(', ') + '">' + keys.map(function (k) {
+  // Step names are the player's own (rest_steps in analytics.yaml) or a file's: escaped like any database text
+  var bar = '<div class="segbar" role="img" aria-label="' + esc('Average rest: ' + keys.map(function (k) { return k + ' ' + dur(steps[k]); }).join(', ')) + '">' + keys.map(function (k) {
     var share = steps[k] * 100 / total, label = Math.round(share) + '%';
-    var slot = STEP_COL[k] || '--gray';
+    var slot = stepColor(k);
     return '<span style="flex:' + steps[k] + ' 1 0;background:' + css(slot) + ';--on:var(--on-' + slot.slice(2) + ')" data-tip="' +
       esc(k + ' ' + DOT + ' ' + dur(steps[k]) + ' (' + label + ')') + '">' + (share >= 9 ? label : '') + '</span>'; }).join('') + '</div>';
   var list = '<div class="steps">' + keys.map(function (k) {
-    return '<div><i style="background:' + css(STEP_COL[k] || '--gray') + '"></i><span>' + esc(k) + '</span><b>' + dur(steps[k]) + '</b><span class="muted">' +
+    return '<div><i style="background:' + css(stepColor(k)) + '"></i><span>' + esc(k) + '</span><b>' + dur(steps[k]) + '</b><span class="muted">' +
       Math.round(steps[k] * 100 / total) + '%</span></div>'; }).join('') + '</div>';
   return '<div class="step-total"><span class="stat-val">' + dur(total) + '</span><span class="muted small">average rest</span></div>' + bar + list;
 }
