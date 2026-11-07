@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { chromium } from 'playwright';
 import { startDevServer } from './dev-server.js';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const AXE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
@@ -19,7 +20,7 @@ const API_PORT = 8826;
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
 const site = await startDevServer(SITE_PORT);
-const mock = spawn(process.execPath, [new URL('./mock-server.js', import.meta.url).pathname, '--port', String(API_PORT), '--demo'],
+const mock = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT), '--demo'],
   { stdio: ['ignore', 'pipe', 'inherit'] });
 await new Promise((resolve, reject) => {
   mock.stdout.once('data', resolve);

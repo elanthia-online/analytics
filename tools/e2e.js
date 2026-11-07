@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { startDevServer } from './dev-server.js';
+import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : null;
@@ -24,7 +25,7 @@ copyFileSync(new URL('../test/fixtures/afternoon.db', import.meta.url), fixture)
 utimesSync(fixture, golden.now, golden.now);
 
 const site = await startDevServer(SITE_PORT);
-const mock = spawn(process.execPath, [new URL('./mock-server.js', import.meta.url).pathname, '--port', String(API_PORT), '--demo'], { stdio: ['ignore', 'pipe', 'inherit'] });
+const mock = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT), '--demo'], { stdio: ['ignore', 'pipe', 'inherit'] });
 await new Promise((resolve, reject) => {
   mock.stdout.once('data', resolve);
   mock.once('exit', (code) => reject(new Error(`the mock server exited (${code}) before it started`)));
@@ -110,7 +111,7 @@ try {
   check(quiet.rewrites === 0 || quiet.newHour, `live: refreshes with nothing new leave a character's page alone (${quiet.rewrites} rewrites in three refreshes)`);
   // The overview and the menu, on a source with no new writes at all; a stretch still
   // going is drawn to the minute, so a minute turning over may redraw once
-  const still = spawn(process.execPath, [new URL('./mock-server.js', import.meta.url).pathname, '--port', String(API_PORT + 2), '--demo', '--still'],
+  const still = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT + 2), '--demo', '--still'],
     { stdio: ['ignore', 'pipe', 'inherit'] });
   await new Promise((resolve) => still.stdout.once('data', resolve));
   try {
@@ -389,7 +390,7 @@ try {
   check(/Local network access/.test(deadText), 'unreachable: and mentions the browser permission, which looks the same to the page');
   check(await deadPage.$('#source a[href="guide/"]') !== null, 'unreachable: the chooser links to the guide');
   // A script that answers but can't serve the database: its reason is shown (#21)
-  const refuse = spawn(process.execPath, [new URL('./mock-server.js', import.meta.url).pathname, '--port', String(API_PORT + 1), '--refuse'],
+  const refuse = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT + 1), '--refuse'],
     { stdio: ['ignore', 'pipe', 'inherit'] });
   await new Promise((resolve) => refuse.stdout.once('data', resolve));
   try {

@@ -10,16 +10,17 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { startDevServer } from './dev-server.js';
+import { fileURLToPath } from 'node:url';
 
-const OUT = new URL('../docs/images/', import.meta.url).pathname;
-const OG = new URL('../site/img/og.png', import.meta.url).pathname;
+const OUT = fileURLToPath(new URL('../docs/images/', import.meta.url));
+const OG = fileURLToPath(new URL('../site/img/og.png', import.meta.url));
 const SITE_PORT = 8775;
 const API_PORT = 8776;
 mkdirSync(OUT, { recursive: true });
-mkdirSync(new URL('../site/img/', import.meta.url).pathname, { recursive: true });
+mkdirSync(fileURLToPath(new URL('../site/img/', import.meta.url)), { recursive: true });
 
 const site = await startDevServer(SITE_PORT);
-const mock = spawn(process.execPath, [new URL('./mock-server.js', import.meta.url).pathname, '--port', String(API_PORT), '--demo'],
+const mock = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT), '--demo'],
   { stdio: ['ignore', 'pipe', 'inherit'] });
 await new Promise((resolve, reject) => {
   mock.stdout.once('data', resolve);

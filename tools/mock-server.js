@@ -12,6 +12,7 @@ import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
 import { shiftTimes } from '../site/js/shift.js';
+import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -20,7 +21,7 @@ const opt = (name, fallback) => {
 };
 const PORT = Number(opt('port', 8080));
 // --demo serves the site's sample data (the fixture plus more characters; tools/build-sample.js)
-const DB_PATH = opt('db', new URL(args.includes('--demo') ? '../site/demo/sample.db' : '../test/fixtures/afternoon.db', import.meta.url).pathname);
+const DB_PATH = opt('db', fileURLToPath(new URL(args.includes('--demo') ? '../site/demo/sample.db' : '../test/fixtures/afternoon.db', import.meta.url)));
 const DEMO = args.includes('--demo');
 // --refuse answers every API request 503 with the script's reason for a
 // database made by another build, as analytics.lic does (docs/api.md)
