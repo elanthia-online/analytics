@@ -145,8 +145,8 @@ export class FileSource {
   }
 }
 
-// The site's sample database (site/demo/, a copy of the synthetic test
-// fixture), moved so its afternoon is today's. A snapshot: its clock stands
+// The site's sample database (site/demo/, built by tools/build-sample.js from
+// the synthetic test fixture plus more made-up characters), moved so its afternoon is today's. A snapshot: its clock stands
 // at the sample's moment, so the day always looks the same.
 export class DemoSource {
   constructor(SQL) {

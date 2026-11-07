@@ -33,9 +33,18 @@ URL hash, the saved image's file name) and maps back at its edges (`shown`, `sho
 | `logins` | `game`, `character`, `started_at`, `last_seen` | "This login" figures. Optional (`loginFor` tolerates its absence) |
 | `metadata` | `key = 'schema_version'` | The compatibility warning |
 
-Not read: `silver_events`, `item_sales`, `vendor_visits`. They're stored for the script's
-text reports and for future views here, and the mock server's demo mode shifts their
-timestamps. Schema 7 dropped the `sessions` table (one row per character per day) and every
+The character detail pages (`site/js/aggregate/details.js`) read these too. Each is
+optional: without the table (or column) the section is empty, not an error.
+
+| Table | Columns used | For |
+|---|---|---|
+| `silver_events` | `game`, `character`, `timestamp`, `source_category` (`expense` for spending), `vendor_type` (the shop's room tag for a sale; the kind of spending for an expense), `amount` | Income: where silver came from and went |
+| `item_sales` | `game`, `character`, `timestamp`, `item_name`, `total_price`, `vendor_type` | Income: the items sold for the most |
+| `vendor_visits` | `game`, `character`, `start_time`, `duration_seconds`, `vendor` (room tag), `silver`; `town`, `spent` when present | Income and Compare: shops and towns |
+| `progress` | `game`, `character`, `timestamp`, `level`, `exp`, `ascension_exp`, `fame`, `deeds`, `long_term_exp`, `deaths_sting`, `lumnis`, `rpa`, `ptp`, `mtp`, `atp` | Progress: level, training points, rates, Death's Sting, Lumnis |
+| `bank_snapshots` | also `balance`, `snapshot_type`, `cycle_id` | Income's bank checks; silver per cycle on History |
+
+The mock server's demo mode shifts their timestamps with the rest. Schema 7 dropped the `sessions` table (one row per character per day) and every
 `session_id` column: nothing read them, and a day is the date of a row's own timestamp.
 
 ## Conventions the figures rely on

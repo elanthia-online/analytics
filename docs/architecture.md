@@ -22,7 +22,7 @@
 | Source | `site/js/data.js` (`LiveSource`, `FolderSource`, `FileSource`, `DemoSource`), `site/js/wal.js`, `site/js/shift.js` | Produces a complete SQLite image (`Uint8Array`) and the moment it describes. Knows nothing about figures |
 | Engine | `site/vendor/sql.js/` | sql.js 1.15.2, vendored (see the decisions log). One `Database` per image. The previous one is `close()`d, because WASM memory is not garbage collected |
 | Aggregation | `site/js/aggregate/*.js` | Pure functions of `(conn, now)`. No DOM, no `fetch`, no `Date.now()`, so Node tests run them unchanged. Output JSON has exactly the shape the Ruby dashboard returned |
-| UI | `site/index.html`, `site/css/dashboard.css`, `site/js/app.js` (shell, sources, state), `site/js/ui/` (`views.js`, `charts.js`, `util.js`, `icons.js`, `export.js`), `site/js/theme-init.js` | Views are functions from the aggregation's JSON to HTML strings. They never query the database. `app.js` puts them on the page through `setHtml`, which skips a write when nothing changed |
+| UI | `site/index.html`, `site/css/dashboard.css`, `site/js/app.js` (shell, sources, state), `site/js/ui/` (`views.js`, `sections.js`, `parts.js`, `charts.js`, `util.js`, `icons.js`, `export.js`), `site/js/display.js`, `site/js/theme-init.js` | Views are functions from the aggregation's JSON to HTML strings. They never query the database. `app.js` puts them on the page through `setHtml`, which skips a write when nothing changed |
 
 The aggregation JSON stays exactly what the Ruby code produced, so the Ruby output stays
 the test oracle. The UI was redesigned on top of that JSON (decisions.md, 2026-11-06) and
@@ -71,5 +71,7 @@ allows.
 
 `site/` is published as is. Native ES modules, no bundler, no npm packages at runtime. A
 contributor can open `site/` with any static server (`npm run serve`) and see exactly what
-Pages serves. The only dev dependency is sql.js, for the Node tests and the vendored
-copy. Playwright is used for the end-to-end check.
+Pages serves. The dev dependencies are sql.js (the Node tests and the vendored copy),
+Playwright (the end-to-end check, the accessibility check and the screenshots) and
+axe-core (the accessibility check). None of them is loaded by the page except the vendored
+sql.js.

@@ -40,8 +40,8 @@ verification.
   Days come from `time.js`.
 - **Parity is the contract.** The JSON shape and values match what the Ruby
   `GS4Analytics::Dashboard` produced (`test/fixtures/*.json`). If a change alters a figure
-  on purpose, regenerate or hand-edit the golden files in the same commit and say why
-  in the message. Never loosen `test/parity.test.js` to make a failure go away.
+  on purpose, hand-edit the golden files in the same commit and say why in the message
+  (they can't be regenerated: the Ruby dashboard is gone). Never loosen `test/parity.test.js` to make a failure go away.
 - **Ruby semantics** (`nil.to_i`, `Float#round`, integer division, truthy `0`, unstable
   `sort_by`) have helpers in `aggregate/ruby.js`. Use them; see
   [docs/porting-notes.md](docs/porting-notes.md). On database values, write `x != null`,
@@ -84,7 +84,7 @@ verification.
 - **Close sql.js databases.** WASM memory is not garbage collected. `Dashboard` in
   `data.js` owns the open image. Don't open others on a timer.
 - **No real player data in the repo**, ever. That covers fixtures, screenshots and issue
-  text. Fixtures come from `tools/gen-fixtures.rb` (seeded, synthetic). Their characters
+  text. Fixtures came from `tools/gen-fixtures.rb` (seeded, synthetic) and are frozen now. Their characters
   are April, Bebop, Leonardo, Raphael and Splinter; keep sample names obviously fictional,
   never names that could be someone's character. `npm run screenshots` retakes the README
   images (`docs/images/`) from those fixtures.

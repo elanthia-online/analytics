@@ -138,8 +138,10 @@ Then open http://localhost:8000/?live=8080.
   dependencies. A sql.js bump fails CI's vendor check until `npm run vendor` is run and committed
   on its branch.
 
-`tools/gen-fixtures.rb` rebuilds the parity fixtures from a scripts checkout. See
-[docs/porting-notes.md](docs/porting-notes.md).
+The parity fixtures came from `tools/gen-fixtures.rb`, run against the Ruby dashboard the
+script had then. They're frozen now: the script no longer has that dashboard, and the tool
+can't run against it. A new schema is admitted by converting them
+([docs/data-contract.md](docs/data-contract.md)); see also [docs/porting-notes.md](docs/porting-notes.md).
 
 ## Publishing
 
