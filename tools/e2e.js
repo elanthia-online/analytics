@@ -269,6 +269,16 @@ try {
     'compare: a character not played today still opens its page');
   await pg.goBack();
   await pg.waitForSelector('#compare:not([hidden]) table');
+  await pg.evaluate(() => localStorage.setItem('gs4a-hidden', JSON.stringify(['GS3:Raphael'])));
+  await pg.reload();
+  await pg.waitForSelector('#compare .cmp-hidden [data-unhide="GS3:Raphael"]');
+  await pg.click('#cmpTabs button[data-r="total"]');     // Raphael has nothing today, only in All Time
+  await pg.waitForFunction(() => document.querySelector('#cmpTabs button.on')?.getAttribute('data-r') === 'total');
+  check(!(await pg.$('#compare a[data-who="GS3:Raphael"]')), 'compare: lists a hidden character not played today, and leaves it out');
+  await pg.click('#compare [data-unhide="GS3:Raphael"]');
+  await pg.waitForFunction(() => !!document.querySelector('#compare a[data-who="GS3:Raphael"]'));
+  check(!(await pg.$('#compare .cmp-hidden')) && (await pg.evaluate(() => localStorage.getItem('gs4a-hidden'))) === null,
+    'compare: Show brings it back at once, with no range tab clicked');
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
   await pg.waitForSelector('.card[data-who]');
   await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');

@@ -68,6 +68,7 @@ function setHidden(list) {
   hidden = list;
   try { if (hidden.length) localStorage.setItem('gs4a-hidden', JSON.stringify(hidden)); else localStorage.removeItem('gs4a-hidden'); } catch (e) {}
   renderOverview(); renderNav();
+  if (page === 'compare') renderCompare();
 }
 var hiddenOpen = false;
 var histFilter = { type: 'all', q: '' };
@@ -250,7 +251,8 @@ function renderCompare() {
   var names = dash.characterNames();
   var ids = Object.keys(names).filter(function (id) { return hidden.indexOf(id) < 0; });
   var entry = function (id) { return ov.characters.find(function (c) { return c.id === id; }); };
-  if (write($('compare'), comparePageHtml(dash.compare(ids, range), range, names, entry, Object.keys(names).length - ids.length))) tick();
+  var hid = Object.keys(names).filter(function (id) { return hidden.indexOf(id) >= 0; });
+  if (write($('compare'), comparePageHtml(dash.compare(ids, range), range, names, entry, hid))) tick();
   enter($('compare'), 'compare');
 }
 
