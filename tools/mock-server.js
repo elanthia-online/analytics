@@ -42,7 +42,7 @@ if (DEMO) {
   const golden = JSON.parse(readFileSync(DB_PATH.replace(/\.db$/, '.json'), 'utf8'));
   // The fixture's moment becomes the real now (the page's own sample data
   // keeps the time of day instead; see site/js/shift.js)
-  shiftTimes(db, Math.floor(Date.now() / 1000) - golden.now, golden.now);
+  shiftTimes(db, Math.floor(Date.now() / 1000) - golden.now, golden.now, golden.tz);
   image = db.export();
   setInterval(() => {
     const now = Math.floor(Date.now() / 1000);

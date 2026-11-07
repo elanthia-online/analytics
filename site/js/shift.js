@@ -8,21 +8,33 @@ export const TIME_COLUMNS = {
   cycles: ['start_time', 'end_time'], bounties: ['received_time', 'completed_time'], bank_snapshots: ['timestamp'],
   rest_steps: ['rest_start'], logins: ['started_at', 'first_seen', 'last_seen'], bounty_offers: ['offered_at', 'ended_at'],
   kill_stats: ['last_kill_at'], silver_events: ['timestamp'],
-  item_sales: ['timestamp'], vendor_visits: ['start_time', 'end_time'],
+  item_sales: ['timestamp'], vendor_visits: ['start_time', 'end_time'], progress: ['timestamp'], metadata: ['updated_at'],
 };
 const DATE_COLUMNS = [['kill_stats', 'date']];
 
-// Local calendar day number of a Unix time
-function dayNumber(ts) {
+// Calendar day number of a Unix time: in the zone given, or this computer's
+function dayNumber(ts, tz) {
+  if (tz) {
+    const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+      .format(new Date(ts * 1000)).split('-').map(Number);
+    return Date.UTC(y, m - 1, d) / 86_400_000;
+  }
   const t = new Date(ts * 1000);
   return Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) / 86_400_000;
 }
 
-export function shiftTimes(db, delta, from) {
+// tz: the zone the database's date strings were written in (the fixture's).
+// A date moves by the days from that date, there, to the shifted moment's
+// date here, which is how the page reads it back.
+export function shiftTimes(db, delta, from, tz) {
   delta = Math.round(delta);
-  const days = dayNumber(from + delta) - dayNumber(from);
+  const days = dayNumber(from + delta) - dayNumber(from, tz);
+  // In two steps through negatives: a table keyed by a time (progress,
+  // logins) would otherwise collide with its own rows exactly delta apart
   for (const [table, cols] of Object.entries(TIME_COLUMNS)) {
-    db.run(`UPDATE ${table} SET ${cols.map((c) => `${c} = ${c} + ${delta}`).join(', ')}`);
+    if (!db.exec(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${table}'`).length) continue;
+    db.run(`UPDATE ${table} SET ${cols.map((c) => `${c} = -(${c} + ${delta})`).join(', ')}`);
+    db.run(`UPDATE ${table} SET ${cols.map((c) => `${c} = -${c}`).join(', ')}`);
   }
   // Rewritten through a copy: shifting in place would collide with rows not yet moved
   const by = `'${days >= 0 ? '+' : ''}${days} days'`;

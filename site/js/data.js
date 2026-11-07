@@ -167,7 +167,7 @@ export class DemoSource {
     // Opened only to move it, then closed: sql.js memory is not garbage collected
     const db = new this.SQL.Database(new Uint8Array(raw));
     try {
-      shiftTimes(db, delta, meta.now);
+      shiftTimes(db, delta, meta.now, meta.tz);
       this.bytes = db.export();
     } finally {
       db.close();
