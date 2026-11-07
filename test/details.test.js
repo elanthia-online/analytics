@@ -60,8 +60,15 @@ test('bounties: counted by type, with success, time and rewards for the complete
   assert.equal(b.all.completed, n.c);
   assert.equal(b.all.points, n.p ?? 0);
   assert.equal(b.types.reduce((a, t) => a + t.received, 0), n.n);
-  const ended = b.all.completed + b.all.abandoned + b.all.expired;
-  assert.equal(b.all.success_pct, Math.round(b.all.completed * 100 / ended));
+  // the endings and the time to complete, from SQL rather than the function's own counts
+  const e = one("SELECT SUM(status = 'abandoned') AS a, SUM(status = 'expired') AS x, " +
+    "AVG(CASE WHEN status = 'completed' THEN MAX(0, completed_time - received_time) END) AS t FROM bounties " +
+    'WHERE game = ? AND character = ? AND received_time >= ? AND received_time <= ?', ...W, from, now);
+  assert.equal(b.all.abandoned, e.a ?? 0);
+  assert.equal(b.all.expired, e.x ?? 0);
+  assert.ok(b.all.abandoned + b.all.expired > 0, 'the fixture has bounties that did not complete');
+  assert.equal(b.all.avg_seconds, Math.round(e.t));
+  assert.equal(b.all.success_pct, Math.round(n.c * 100 / (n.c + (e.a ?? 0) + (e.x ?? 0))));
   assert.ok(b.offers && b.offers.offered >= 0);
 });
 
@@ -152,16 +159,34 @@ test('bank reconciliation: every listing that found the total off, and by how mu
   assert.ok(r.listings >= r.checks.length);
 });
 
-test('compare: each character\'s own figures, side by side', () => {
+test('compare: each character\'s own figures, side by side, every field', () => {
   const ids = [ID, 'GS3:April'];
   const c = buildCompare(conn, ids, 'monthly', { now });
   for (const id of ids) {
     const inc = buildIncome(conn, id, 'monthly', { now }), h = buildHunting(conn, id, 'monthly', { now }), b = buildBounties(conn, id, 'monthly', { now });
-    const mine = (list) => list.filter((r) => r.id === id);
-    assert.deepEqual(mine(c.shops).map((s) => [s.vendor, s.visits, s.silver]), inc.shops.map((s) => [s.vendor, s.visits, s.silver]), `${id} shops`);
-    assert.equal(mine(c.creatures).reduce((a, r) => a + r.kills, 0), h.kills, `${id} kills`);
-    assert.equal(mine(c.bounties).reduce((a, r) => a + r.received, 0), b.all.received, `${id} bounties`);
-    assert.equal(mine(c.income)[0]?.total_in ?? 0, inc.total_in, `${id} income`);
+    const mine = (list) => list.filter((r) => r.id === id).map(({ id: _, ...rest }) => rest);
+    assert.deepEqual(mine(c.shops), inc.shops, `${id} shops`);
+    assert.deepEqual(mine(c.towns), inc.towns, `${id} towns`);
+    assert.deepEqual(mine(c.creatures), h.creatures, `${id} creatures`);
+    assert.deepEqual(mine(c.bounties), b.types, `${id} bounties`);
+    const top = [...inc.sources].sort((x, y) => y.amount - x.amount)[0]?.label ?? null;
+    assert.deepEqual(mine(c.income), [{ total_in: inc.total_in, total_out: inc.total_out, net: inc.net, top }], `${id} income`);
+    assert.ok(inc.shops.length && h.creatures.length && b.types.length, `${id} has something in each`);
+  }
+  assert.equal(c.characters, ids.length);
+});
+
+test('bank checks: only listings, never the deposits and withdrawals, of the types the script writes', () => {
+  const d = new SQL.Database();
+  d.run('CREATE TABLE bank_snapshots (game TEXT, character TEXT, timestamp INTEGER, bank_name TEXT, balance INTEGER, delta_silver INTEGER, snapshot_type TEXT, cycle_id TEXT)');
+  const rows = [['bank_account', 50], ['baseline', -20], ['rest_cycle', 7], ['deposit', 1000], ['withdraw', -400], ['bank_account', 0]];
+  rows.forEach(([type, delta], i) => d.run("INSERT INTO bank_snapshots VALUES ('GS3', 'Splinter', ?, '__total__', 5000, ?, ?, NULL)", [now - 3600 + i, delta, type]));
+  try {
+    const r = buildReconciliation(new Conn(d), ID, 'daily', { now });
+    assert.deepEqual(r.checks.map((x) => x.type).sort(), ['bank_account', 'baseline', 'rest_cycle']);
+    assert.deepEqual([r.off, r.apart, r.listings], [37, 77, 4]);
+  } finally {
+    d.close();
   }
 });
 

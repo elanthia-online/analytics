@@ -1,5 +1,6 @@
-// The page's sample data is the synthetic fixture, unchanged, and the shift
-// that moves it to today keeps every row and moves every time by the same gap.
+// The page's sample data: the synthetic fixture plus made-up characters and
+// history (tools/build-sample.js), and the shift that moves it to today, which
+// keeps every row and moves every time by the same gap.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,13 +16,19 @@ test('site/demo/sample.db is what tools/build-sample.js makes from the fixture',
   const SQL = await initSqlJs();
   const meta = JSON.parse(read('../site/demo/sample.json'));
   const built = Buffer.from(buildSample(SQL, read('fixtures/afternoon.db'), meta.now));
-  assert.ok(built.equals(read('../site/demo/sample.db')), 'run npm run sample');
+  assert.ok(built.equals(read('../site/demo/sample.db')),
+    'the rebuilt sample differs: run this through npm test (it pins TZ=America/New_York), then npm run sample if it still differs');
 });
 
 test('the sample keeps every fixture row unchanged, and adds only for its own characters', async () => {
   const SQL = await initSqlJs();
   const fix = new SQL.Database(read('fixtures/afternoon.db')), sample = new SQL.Database(read('../site/demo/sample.db'));
   try {
+    // the same tables, indexes and columns as the fixture, and the same metadata, row for row
+    const schema = (db) => db.exec("SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name")[0].values;
+    assert.deepEqual(schema(sample), schema(fix), 'the sample has the fixture\'s schema, nothing more');
+    const meta = (db) => db.exec('SELECT * FROM metadata ORDER BY 1')[0]?.values ?? [];
+    assert.deepEqual(meta(sample), meta(fix), 'metadata unchanged');
     const tables = fix.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values.map((r) => r[0]);
     for (const t of tables) {
       const rows = (db, where = '') => (db.exec(`SELECT * FROM ${t}${where}`)[0]?.values ?? []).map((r) => JSON.stringify(r));
@@ -29,7 +36,10 @@ test('the sample keeps every fixture row unchanged, and adds only for its own ch
       const missing = rows(fix).filter((r) => !have.has(r));
       assert.equal(missing.length, 0, `${t}: ${missing.length} fixture rows changed or missing`);
       const cols = fix.exec(`PRAGMA table_info(${t})`)[0].values.map((r) => r[1]);
-      if (!cols.includes('character')) continue;
+      if (!cols.includes('character')) {
+        assert.equal(rows(sample).length, rows(fix).length, `${t}: no rows added to a table that isn't per character`);
+        continue;
+      }
       const extra = new Set(rows(fix));
       const added = (sample.exec(`SELECT character, * FROM ${t}`)[0]?.values ?? []).filter((r) => !extra.has(JSON.stringify(r.slice(1))));
       const who = [...new Set(added.map((r) => r[0]))].sort();
