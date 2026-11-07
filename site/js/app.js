@@ -98,11 +98,27 @@ function skeleton(kind) {
     '<div class="skel-row">' + b('s-card') + b('s-card') + b('s-card') + '</div></div>';
 }
 // Writes a view, putting focus (and the caret in a text field) back where it was
+// A control is found again by its id, or else by what it points at (its
+// data attributes and link), and which of the matching ones it was
+var FOCUS_ATTRS = ['data-who', 'data-sec', 'data-pin', 'data-hide', 'data-unhide', 'data-unhide-all', 'data-r', 'data-sort', 'data-col', 'data-k', 'href'];
+function focusPlace(el, a) {
+  if (!a || a === document.body || !el.contains(a)) return null;
+  if (a.id) return { id: a.id };
+  var sel = a.tagName.toLowerCase() + FOCUS_ATTRS.filter(function (n) { return a.hasAttribute(n); })
+    .map(function (n) { return '[' + n + '="' + CSS.escape(a.getAttribute(n)) + '"]'; }).join('');
+  return { sel: sel, index: Array.prototype.indexOf.call(el.querySelectorAll(sel), a) };
+}
 function write(el, html) {
-  var a = document.activeElement, id = a && el.contains(a) ? a.id : '';
-  var caret = id && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
+  var a = document.activeElement, place = focusPlace(el, a);
+  var caret = place && place.id && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
   var changed = setHtml(el, html);
-  if (changed && id && $(id)) { $(id).focus({ preventScroll: true }); if (caret) try { $(id).setSelectionRange(caret[0], caret[1]); } catch (e) {} }
+  if (changed && place) {
+    var back = place.id ? $(place.id) : el.querySelectorAll(place.sel)[Math.max(0, place.index)];
+    if (back) {
+      back.focus({ preventScroll: true });
+      if (caret) try { back.setSelectionRange(caret[0], caret[1]); } catch (e) {}
+    }
+  }
   return changed;
 }
 function renderOverview() {

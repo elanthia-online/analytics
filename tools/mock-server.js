@@ -25,6 +25,8 @@ const DEMO = args.includes('--demo');
 // --refuse answers every API request 503 with the script's reason for a
 // database made by another build, as analytics.lic does (docs/api.md)
 const REFUSE = args.includes('--refuse');
+// --still: the demo data, but no new writes (the token never changes)
+const STILL = args.includes('--still');
 
 // The origins whose pages may read the API (docs/api.md, "CORS"). The
 // project's site (its own domain, so no other Pages site shares the
@@ -44,7 +46,7 @@ if (DEMO) {
   // keeps the time of day instead; see site/js/shift.js)
   shiftTimes(db, Math.floor(Date.now() / 1000) - golden.now, golden.now, golden.tz);
   image = db.export();
-  setInterval(() => {
+  if (!STILL) setInterval(() => {
     const now = Math.floor(Date.now() / 1000);
     const last = db.exec("SELECT balance FROM bank_snapshots WHERE game = 'GS3' AND character = 'Splinter' AND bank_name = '__total__' ORDER BY timestamp DESC LIMIT 1");
     const balance = (last[0]?.values[0][0] ?? 0) + 2500;

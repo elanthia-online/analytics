@@ -7,6 +7,12 @@ import { U, DOT, DASH, esc, css, num, short, dur, clock, nice, nowSrv, shown,
 // SVG ids are derived from what is drawn (not a counter), so drawing the
 // same data twice gives the same markup and setHtml can skip it
 // ---------------- activity timeline ----------------
+// A stretch still going ends at the minute, so a refresh with nothing new
+// gives the same markup until the minute turns (the now marker moves by itself)
+function seg(s) {
+  var now = nowSrv();
+  return s[2] >= now - 5 ? [s[0], s[1], Math.max(s[1], Math.floor(s[2] / 60) * 60), s[3]] : s;
+}
 function segTip(s) {
   return (STATE_NAME[s[0]] || s[0]) + ' ' + clock(s[1]) + ' ' + DASH + ' ' + clock(s[2]) + ' (' + dur(s[2] - s[1]) + ')' + (s[3] ? ' ' + DOT + ' ' + s[3] : '');
 }
@@ -31,7 +37,7 @@ export function timeline(chars, dayStart, idp, width) {
     if (multi) svg += '<text class="tl-name" x="0" y="' + (y + 13) + '">' + esc(shown(c.name)) + '</text>';
     svg += '<clipPath id="' + clip + '"><rect x="' + L + '" y="' + y + '" width="' + (W - L - R) + '" height="' + barH + '" rx="6"/></clipPath>' +
            '<rect x="' + L + '" y="' + y + '" width="' + (W - L - R) + '" height="' + barH + '" rx="6" fill="var(--st-none)"/><g clip-path="url(#' + clip + ')">';
-    c.timeline.forEach(function (s) {
+    c.timeline.map(seg).forEach(function (s) {
       var x1 = x(s[1]), x2 = x(s[2]);
       svg += '<rect class="seg s-' + esc(s[0]) + '" x="' + x1.toFixed(1) + '" y="' + y + '" width="' + Math.max(1.2, x2 - x1).toFixed(1) + '" height="' + barH + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
     });
@@ -53,7 +59,7 @@ export function timeline(chars, dayStart, idp, width) {
 function summary(chars) {
   return 'Activity today. ' + chars.map(function (c) {
     var by = {};
-    c.timeline.forEach(function (s) { by[s[0]] = (by[s[0]] || 0) + (s[2] - s[1]); });
+    c.timeline.map(seg).forEach(function (s) { by[s[0]] = (by[s[0]] || 0) + (s[2] - s[1]); });
     var parts = ['hunt', 'rest', 'idle', 'dead'].filter(function (k) { return by[k] >= 60; })
       .map(function (k) { return STATE_NAME[k].toLowerCase() + ' ' + dur(by[k]); });
     return shown(c.name) + ': ' + (parts.length ? parts.join(', ') : 'no activity');
@@ -65,7 +71,7 @@ export function dayStrip(c, dayStart, idp) {
   var W = 240, H = 8;
   function x(t) { return W * Math.min(Math.max((t - dayStart) / 86400, 0), 1); }
   var svg = '<rect width="' + W + '" height="' + H + '" rx="4" fill="var(--st-none)"/>';
-  c.timeline.forEach(function (s) {
+  c.timeline.map(seg).forEach(function (s) {
     svg += '<rect class="s-' + esc(s[0]) + '" x="' + x(s[1]).toFixed(2) + '" width="' + Math.max(0.6, x(s[2]) - x(s[1])).toFixed(2) + '" height="' + H + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
   });
   var clip = 'ds-' + idp;
