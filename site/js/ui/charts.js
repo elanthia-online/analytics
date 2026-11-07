@@ -16,18 +16,28 @@ function seg(s) {
 function segTip(s) {
   return (STATE_NAME[s[0]] || s[0]) + ' ' + clock(s[1]) + ' ' + DASH + ' ' + clock(s[2]) + ' (' + dur(s[2] - s[1]) + ')' + (s[3] ? ' ' + DOT + ' ' + s[3] : '');
 }
+// A day's real length and its hour starts: 23 or 25 hours on a DST change, so
+// stretches after the change line up with the wall-clock hour labels
+export function hourStart(t0, h) {
+  var d = new Date(t0 * 1000);
+  return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate(), h).getTime() / 1000);
+}
+export function dayEnd(t0) {
+  var d = new Date(t0 * 1000);
+  return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() / 1000);
+}
 // width: the space it will be drawn in, so its text is drawn at its real size
 export function timeline(chars, dayStart, idp, width) {
   var multi = chars.length > 1;
   var longest = Math.max.apply(null, chars.map(function (c) { return shown(c.name).length; }).concat([0]));
   var W = Math.round(Math.min(1400, Math.max(300, width || 1000)));
   var rowH = 34, barH = 18, L = multi ? Math.min(Math.round(W * 0.3), Math.max(70, Math.round(longest * 7.5 + 20))) : 0, R = 4, top = 6, n = chars.length, H = top + n * rowH + 22;
-  var span = 86400;
+  var span = dayEnd(dayStart) - dayStart;
   function x(t) { return L + (W - L - R) * Math.min(Math.max((t - dayStart) / span, 0), 1); }
   var svg = '';
   var every = W < 560 ? 6 : 3;
   for (var h = 0; h <= 24; h += every) {
-    var hx = x(dayStart + h * 3600);
+    var hx = x(h === 24 ? dayStart + span : hourStart(dayStart, h));
     svg += '<line x1="' + hx + '" x2="' + hx + '" y1="' + top + '" y2="' + (top + n * rowH) + '" stroke="var(--line)"/>' +
            '<text x="' + hx + '" y="' + (H - 4) + '" text-anchor="' + (h === 24 ? 'end' : h === 0 ? 'start' : 'middle') + '">' + (h === 24 ? '24' : String(h).padStart(2, '0')) + ':00</text>';
   }
@@ -45,7 +55,7 @@ export function timeline(chars, dayStart, idp, width) {
   });
   // The now marker is placed by nowMarkers() every second, not drawn at a
   // position here, so the same data always gives the same markup
-  svg += '<g class="nowmk" data-t0="' + dayStart + '" data-x0="' + L + '" data-x1="' + (W - R) + '">' +
+  svg += '<g class="nowmk" data-t0="' + dayStart + '" data-t1="' + (dayStart + span) + '" data-x0="' + L + '" data-x1="' + (W - R) + '">' +
          '<line x1="0" x2="0" y1="' + (top - 4) + '" y2="' + (top + n * rowH) + '" stroke="var(--ink)" stroke-width="1.5"/>' +
          '<circle cx="0" cy="' + (top - 4) + '" r="3.5" fill="var(--ink)"/></g>';
   var leg = ['hunt', 'rest', 'idle', 'dead'].map(function (k) {
@@ -68,8 +78,8 @@ function summary(chars) {
 
 // The day at a glance on a character card: the same stretches, no labels
 export function dayStrip(c, dayStart, idp) {
-  var W = 240, H = 8;
-  function x(t) { return W * Math.min(Math.max((t - dayStart) / 86400, 0), 1); }
+  var W = 240, H = 8, span = dayEnd(dayStart) - dayStart;
+  function x(t) { return W * Math.min(Math.max((t - dayStart) / span, 0), 1); }
   var svg = '<rect width="' + W + '" height="' + H + '" rx="4" fill="var(--st-none)"/>';
   c.timeline.map(seg).forEach(function (s) {
     svg += '<rect class="s-' + esc(s[0]) + '" x="' + x(s[1]).toFixed(2) + '" width="' + Math.max(0.6, x(s[2]) - x(s[1])).toFixed(2) + '" height="' + H + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
@@ -78,7 +88,7 @@ export function dayStrip(c, dayStart, idp) {
   // Hidden from screen readers: the activity timeline below says the same in words
   return '<div class="strip" aria-hidden="true"><svg viewBox="0 -2 ' + W + ' ' + (H + 4) + '" preserveAspectRatio="none" width="100%" height="12" focusable="false">' +
     '<clipPath id="' + clip + '"><rect width="' + W + '" height="' + H + '" rx="4"/></clipPath><g clip-path="url(#' + clip + ')">' + svg + '</g>' +
-    '<g class="nowmk" data-t0="' + dayStart + '" data-x0="0" data-x1="' + W + '"><rect x="-.75" width="1.5" y="-2" height="' + (H + 4) + '" rx=".75" fill="var(--ink)"/></g></svg>' +
+    '<g class="nowmk" data-t0="' + dayStart + '" data-t1="' + (dayStart + span) + '" data-x0="0" data-x1="' + W + '"><rect x="-.75" width="1.5" y="-2" height="' + (H + 4) + '" rx=".75" fill="var(--ink)"/></g></svg>' +
     '<div class="strip-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div>';
 }
 
@@ -86,8 +96,9 @@ export function dayStrip(c, dayStart, idp) {
 export function nowMarkers(root) {
   var now = nowSrv();
   Array.prototype.forEach.call((root || document).querySelectorAll('.nowmk'), function (g) {
-    var t0 = Number(g.getAttribute('data-t0')), x0 = Number(g.getAttribute('data-x0')), x1 = Number(g.getAttribute('data-x1'));
-    var x = x0 + (x1 - x0) * Math.min(Math.max((now - t0) / 86400, 0), 1);
+    var t0 = Number(g.getAttribute('data-t0')), t1 = Number(g.getAttribute('data-t1')) || t0 + 86400;
+    var x0 = Number(g.getAttribute('data-x0')), x1 = Number(g.getAttribute('data-x1'));
+    var x = x0 + (x1 - x0) * Math.min(Math.max((now - t0) / (t1 - t0), 0), 1);
     g.setAttribute('transform', 'translate(' + x.toFixed(2) + ' 0)');
   });
 }
