@@ -59,20 +59,37 @@ function shareBar(ov, visible) {
 }
 
 // The alerts a reader can turn off, and the threshold each has (if any)
-export var ALERT_KINDS = [
-  ['dead', 'Dead'],
-  ['idle', 'Idle', 'idle_minutes', 'Minutes (red at twice)'],
-  ['no_kills', 'No kills while hunting', 'no_kill_minutes', 'Minutes'],
-  ['pace_silver', 'Silver behind typical'],
-  ['pace_exp', 'Exp behind typical'],
-  ['deaths', 'Deaths today'],
-  ['item_rests', 'Rests for the item limit'],
-  ['crashes', 'Crashes and idle recoveries'],
-  ['bounty', 'A bounty taking much longer than usual'],
-  ['rest_reasons', 'Many more rests than usual for one reason'],
-  ['encumbrance', 'Starting hunts heavier than usual', 'encumbrance_points', 'Points over typical'],
-  ['mind', 'Starting hunts with a full mind', 'mind_pct', 'Percent full']
+// The dashboard's alerts, grouped as the Alert settings page lists them. Each
+// says when it shows (overview.js lights() is the rule); a field is its
+// threshold, written as a sentence around the number.
+export var ALERT_GROUPS = [
+  { title: 'While playing', items: [
+    { kind: 'dead', label: 'Dead', level: 'red', hint: 'The character is dead.' },
+    { kind: 'idle', label: 'Idle', level: 'amber', hint: 'Nothing is running. It turns red after twice as long.',
+      field: { key: 'idle_minutes', before: 'After', after: 'minutes idle', min: 1, max: 600 } },
+    { kind: 'no_kills', label: 'No kills while hunting', level: 'red', hint: 'Hunting, but nothing killed for a while.',
+      field: { key: 'no_kill_minutes', before: 'After', after: 'minutes without a kill', min: 1, max: 600 } }] },
+  { title: 'Pace', note: 'Today so far against your typical day by this time, once you\'ve hunted an hour today and have five days to compare with.',
+    items: [
+      { kind: 'pace_silver', label: 'Silver behind typical', level: 'amber', hint: 'Silver so far today is behind your typical day.' },
+      { kind: 'pace_exp', label: 'Experience behind typical', level: 'amber', hint: 'Experience so far today is behind your typical day.' }],
+    fields: [
+      { key: 'pace_amber_pct', before: 'Needs a look when', after: '% behind', min: 1, max: 100, level: 'amber' },
+      { key: 'pace_red_pct', before: 'A problem when', after: '% behind', min: 1, max: 100, level: 'red' }] },
+  { title: 'Today so far', items: [
+    { kind: 'deaths', label: 'Deaths', level: 'amber', hint: 'Any death today.' },
+    { kind: 'item_rests', label: 'Rests for the item limit', level: 'amber', hint: 'Any rest today because the item limit was reached.' },
+    { kind: 'crashes', label: 'Crashes and idle recoveries', level: 'amber', hint: 'Any crash, or a rest started by idle recovery, today.' },
+    { kind: 'bounty', label: 'A slow bounty', level: 'amber', hint: 'The bounty in hand has run more than twice as long as that kind usually takes.' },
+    { kind: 'rest_reasons', label: 'Many rests for one reason', level: 'amber', hint: 'Three or more rests today for one reason, and more than twice the usual by now.' }] },
+  { title: 'Starting hunts', note: 'From the average of today\'s hunts, once there are three.', items: [
+    { kind: 'encumbrance', label: 'Heavier than usual', level: 'amber', hint: 'Hunts start with more encumbrance than your usual.',
+      field: { key: 'encumbrance_points', before: 'When', after: 'points or more above your usual', min: 1, max: 100 } },
+    { kind: 'mind', label: 'Mind already full', level: 'amber', hint: 'Hunts start with your mind nearly full.',
+      field: { key: 'mind_pct', before: 'When the mind is', after: '% full or more', min: 1, max: 100 } }] }
 ];
+// Every kind, with its label, for the dismissed list
+export var ALERT_KINDS = ALERT_GROUPS.flatMap(function (g) { return g.items.map(function (i) { return [i.kind, i.label]; }); });
 
 // The link to the Alert settings page, from the overview's Alerts card and a character's page
 export function alertSettingsLink(cls) {
@@ -81,19 +98,34 @@ export function alertSettingsLink(cls) {
 
 // The Alert settings page (#alerts): which alerts show and their thresholds,
 // and what's dismissed today. a: alertSettings; dismissed: [{ key, name, kind }]
-export function alertsPageHtml(a, dismissed) {
-  var num = function (key, label, min, max) {
-    return '<label class="fl as-num"><span>' + esc(label) + '</span><input type="number" inputmode="numeric" min="' + min + '" max="' + max + '" step="1" data-alert-num="' +
-      key + '" value="' + esc(String(a[key])) + '"></label>';
-  };
+export function alertsPageHtml(a, dismissed, defaults) {
+  defaults = defaults || {};
+  var lv = { red: 'A problem', amber: 'Needs a look' };
   var label = function (kind) { var k = ALERT_KINDS.find(function (x) { return x[0] === kind; }); return k ? k[1] : kind; };
-  var which = '<section class="card">' + head('Which alerts show', 'on the overview and each character') +
-    '<fieldset class="as-list"><legend class="sr">Alerts to show</legend>' + ALERT_KINDS.map(function (k) {
-      return '<div class="as-row"><label class="as-check"><input type="checkbox" data-alert-on="' + k[0] + '"' + (a[k[0]] ? ' checked' : '') + '><span>' + esc(k[1]) + '</span></label>' +
-        (k[2] ? num(k[2], k[3], 1, 1000) : '') + '</div>';
-    }).join('') + '</fieldset>' +
-    '<div class="filters as-pace">' + num('pace_amber_pct', 'Behind typical pace: amber at % below', 1, 100) + num('pace_red_pct', 'red at % below', 1, 100) + '</div>' +
-    '<button type="button" class="btn" data-alerts-reset>Back to the defaults</button></section>';
+  // A threshold as a sentence: "After [8] minutes idle", the default beside it when changed
+  var field = function (f, off, name) {
+    var id = 'al-num-' + f.key, d = defaults[f.key];
+    return '<div class="as-field' + (off ? ' off' : '') + '"><label for="' + id + '">' + esc(f.before) + '</label>' +
+      '<input id="' + id + '" class="as-input" type="number" inputmode="numeric" min="' + f.min + '" max="' + f.max + '" step="1" data-alert-num="' + f.key +
+      '" value="' + esc(String(a[f.key])) + '" aria-label="' + esc(name + ': ' + f.before + ' how many ' + f.after.replace(/^% /, 'percent ')) + '"' + (off ? ' disabled' : '') + '>' +
+      '<span>' + esc(f.after) + '</span>' + (d != null && a[f.key] !== d ? '<span class="as-default">default ' + d + '</span>' : '') + '</div>';
+  };
+  var item = function (i) {
+    var on = !!a[i.kind], id = 'al-on-' + i.kind;
+    return '<li class="as-item' + (on ? '' : ' is-off') + '">' +
+      '<input type="checkbox" id="' + id + '" data-alert-on="' + i.kind + '"' + (on ? ' checked' : '') + ' aria-describedby="' + id + '-hint">' +
+      '<div class="as-body"><label for="' + id + '" class="as-name">' + esc(i.label) + '<span class="as-level"><span class="status s-' + i.level + '" aria-hidden="true">!</span>' + lv[i.level] + '</span></label>' +
+      '<p class="as-hint" id="' + id + '-hint">' + esc(i.hint) + '</p>' + (i.field ? field(i.field, !on, i.label) : '') + '</div></li>';
+  };
+  var groups = ALERT_GROUPS.map(function (g) {
+    var anyOn = g.items.some(function (i) { return a[i.kind]; });
+    return '<fieldset class="as-group"><legend>' + esc(g.title) + '</legend>' + (g.note ? '<p class="as-note">' + esc(g.note) + '</p>' : '') +
+      '<ul class="as-items">' + g.items.map(item).join('') + '</ul>' +
+      (g.fields ? '<div class="as-shared"><p class="as-shared-head">For both</p>' + g.fields.map(function (f) { return field(f, !anyOn, g.title); }).join('') + '</div>' : '') +
+      '</fieldset>';
+  }).join('');
+  var which = '<section class="card">' + head('Which alerts show', 'on the overview and each character') + groups +
+    '<div class="as-foot"><button type="button" class="btn" data-alerts-reset>Back to the defaults</button></div></section>';
   var gone = '<section class="card">' + head('Dismissed today', dismissed.length ? plural(dismissed.length, 'alert') : '') +
     (dismissed.length ? '<ul class="as-dismissed">' + dismissed.map(function (d) {
       return '<li><span><b>' + esc(shown(d.name)) + '</b> ' + esc(label(d.kind)) + '</span><button type="button" class="link-btn" data-undismiss-one="' + esc(d.key) +

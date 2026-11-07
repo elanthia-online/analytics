@@ -385,13 +385,39 @@ section { margin-top: 24px; }
 .as-dismissed li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px;
                    background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; color: var(--ink-2); }
 .as-dismissed b { color: var(--ink); font-weight: 680; margin-right: 6px; }
-.as-list { border: 0; margin: 10px 0 12px; padding: 0; display: grid; gap: 8px 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
-.as-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 36px; }
-.as-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); cursor: pointer; }
-.as-check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
-.as-num { grid-auto-flow: column; align-items: center; gap: 8px; }
-.as-num input { width: 84px; }
-.as-pace { margin-bottom: 12px; }
+/* Alert settings: groups of alerts, each a checkbox with what it's for and its threshold as a sentence */
+.as-group { border: 0; margin: 0; padding: 16px 0 18px; border-top: 1px solid var(--line); min-width: 0; }
+.as-group:first-of-type { border-top: 0; padding-top: 4px; }
+.as-group legend { float: left; width: 100%; padding: 0; margin: 0 0 2px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); }
+.as-note { clear: both; margin: 0 0 10px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+.as-items { clear: both; list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+.as-item { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 0 12px; align-items: start; }
+.as-item > input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
+.as-name { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: 14px; font-weight: 650; color: var(--ink); cursor: pointer; }
+.as-level { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.as-level .status { width: 14px; height: 14px; font-size: 9px; }
+.as-hint { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.as-item.is-off .as-name { color: var(--ink-2); }
+.as-field { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-top: 8px; font-size: 13px; color: var(--ink-2); }
+.as-field label { font-weight: 600; color: var(--ink-2); }
+.as-input { width: 76px; height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--field-line); background: var(--surface-2); color: var(--ink); font: 600 13.5px var(--font); }
+.as-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+:root[data-hc] .as-input:focus { outline: 3px solid var(--ink); outline-offset: 1px; }
+.as-input:disabled { opacity: .55; cursor: not-allowed; }
+.as-field.off { color: var(--muted); }
+.as-default { font-size: 12px; color: var(--muted); }
+.as-shared { margin: 14px 0 0 32px; padding: 10px 14px 12px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--line); max-width: 560px;
+             display: grid; grid-template-columns: max-content 76px minmax(0, 1fr); gap: 8px 10px; align-items: center; }
+.as-shared-head { grid-column: 1 / -1; margin: 0; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+/* The shared thresholds line up: label, box, then the words after it */
+.as-shared .as-field { display: contents; }
+.as-shared .as-field > span { min-width: 0; }
+.as-shared .as-field > .as-default { grid-column: 3; margin-top: -6px; }
+@media (max-width: 600px) {
+  .as-shared { margin-left: 0; grid-template-columns: minmax(0, 1fr) 64px max-content; }
+  .as-shared .as-input { width: 64px; }
+}
+.as-foot { border-top: 1px solid var(--line); padding-top: 14px; }
 .al-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 0 8px; }
 .al-text b { font-weight: 680; }
 .al-text span { color: var(--ink-2); }

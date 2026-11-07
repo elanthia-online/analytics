@@ -352,6 +352,14 @@ try {
   await pg.click('#alertsPage [data-undismiss-one]');
   await pg.waitForFunction(() => !document.querySelector('#alertsPage [data-undismiss-one]') && localStorage.getItem('gs4a-dismissed') === null);
   check(true, 'alerts: Show again brings one back');
+  // A threshold is greyed out while its alert is off, and says its default once changed
+  await pg.uncheck('#alertsPage [data-alert-on="no_kills"]');
+  await pg.waitForFunction(() => document.querySelector('#al-num-no_kill_minutes')?.disabled);
+  await pg.fill('#al-num-mind_pct', '80');
+  await pg.press('#al-num-mind_pct', 'Enter');
+  await pg.waitForFunction(() => /default 90/.test(document.querySelector('#al-num-mind_pct')?.parentElement.textContent || ''));
+  check(await pg.$eval('#al-num-encumbrance_points', (el) => !el.disabled && el.labels[0]?.textContent === 'When'),
+    'alerts: a threshold is greyed out while its alert is off, labelled, and shows its default once changed');
   await pg.click('#alertsPage [data-alerts-reset]');
   await pg.waitForFunction(() => localStorage.getItem('gs4a-alerts') === null && document.querySelector('#alertsPage [data-alert-on]').checked);
   check(true, 'alerts: Back to the defaults restores them');

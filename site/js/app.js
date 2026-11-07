@@ -313,7 +313,7 @@ function renderAlertsPage() {
     var i = k.lastIndexOf('|'), id = k.slice(0, i);
     return { key: k, name: names[id] || shownId(id), kind: k.slice(i + 1) };
   });
-  if (write($('alertsPage'), alertsPageHtml(alertSettings(alertPrefs), list))) tick();
+  if (write($('alertsPage'), alertsPageHtml(alertSettings(alertPrefs), list, ALERT_DEFAULTS))) tick();
   enter($('alertsPage'), 'alerts');
 }
 
