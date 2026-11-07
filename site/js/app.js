@@ -33,7 +33,10 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ap
 // #GS4%3ASplinter (its summary) or #GS4%3ASplinter/income
 // #compare is the Compare page
 function readHash() {
-  var text = decodeURIComponent(location.hash.slice(1)), at = text.lastIndexOf('/');
+  // A cut-off link ("#GS4%3") is read as no page at all, not an error that stops the page
+  var text = location.hash.slice(1);
+  try { text = decodeURIComponent(text); } catch (e) { text = ''; }
+  var at = text.lastIndexOf('/');
   if (text === 'compare') return ['', 'summary', 'compare'];
   var sec = at > 0 ? text.slice(at + 1) : '';
   if (SECTIONS.indexOf(sec) < 0) sec = 'summary'; else text = text.slice(0, at);
