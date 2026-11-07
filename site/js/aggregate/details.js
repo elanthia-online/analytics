@@ -53,10 +53,14 @@ function window(range, now) {
 const SOURCES = [
   ['gems', 'Gems', (r) => r.source_category === 'sale' && /jewel|gem/i.test(r.vendor_type || '')],
   ['furs', 'Skins and furs', (r) => r.source_category === 'sale' && /furr/i.test(r.vendor_type || '')],
+  // From schema 9 a sale's vendor_type is the shop's room tag (consignment, not
+  // the clerk's "pawnbroker"); before, the first word of the sale line
+  ['consign', 'Consignment', (r) => r.source_category === 'sale' && /consign/i.test(r.vendor_type || '')],
   ['pawn', 'Pawnshop', (r) => r.source_category === 'sale' && /pawn/i.test(r.vendor_type || '')],
-  ['alchemy', 'Alchemy and herbs', (r) => r.source_category === 'sale' && /alchem|herb|consign/i.test(r.vendor_type || '')],
+  ['alchemy', 'Alchemy and herbs', (r) => r.source_category === 'sale' && /alchem|herb/i.test(r.vendor_type || '')],
   ['sales', 'Other sales', (r) => r.source_category === 'sale'],
   ['boxes', 'Box coins', (r) => r.source_category === 'box'],
+  ['floor', 'Coins off the floor', (r) => r.source_category === 'floor'], // schema 10
   ['bounties', 'Bounty rewards', (r) => r.source_category === 'bounty'],
 ];
 
@@ -294,8 +298,20 @@ export function buildProgress(conn, id, { now }) {
   const fame = latest('fame'), deeds = latest('deeds'), lte = latest('long_term_exp'), sting = latest('deaths_sting');
   const tp = conn.one('SELECT ptp, mtp, atp, timestamp FROM progress WHERE game = ? AND character = ? AND timestamp <= ? ' +
     'AND ptp IS NOT NULL ORDER BY timestamp DESC LIMIT 1', ...who, now);
+  // RESOURCE (schema 10): the latest reading, from the one row that has it
+  const resource = hasColumn(conn, 'progress', 'resource_name')
+    ? conn.one('SELECT timestamp, resource_name, resource_weekly, resource_total, suffused, voln_favor, covert_arts_charges, shadow_essence ' +
+      'FROM progress WHERE game = ? AND character = ? AND timestamp <= ? AND COALESCE(resource_name, voln_favor, covert_arts_charges, ' +
+      'shadow_essence, suffused) IS NOT NULL ORDER BY timestamp DESC LIMIT 1', ...who, now)
+    : null;
+  const opt = (v) => (v == null ? null : toI(v));
   const out = {
     available: true, at: toI(last.timestamp), level, capped, exp, ascension_exp: axp,
+    resource: resource ? {
+      at: toI(resource.timestamp), name: resource.resource_name || null, weekly: opt(resource.resource_weekly), total: opt(resource.resource_total),
+      suffused: opt(resource.suffused), voln_favor: opt(resource.voln_favor), covert_arts_charges: opt(resource.covert_arts_charges),
+      shadow_essence: opt(resource.shadow_essence),
+    } : null,
     fame: int(fame), deeds: int(deeds), long_term_exp: int(lte),
     deaths_sting: sting ? String(sting.v) : null, lumnis: last.lumnis != null, rpa: last.rpa == null ? null : Number(last.rpa),
     read_at: fame ? toI(fame.t) : null, sting_at: sting ? toI(sting.t) : null,
@@ -316,7 +332,7 @@ export function buildProgress(conn, id, { now }) {
   const toAtp = ASC_PER_ATP - (axp % ASC_PER_ATP);
   out.atp = { earned: Math.floor(axp / ASC_PER_ATP), to_next: toAtp, pct: Math.round((ASC_PER_ATP - toAtp) * 100 / ASC_PER_ATP), eta: eta(toAtp, pace?.asc) };
 
-  // Death's Sting: each stretch from the death that brought it (the end of the
+  // Death's Sting: each stretch from the death that brought it (the start of the
   // dead cycle, or the first reading that shows it when no death is recorded)
   // to the next reading of None. A row without a reading says nothing either
   // way. The level is the last reading in the stretch; null when none came
@@ -325,9 +341,11 @@ export function buildProgress(conn, id, { now }) {
   const from30 = now - 30 * 86400;
   const rows = conn.all('SELECT timestamp, deaths_sting, lumnis, exp, ascension_exp FROM progress WHERE game = ? AND character = ? ' +
     'AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp', ...who, from30, now);
+  // From the death itself (the dead cycle's start): a potion can cure the sting
+  // before the dead cycle ends, and the first reading may come much later
   const deaths = hasTable(conn, 'cycles')
-    ? conn.all("SELECT COALESCE(end_time, start_time) AS t FROM cycles WHERE game = ? AND character = ? AND cycle_type = 'dead' " +
-      'AND COALESCE(end_time, start_time) >= ? AND COALESCE(end_time, start_time) <= ?', ...who, from30, now).map((r) => toI(r.t))
+    ? conn.all("SELECT start_time AS t FROM cycles WHERE game = ? AND character = ? AND cycle_type = 'dead' " +
+      'AND start_time >= ? AND start_time <= ?', ...who, from30, now).map((r) => toI(r.t))
     : [];
   const events = [...deaths.map((t) => ({ t, death: true })),
     ...rows.filter((r) => r.deaths_sting != null).map((r) => ({ t: toI(r.timestamp), level: String(r.deaths_sting) }))]

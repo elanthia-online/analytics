@@ -8,6 +8,7 @@ import { overviewHtml, detailHtml, navHtml, comparePageHtml } from './ui/views.j
 import { sortState } from './ui/parts.js';
 import { SECTION_NAMES, historyRows } from './ui/sections.js';
 import { SECTIONS, RANGES, DETAIL_RANGES } from './aggregate/index.js';
+import { ALERT_DEFAULTS, alertSettings } from './aggregate/overview.js';
 import { icon } from './ui/icons.js';
 import { nowMarkers, openTables } from './ui/charts.js';
 import './display.js'; // the theme and contrast controls (and the icons in the static HTML)
@@ -58,6 +59,28 @@ var params = new URLSearchParams(location.search), saved = rememberedSource();
 var booting = params.has('demo') || params.has('live') || !!(saved && saved.kind === 'live');
 
 // Pinned characters, saved in this browser, come first everywhere
+// Alerts: which show and at what thresholds (gs4a-alerts), and those dismissed
+// for today (gs4a-dismissed, { day, keys: ["id|kind"] }); both in this browser
+var alertPrefs = {}, dismissed = { day: '', keys: [] }, alertsOpen = false;
+try { alertPrefs = JSON.parse(localStorage.getItem('gs4a-alerts') || '{}') || {}; } catch (e) { alertPrefs = {}; }
+try { dismissed = JSON.parse(localStorage.getItem('gs4a-dismissed') || 'null') || dismissed; } catch (e) { /* keep the empty list */ }
+function localDay() { var d = new Date(nowSrv() * 1000); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+// A dismissal lasts the rest of the day it was made
+function todaysDismissed() {
+  if (dismissed.day !== localDay()) dismissed = { day: localDay(), keys: [] };
+  return dismissed.keys.filter(function (k) { return typeof k === 'string'; });
+}
+function pushAlertPrefs() {
+  if (dash) dash.setAlerts({ alerts: alertPrefs, dismissed: todaysDismissed().map(function (k) { var i = k.lastIndexOf('|'); return k.slice(0, i) + '\u0000' + k.slice(i + 1); }) });
+}
+function saveAlerts() {
+  try {
+    if (Object.keys(alertPrefs).length) localStorage.setItem('gs4a-alerts', JSON.stringify(alertPrefs)); else localStorage.removeItem('gs4a-alerts');
+    if (dismissed.keys.length) localStorage.setItem('gs4a-dismissed', JSON.stringify(dismissed)); else localStorage.removeItem('gs4a-dismissed');
+  } catch (e) {}
+  pushAlertPrefs();
+  if (dash && dash.conn) { ov = dash.overview(); renderNav(); if (!who && !page) renderOverview(); else if (who) loadDetail(); }
+}
 var pins = [];
 try { pins = JSON.parse(localStorage.getItem('gs4a-pins') || '[]') || []; } catch (e) { pins = []; }
 function pinned(id) { return pins.indexOf(id) >= 0; }
@@ -101,7 +124,7 @@ function skeleton(kind) {
 // Writes a view, putting focus (and the caret in a text field) back where it was
 // A control is found again by its id, or else by what it points at (its
 // data attributes and link), and which of the matching ones it was
-var FOCUS_ATTRS = ['data-who', 'data-sec', 'data-pin', 'data-hide', 'data-unhide', 'data-unhide-all', 'data-r', 'data-sort', 'data-col', 'data-k', 'href'];
+var FOCUS_ATTRS = ['data-who', 'data-sec', 'data-pin', 'data-hide', 'data-unhide', 'data-unhide-all', 'data-dismiss', 'data-alert-on', 'data-alert-num', 'data-r', 'data-sort', 'data-col', 'data-k', 'href'];
 function focusPlace(el, a) {
   if (!a || a === document.body || !el.contains(a)) return null;
   if (a.id) return { id: a.id };
@@ -126,7 +149,9 @@ function renderOverview() {
   if (!ov) return;
   var shownChars = ordered(ov.characters).filter(function (c) { return hidden.indexOf(c.id) < 0; });
   var daily = dash && dash.conn ? dash.daily(shownChars.map(function (c) { return c.id; })) : null;
-  if (write($('overview'), overviewHtml(ov, shownChars, pinned, chartWidth(), { hidden: hidden.filter(function (id) { return ov.names.indexOf(id) >= 0; }), daily: daily }))) tick();
+  var dismissedHere = todaysDismissed().filter(function (k) { return ov.names.indexOf(k.slice(0, k.lastIndexOf('|'))) >= 0; }).length;
+  if (write($('overview'), overviewHtml(ov, shownChars, pinned, chartWidth(), { hidden: hidden.filter(function (id) { return ov.names.indexOf(id) >= 0; }), daily: daily,
+    alertSettings: alertSettings(alertPrefs), alertSettingsOpen: alertsOpen, dismissedCount: dismissedHere }))) tick();
   if (!who && !sourceOpen) enter($('overview'), 'overview');
 }
 function renderNav() {
@@ -199,6 +224,22 @@ document.addEventListener('click', function (e) {
   var unhide = t.closest('[data-unhide]');
   if (unhide) { var uid = unhide.getAttribute('data-unhide'); setHidden(hidden.filter(function (h) { return h !== uid; })); announce('Shown on the overview again'); return; }
   if (t.closest('[data-unhide-all]')) { setHidden([]); announce('Every character is shown again'); return; }
+  var dis = t.closest('[data-dismiss]');
+  if (dis) {
+    var key = dis.getAttribute('data-dismiss'), keys = todaysDismissed();
+    if (keys.indexOf(key) < 0) dismissed = { day: localDay(), keys: keys.concat([key]) };
+    saveAlerts();
+    announce('Dismissed for today');
+    var nextAlert = document.querySelector('#alertsCard [data-dismiss]') || document.querySelector('#alertsCard [data-undismiss]') || $('content');
+    nextAlert.focus({ preventScroll: true });
+    return;
+  }
+  if (t.closest('[data-undismiss]')) {
+    dismissed = { day: localDay(), keys: [] }; saveAlerts(); announce('Dismissed alerts shown again');
+    (document.querySelector('#alertsCard [data-dismiss]') || $('content')).focus({ preventScroll: true });
+    return;
+  }
+  if (t.closest('[data-alerts-reset]')) { alertPrefs = {}; saveAlerts(); announce('Alerts back to the defaults'); return; }
   var tab = t.closest('#tabs button[data-r], #cmpTabs button[data-r]');
   if (tab) { range = tab.getAttribute('data-r'); if (page) renderCompare(); else loadDetail(); return; }
   var sort = t.closest('[data-sort]');
@@ -226,6 +267,14 @@ document.addEventListener('input', function (e) {
   if (e.target.id === 'targetValue') (targetDraft[who] = targetDraft[who] || {}).value = e.target.value;
 });
 document.addEventListener('change', function (e) {
+  var on = e.target.getAttribute && e.target.getAttribute('data-alert-on');
+  if (on) { alertPrefs[on] = e.target.checked; if (alertPrefs[on] === ALERT_DEFAULTS[on]) delete alertPrefs[on]; saveAlerts(); return; }
+  var numKey = e.target.getAttribute && e.target.getAttribute('data-alert-num');
+  if (numKey) {
+    var n = Math.round(Number(e.target.value));
+    if (n >= 1) { alertPrefs[numKey] = n; if (n === ALERT_DEFAULTS[numKey]) delete alertPrefs[numKey]; } else delete alertPrefs[numKey];
+    saveAlerts(); return;
+  }
   if (e.target.id === 'histType') { histFilter.type = e.target.value; filterHistory(); }
   if (e.target.id === 'targetKind') { (targetDraft[who] = targetDraft[who] || {}).kind = e.target.value; renderDetail(); }
 });
@@ -234,6 +283,7 @@ document.addEventListener('toggle', function (e) {
   var d = e.target;
   if (d.matches && d.matches('details.chart-table')) openTables[d.getAttribute('data-k')] = d.open;
   if (d.matches && d.matches('details.nav-hidden')) hiddenOpen = d.open;
+  if (d.matches && d.matches('details.alert-settings')) alertsOpen = d.open;
 }, true);
 $('navOverview').onclick = function (e) { e.preventDefault(); setWho('', true); };
 $('navCompare').onclick = function (e) { e.preventDefault(); openCompare(true); };
@@ -373,6 +423,7 @@ function loadOverview() {
   if (!dash || !dash.source) return Promise.resolve();
   return dash.refresh().then(function (st) {
     feed = st; failed = 0; errorText = '';
+    pushAlertPrefs(); // a new day brings dismissed alerts back
     ov = dash.overview();
     clockState.offset = ov.generated_at - Date.now() / 1000;
     clockState.frozen = feed.live ? null : ov.generated_at;
@@ -495,6 +546,7 @@ if (booting) setHtml($('overview'), skeleton(who ? 'detail' : 'overview'));
 show(); tick();
 window.initSqlJs({ locateFile: function (file) { return 'vendor/sql.js/' + file; } }).then(function (SQL) {
   dash = new Dashboard(SQL);
+  pushAlertPrefs();
   restore();
 }).catch(function (e) { booting = false; showSource('Could not start the database engine: ' + (e && e.message ? e.message : e)); });
 setInterval(refresh, 5000);

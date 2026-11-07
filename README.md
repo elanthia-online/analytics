@@ -10,7 +10,7 @@ The page runs entirely in your browser. It opens your `analytics.db` with
 every figure locally. Your data is never uploaded anywhere.
 
 > **Status:** analytics.lic serves this page its database as of
-> elanthia-online/scripts@0b41f063, schema 9 as of 1a03e72e (PR
+> elanthia-online/scripts@0b41f063, schema 10 as of d18ceec8 (PR
 > elanthia-online/scripts#2556, not merged yet). The
 > script no longer has a dashboard of its own. What changed is in
 > [docs/script-changes.md](docs/script-changes.md).

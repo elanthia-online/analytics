@@ -58,21 +58,58 @@ function shareBar(ov, visible) {
   }).join('') + '</div></div>';
 }
 
-function alertsHtml(ov, visible) {
+// The alerts a reader can turn off, and the threshold each has (if any)
+export var ALERT_KINDS = [
+  ['dead', 'Dead'],
+  ['idle', 'Idle', 'idle_minutes', 'Minutes (red at twice)'],
+  ['no_kills', 'No kills while hunting', 'no_kill_minutes', 'Minutes'],
+  ['pace_silver', 'Silver behind typical'],
+  ['pace_exp', 'Exp behind typical'],
+  ['deaths', 'Deaths today'],
+  ['item_rests', 'Rests for the item limit'],
+  ['crashes', 'Crashes and idle recoveries'],
+  ['bounty', 'A bounty taking much longer than usual'],
+  ['rest_reasons', 'Many more rests than usual for one reason'],
+  ['encumbrance', 'Starting hunts heavier than usual', 'encumbrance_points', 'Points over typical'],
+  ['mind', 'Starting hunts with a full mind', 'mind_pct', 'Percent full']
+];
+
+// The Alerts card's settings: which show, and their thresholds (saved in this browser)
+function alertSettingsHtml(a, open) {
+  var num = function (key, label, min, max) {
+    return '<label class="fl as-num"><span>' + esc(label) + '</span><input type="number" inputmode="numeric" min="' + min + '" max="' + max + '" step="1" data-alert-num="' +
+      key + '" value="' + esc(String(a[key])) + '"></label>';
+  };
+  return '<details class="alert-settings no-export"' + (open ? ' open' : '') + '><summary>' + icon('settings') + '<span>Choose which alerts show</span></summary>' +
+    '<p class="small muted">Saved in this browser only. The script\'s in-game and Discord alerts are set in its settings file.</p>' +
+    '<fieldset class="as-list"><legend class="sr">Alerts to show</legend>' + ALERT_KINDS.map(function (k) {
+      return '<div class="as-row"><label class="as-check"><input type="checkbox" data-alert-on="' + k[0] + '"' + (a[k[0]] ? ' checked' : '') + '><span>' + esc(k[1]) + '</span></label>' +
+        (k[2] ? num(k[2], k[3], 1, 1000) : '') + '</div>';
+    }).join('') + '</fieldset>' +
+    '<div class="filters as-pace">' + num('pace_amber_pct', 'Behind typical pace: amber at % below', 1, 100) + num('pace_red_pct', 'red at % below', 1, 100) + '</div>' +
+    '<button type="button" class="btn" data-alerts-reset>Back to the defaults</button></details>';
+}
+
+function alertsHtml(ov, visible, dismissedCount) {
   var alerts = ov.alerts.filter(function (a) { return visible(a.id); });
-  if (!alerts.length) return '<div class="empty ok">' + status('green') + '<div><b>Nothing to flag</b><div class="small muted">Every character is running normally.</div></div></div>';
+  var undo = dismissedCount ? '<p class="small muted as-undo">' + plural(dismissedCount, 'alert') + ' dismissed for today &middot; <button type="button" class="link-btn" data-undismiss>Show ' +
+    (dismissedCount === 1 ? 'it' : 'them') + ' again</button></p>' : '';
+  if (!alerts.length) return undo + '<div class="empty ok">' + status('green') + '<div><b>Nothing to flag</b><div class="small muted">Every character is running normally.</div></div></div>';
   var groups = [['red', 'Problems'], ['amber', 'Needs a look']];
-  return groups.map(function (g) {
+  return undo + '<div class="alerts">' + groups.map(function (g) {
     var list = alerts.filter(function (a) { return a.level === g[0]; });
     if (!list.length) return '';
     return '<div class="ag"><h3 class="ag-head">' + status(g[0]) + '<span>' + g[1] + '</span><span class="count"><span class="sr">(</span>' + list.length + '<span class="sr">)</span></span></h3>' +
       list.map(function (a) {
-        return '<a class="alert" data-who="' + esc(a.id) + '" href="' + hrefFor(a.id) + '"><span class="al-text"><b>' + esc(shown(a.character)) + '</b><span>' + esc(a.text) + '</span></span>' + icon('chevron', 'al-go') + '</a>';
+        return '<div class="alert-row"><a class="alert" data-who="' + esc(a.id) + '" href="' + hrefFor(a.id) + '"><span class="al-text"><b>' + esc(shown(a.character)) + '</b><span>' + esc(a.text) + '</span></span>' +
+          icon('chevron', 'al-go') + '</a>' + (a.kind ? '<button type="button" class="icon-btn sm al-x no-export" data-dismiss="' + esc(a.id + '|' + a.kind) + '" title="Dismiss for today" aria-label="Dismiss for today: ' +
+          esc(shown(a.character)) + ', ' + esc(a.text) + '">' + icon('x') + '</button>' : '') + '</div>';
       }).join('') + '</div>';
-  }).join('');
+  }).join('') + '</div>';
 }
 
-// opts: { hidden: [ids], daily: buildDaily for the shown characters }
+// opts: { hidden: [ids], daily: buildDaily for the shown characters,
+//         alertSettings, alertSettingsOpen, dismissedCount }
 export function overviewHtml(ov, chars, pinned, width, opts) {
   opts = opts || {};
   var hidden = opts.hidden || [];
@@ -109,11 +146,19 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
       kpi('skull', 'Deaths', num(deaths), deaths ? 'today' : 'none today') +
     '</div></div>';
 
+  // Per hour the script ran today (hunting, resting or idle), as the reports
+  // count it; under ten minutes of that is too little to divide by
+  var perHour = function (c, value) {
+    var ran = c.today.hunt_s + c.today.rest_s + c.today.idle_s;
+    return ran >= 600 ? short(value * 3600 / ran) : '--';
+  };
   var rows = chars.map(function (c) {
     var t = c.today;
-    return '<tr class="click" data-who="' + esc(c.id) + '"><td><a class="cell-ch" href="' + hrefFor(c.id) + '">' + avatar(c, 'xs') + '<b>' + esc(shown(c.name)) + '</b></a></td><td>' + short(c.pace.silver.so_far) + '</td><td>' + short(c.pace.exp.so_far) + '</td><td>' + num(c.pace.bounties.so_far) +
+    return '<tr class="click" data-who="' + esc(c.id) + '"><td><a class="cell-ch" href="' + hrefFor(c.id) + '">' + avatar(c, 'xs') + '<b>' + esc(shown(c.name)) + '</b></a></td>' +
+      '<td>' + short(c.pace.silver.so_far) + '</td><td>' + perHour(c, c.pace.silver.so_far) + '</td>' +
+      '<td>' + short(c.pace.exp.so_far) + '</td><td>' + perHour(c, c.pace.exp.so_far) + '</td><td>' + num(c.pace.bounties.so_far) +
       '</td><td>' + num(t.kills) + '</td><td>' + dur(t.hunt_s) + '</td><td>' + (t.uptime_pct == null ? '--' : t.uptime_pct + '%') +
-      '</td><td>' + t.deaths + '</td><td>' + c.crashes.length + '</td><td>' + t.item_rests + '</td></tr>';
+      '</td><td>' + t.deaths + '</td></tr>';
   }).join('');
 
   return top + hero +
@@ -126,11 +171,11 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
     (opts.daily ? '<section class="card">' + head('Experience by day', 'last ' + opts.daily.labels.length + ' days' + (hidden.length ? ', shown characters' : ', every character')) +
       barChart('ov-daily', opts.daily.labels, [{ name: 'Experience', color: '--k1', values: opts.daily.labels.map(function (_, i) {
         return chars.reduce(function (a, c) { var s = opts.daily.series[c.id]; return a + (s ? s.exp[i] : 0); }, 0); }) }], short, width, 'Experience by day, all shown characters') + '</section>' : '') +
-    '<section class="card">' + head('Alerts', ov.alerts.filter(function (a) { return visible(a.id); }).length ? plural(ov.alerts.filter(function (a) { return visible(a.id); }).length, 'item') : '') +
-      '<div class="alerts">' + alertsHtml(ov, visible) + '</div></section>' +
+    '<section class="card" id="alertsCard">' + head('Alerts', ov.alerts.filter(function (a) { return visible(a.id); }).length ? plural(ov.alerts.filter(function (a) { return visible(a.id); }).length, 'item') : '') +
+      alertsHtml(ov, visible, opts.dismissedCount || 0) + (opts.alertSettings ? alertSettingsHtml(opts.alertSettings, opts.alertSettingsOpen) : '') + '</section>' +
     '<section>' +
-      '<div class="card">' + head('Side by side', 'today') + scroll('Side by side, today') + '<table><thead><tr><th>Character</th><th>Silver</th><th>Exp</th><th>Bounties</th>' +
-      '<th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th><th>Crashes</th><th title="Rests for the item limit">Items</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
+      '<div class="card">' + head('Side by side', 'today') + scroll('Side by side, today') + '<table><thead><tr><th>Character</th><th>Silver</th><th title="Silver per hour the script ran today">Silver / hr</th><th>Exp</th>' +
+      '<th title="Experience per hour the script ran today">Exp / hr</th><th>Bounties</th><th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
     '</section>';
 }
 

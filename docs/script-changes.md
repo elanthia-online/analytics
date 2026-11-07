@@ -344,3 +344,31 @@ None; a hunt ended "hunt stopped" is shown as is, not as a crash.
 elanthia-online/scripts@64be5f3e. Off by default. When on, starting `;analytics` also
 serves the API on `dashboard.port`, as `--dashboard` does, unless it already runs in this
 session or another session answers `/api/meta` on that port as analytics.lic. No API change.
+
+## Schema 10 (2026-11-07)
+
+elanthia-online/scripts@d18ceec8, from an audit of a night of real schema 9 play and two
+player requests. Still before the first release.
+
+- **EXPERIENCE is read from its own text.** Freshness came from infomon's timestamp for
+  total experience, which infomon moves only when the value changes, so after a death (same
+  total, only the sting moved) the reading was lost: four real deaths left no sting row.
+  The progress hook now reads the block itself (Fame line to "Exp until lvl" / "Exp to next
+  TP", anchored like Lich's parser) and writes each reading as its own row at the moment it
+  was shown. Cycle fame uses the same reading time.
+- **RESOURCE** is read the same way into new `progress` columns: `resource_name`,
+  `resource_weekly`, `resource_total`, `suffused`, `voln_favor`, `covert_arts_charges`,
+  `shadow_essence`. The guide asks players to have their rest script type `EXPERIENCE` and
+  `RESOURCE`.
+- **Floor coins**: "You gather the remaining N coins." is `source_category = 'floor'`.
+- **Shop stops** where silver was only paid out, all for something other than the room's
+  tag, are named by what it was paid for (a priestess in a room tagged locksmith pool).
+- **Reasons**: a rest straight after a death is `after death`; a hunt cut at midnight is
+  `midnight`.
+- **Settings** (no schema effect): a global `<Lich data>/analytics.yaml` with the defaults
+  and a per-character file of blank overrides, each setting commented on its own line.
+- `SCHEMA_VERSION` 10; `KNOWN_SCHEMAS` is `['10']`.
+
+The page: Progress shows the latest resources; Death's Sting stretches start at the dead
+cycle's start (a potion can cure the sting before the dead cycle ends); Income has
+"Coins off the floor" and Consignment as their own sources.
