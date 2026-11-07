@@ -101,6 +101,11 @@ test('progress, before the cap: level and the share of it done, from the last ro
   assert.equal(levelOf(last.exp), last.level);
   assert.equal(p.capped, false);
   assert.equal(p.next_level.to_next, EXP_FOR_LEVEL[last.level + 1] - last.exp);
+  // the latest RESOURCE reading (schema 10), wherever it is
+  const r = one('SELECT timestamp, resource_name, resource_weekly, resource_total, suffused FROM progress WHERE game = ? AND character = ? ' +
+    'AND resource_name IS NOT NULL AND timestamp <= ? ORDER BY timestamp DESC LIMIT 1', ...W, now);
+  assert.deepEqual(p.resource && [p.resource.at, p.resource.name, p.resource.weekly, p.resource.total, p.resource.suffused],
+    [r.timestamp, r.resource_name, r.resource_weekly, r.resource_total, r.suffused]);
 });
 
 // A small schema 9 database, built here: one capped character. Readings
@@ -144,9 +149,10 @@ test('progress, past the cap: training points from regular experience, ATPs from
     assert.deepEqual(p.unspent, { ptp: 36, mtp: 0, atp: 6, at: 1_800_000_000 });
     assert.deepEqual([p.fame, p.deeds, p.long_term_exp, p.read_at], [1100, 5, 12, 1_800_000_000 + 86400]);
     assert.deepEqual([p.deaths_sting, p.sting_at], ['None', 1_800_000_000 + 3 * 86400 + 4200]);
-    // from the death to the None; a heartbeat with no reading doesn't end it; a sting
-    // never read has no level; a death with nothing after it isn't shown
-    assert.deepEqual(p.stings.map((s) => [s.level, s.seconds]), [[null, 3600], ['Light', 2 * 86400 + 3600]]);
+    // from the death (the dead cycle's start, 300 s before it ended) to the None; a heartbeat
+    // with no reading doesn't end it; a sting never read has no level; a death with nothing after it isn't shown
+    assert.deepEqual(p.stings.map((s) => [s.level, s.seconds]), [[null, 3900], ['Light', 2 * 86400 + 3900]]);
+    assert.equal(p.resource, null, 'a database without the RESOURCE columns: none');
     // Each step's gain counts toward Lumnis when the row before it had Lumnis active:
     // 20,000 (after row 0, active) + 10,000 (after row 1, active) of 20,000 + 10,000 + 10,500
     assert.equal(p.lumnis_share, Math.round(30_000 * 100 / 40_500));

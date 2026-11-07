@@ -42,7 +42,8 @@ export function incomeHtml(d) {
     '</div>';
   var sources = '<section class="card">' + head('Where it came from', esc(d.label) + ' ' + DOT + ' read from the game text') +
     barRows(d.sources.map(function (s) {
-      var what = s.key === 'boxes' ? many(s.count, 'box', 'boxes') : s.key === 'bounties' ? many(s.count, 'bounty', 'bounties') : many(s.count, 'sale', 'sales');
+      var what = s.key === 'boxes' ? many(s.count, 'box', 'boxes') : s.key === 'bounties' ? many(s.count, 'bounty', 'bounties')
+        : s.key === 'floor' ? many(s.count, 'pickup', 'pickups') : many(s.count, 'sale', 'sales');
       return { label: s.label, value: s.amount, sub: s.count ? what + ' ' + DOT + ' ' + short(Math.round(s.amount / s.count)) + ' each' : 'from kills searched' };
     }), short, '--k1') +
     (d.expenses.length ? '<div class="divider"></div>' + head('Spent on', '', '', 3) + barRows(d.expenses.map(function (e) {
@@ -188,6 +189,22 @@ function targetHtml(p, ui) {
     '<button class="btn primary" type="submit">' + (t ? 'Change target' : 'Set target') + '</button></form></section>';
 }
 
+// RESOURCE output (schema 10): the profession's resource, and what else it shows
+function resourcesHtml(r) {
+  if (!r) {
+    return '<section class="card">' + head('Resources') + '<p class="small muted note-p first">Your profession\'s resource, Voln favor and the rest show here once ' +
+      '<code>RESOURCE</code> has been typed while analytics.lic runs (have your rest script type it).</p></section>';
+  }
+  var read = 'read ' + ago(r.at);
+  var tiles = (r.name ? tile('spark', r.name + ' this week', r.weekly == null ? '--' : short(r.weekly) + ' / 50K', read) +
+      tile('layers', r.name + ' in total', r.total == null ? '--' : short(r.total) + ' / 200K', read) : '') +
+    (r.suffused != null ? tile('sparkles', 'Suffused' + (r.name ? ' ' + r.name : ''), num(r.suffused), read) : '') +
+    (r.voln_favor != null ? tile('shield', 'Voln favor', num(r.voln_favor), read) : '') +
+    (r.covert_arts_charges != null ? tile('target', 'Covert arts charges', num(r.covert_arts_charges) + ' / 200', read) : '') +
+    (r.shadow_essence != null ? tile('brain', 'Shadow essence', num(r.shadow_essence) + ' / 5', read) : '');
+  return '<section class="card">' + head('Resources', 'from RESOURCE, ' + read) + '<div class="tiles">' + tiles + '</div></section>';
+}
+
 export function progressHtml(d, width, ui) {
   var p = d.progress;
   if (!p.available) {
@@ -213,7 +230,7 @@ export function progressHtml(d, width, ui) {
     tile('scroll', 'Deeds', p.deeds == null ? '--' : num(p.deeds), p.deeds == null ? 'shown after EXPERIENCE' : '') +
     tile('brain', 'Long-term exp', p.long_term_exp == null ? '--' : num(p.long_term_exp), 'waiting to absorb') +
     tile('sparkles', 'Lumnis', p.lumnis ? 'Active' : 'Not active', p.lumnis_share == null ? '' : p.lumnis_share + '% of the last 7 days\' exp') +
-    '</div></section>';
+    '</div></section>' + resourcesHtml(p.resource);
   var dl = d.daily, s = dl.series[Object.keys(dl.series)[0]];
   var series = dl.split ? [{ name: 'Regular', values: s.regular, color: '--k1' }, { name: 'Ascension', values: s.ascension, color: '--k2' }]
     : [{ name: 'Experience', values: s.exp, color: '--k1' }];

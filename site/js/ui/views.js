@@ -61,8 +61,8 @@ function shareBar(ov, visible) {
 // The alerts a reader can turn off, and the threshold each has (if any)
 export var ALERT_KINDS = [
   ['dead', 'Dead'],
-  ['idle', 'Idle', 'idle_minutes', 'minutes (red at twice that)'],
-  ['no_kills', 'No kills while hunting', 'no_kill_minutes', 'minutes'],
+  ['idle', 'Idle', 'idle_minutes', 'Minutes (red at twice)'],
+  ['no_kills', 'No kills while hunting', 'no_kill_minutes', 'Minutes'],
   ['pace_silver', 'Silver behind typical'],
   ['pace_exp', 'Exp behind typical'],
   ['deaths', 'Deaths today'],
@@ -70,8 +70,8 @@ export var ALERT_KINDS = [
   ['crashes', 'Crashes and idle recoveries'],
   ['bounty', 'A bounty taking much longer than usual'],
   ['rest_reasons', 'Many more rests than usual for one reason'],
-  ['encumbrance', 'Starting hunts heavier than usual', 'encumbrance_points', 'points above typical'],
-  ['mind', 'Starting hunts with a full mind', 'mind_pct', '% full']
+  ['encumbrance', 'Starting hunts heavier than usual', 'encumbrance_points', 'Points over typical'],
+  ['mind', 'Starting hunts with a full mind', 'mind_pct', 'Percent full']
 ];
 
 // The Alerts card's settings: which show, and their thresholds (saved in this browser)
@@ -84,9 +84,9 @@ function alertSettingsHtml(a, open) {
     '<p class="small muted">Saved in this browser only. The script\'s in-game and Discord alerts are set in its settings file.</p>' +
     '<fieldset class="as-list"><legend class="sr">Alerts to show</legend>' + ALERT_KINDS.map(function (k) {
       return '<div class="as-row"><label class="as-check"><input type="checkbox" data-alert-on="' + k[0] + '"' + (a[k[0]] ? ' checked' : '') + '><span>' + esc(k[1]) + '</span></label>' +
-        (k[2] ? num(k[2], 'After ' + k[3], 1, 1000) : '') + '</div>';
+        (k[2] ? num(k[2], k[3], 1, 1000) : '') + '</div>';
     }).join('') + '</fieldset>' +
-    '<div class="filters as-pace">' + num('pace_amber_pct', 'Behind typical: amber at % below', 1, 100) + num('pace_red_pct', 'Red at % below', 1, 100) + '</div>' +
+    '<div class="filters as-pace">' + num('pace_amber_pct', 'Behind typical pace: amber at % below', 1, 100) + num('pace_red_pct', 'red at % below', 1, 100) + '</div>' +
     '<button type="button" class="btn" data-alerts-reset>Back to the defaults</button></details>';
 }
 

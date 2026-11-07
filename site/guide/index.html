@@ -101,10 +101,11 @@
         <ol>
           <li>Type <code>;analytics</code>. It prints where the database is, which scripts it watches, and <i>Ready</i>.</li>
           <li>A few seconds later it sends one quiet <code>BANK ACCOUNT</code>, so silver can be tracked from the start. That happens once per character, not every login.</li>
-          <li>It writes your settings file with every setting at its default. <code>;analytics help</code> prints where it is. Change what you want, then restart the script (<code>;kill analytics</code>, then <code>;analytics</code>).</li>
+          <li>It writes two settings files: one for every character, with every setting at its default, and one for this character with every setting blank (see <a href="#settings">Settings</a>). <code>;analytics help</code> prints where they are. Change what you want, then restart the script (<code>;kill analytics</code>, then <code>;analytics</code>).</li>
+          <li>Have your rest script type <code>EXPERIENCE</code> and <code>RESOURCE</code> once a rest. Fame, deeds, Death's Sting, unspent training points and your profession's resource are read from that output; analytics.lic never sends those commands itself.</li>
           <li>Hunt as usual. Reports and the dashboard fill in as you go; the "typical" baselines need about five days of hunting.</li>
         </ol>
-        <p class="note">Where things live: the database is <code>analytics.db</code> in Lich's data folder, shared by all characters. Each character's settings are in <code>&lt;Lich data&gt;/&lt;game&gt;/&lt;character&gt;/analytics.yaml</code>. <code>;analytics help</code> shows both full paths for the character you are on.</p>
+        <p class="note">Where things live: the database is <code>analytics.db</code> in Lich's data folder, shared by all characters. The settings for every character are in <code>&lt;Lich data&gt;/analytics.yaml</code>, and each character's own in <code>&lt;Lich data&gt;/&lt;game&gt;/&lt;character&gt;/analytics.yaml</code>. <code>;analytics help</code> shows the full paths for the character you are on.</p>
       </section>
 
       <section id="commands" class="card">
@@ -170,11 +171,11 @@
         <p>Open a character and the tabs under its name go deeper. Each has its own address, so you can bookmark or share one. The range tabs apply to every page but Progress: Today, This Week and This Month everywhere, and This Year and All Time on the pages after Summary (the Summary shows the month for those). Choose a column heading in any of their tables to sort by it; choose it again to flip the order.</p>
         <ul>
           <li><b>Summary</b>: right now, performance and trends, rests, bounties and hunting grounds.</li>
-          <li><b>Income</b>: silver by where it came from (coins on creatures, gems, skins, the pawnshop, boxes, bounty rewards), what was spent and on what, the best-selling items, and each shop, bank and locksmith stop with its time and silver a minute, by town too.
+          <li><b>Income</b>: silver by where it came from (coins on creatures, coins picked up off the floor, gems, skins, consignment, the pawnshop, boxes, bounty rewards), what was spent and on what, the best-selling items, and each shop, bank and locksmith stop with its time and silver a minute, by town too.
             <b>Bank checks</b> list every <code>BANK ACCOUNT</code> listing that found your banks at a different total from the one tracked through the teller, and by how much: a deposit by another character, a note or a transfer moves the banks without a teller line being read. Silver per hour counts those differences like any other change, so they're shown rather than hidden.</li>
           <li><b>Hunting</b>: every creature: kills, silver a kill, boxes per 100 kills, the profile and the last kill.</li>
           <li><b>Bounties</b>: by type: how many taken and done, success, average time, and silver, exp and bounty points each; and how task offers ended.</li>
-          <li><b>Progress</b>: level (or training points past the cap) and ascension points with ETAs at your recent pace, experience by day split into regular and ascension, unspent training points, fame, deeds, Lumnis and Death's Sting with how long each lasted.
+          <li><b>Progress</b>: level (or training points past the cap) and ascension points with ETAs at your recent pace, experience by day split into regular and ascension, unspent training points, fame, deeds, Lumnis, Death's Sting with how long each lasted (from the death to the moment it faded), and your resources from <code>RESOURCE</code> (your profession's resource this week and in total, suffused, Voln favor, covert arts charges, shadow essence), each with when it was read.
             Set <b>your own target</b> there (a level, a number of training points past the cap, or ascension points) to see how much is left and when you'll get there; it's saved in this browser.</li>
           <li><b>History</b>: every hunt, rest, death and idle stretch, newest first, with a filter and a search.</li>
         </ul>
@@ -210,9 +211,14 @@
 
       <section id="settings" class="card">
         <h3>Settings</h3>
-        <p>Each character has its own <code>analytics.yaml</code>, written with the defaults the first time the collector runs. Keep only the lines you change:
-          anything left out uses the default. Restart the script after editing. Indent with spaces, never tabs; <code>null</code> (or an empty value) means off.
-          A mistake in the file is reported once in the game window and the defaults are used instead.</p>
+        <p>There are two files, both written the first time the collector runs, with each setting on its own line and what it does beside it:</p>
+        <ul>
+          <li><code>&lt;Lich data&gt;/analytics.yaml</code>: the settings for <b>every character</b>, written with the defaults. Change a setting here to change it everywhere.</li>
+          <li><code>&lt;Lich data&gt;/&lt;game&gt;/&lt;character&gt;/analytics.yaml</code>: this character's own, written with every setting present and <b>blank</b>. A blank one uses the global file's value; fill one in to override it for this character only.
+            Within <code>alerts</code> and <code>dashboard</code> each line counts on its own, so you can change one alert and keep the rest. To turn off for one character something the global file turns on (a <code>rest_script</code>, say), write <code>false</code>.</li>
+        </ul>
+        <p>Restart the script after editing. Indent with spaces, never tabs. A mistake in a file is reported once in the game window, and that file is ignored until it's fixed.
+          A character file from an earlier version has every value filled in, so all of them override the global file; delete it to get a blank one.</p>
 
         <h4>The cycle: hunting, resting, dead</h4>
         <div class="scroll" tabindex="0" role="region" aria-label="The cycle: hunting, resting, dead"><table class="ref">
@@ -266,17 +272,13 @@
           </tbody>
         </table></div>
         <p class="note"><code>dashboard.lan</code> is no longer used; see <a href="#lan">why</a>.</p>
-        <h4>Example</h4>
-<pre tabindex="0"><code>hunt_script: [bigshot, my_hunter]
-rest_steps:
-  go2: travel
-  my_sell: selling
-  eloot: eloot
-alerts:
-  no_kill_minutes: 15
-  daily_digest: false
-dashboard:
-  port: 9000</code></pre>
+        <h4>Example: a character's file, with three lines filled in</h4>
+<pre tabindex="0"><code>hunt_script: [bigshot, my_hunter]      # script (or [list] of scripts) whose running means hunting
+rest_script: false                     # your rest script; ... (false: none for this one, whatever the global file says)
+death_script:                          # blank: the global file's
+alerts:                                # in-game and Discord alerts
+  no_kill_minutes: 15                  # alert when hunting this long without a kill
+  silver_drop_pct:                     # blank: the global file's</code></pre>
       </section>
 
       <section id="alerts" class="card">
@@ -292,6 +294,10 @@ dashboard:
           <li><b>Item limit</b>: a rest because bigshot hit its item limit.</li>
           <li>The <b>daily digest</b>: yesterday's hunting time and uptime, exp, kills, deaths, bounties and bank change.</li>
         </ul>
+        <h4 id="dashboard-alerts">Alerts on the dashboard</h4>
+        <p>The overview's Alerts card has its own alerts, worked out from the database. Each one has a <b>dismiss</b> button that hides it for the rest of the day; "Show them again" brings back what you dismissed.
+          Under the list, <b>Choose which alerts show</b> turns each kind on or off and sets when it shows: minutes idle, minutes without a kill, how far behind your typical pace is amber or red, and the encumbrance and mind thresholds.
+          These are saved in your browser, like starred and hidden characters, so they're per browser and per computer, and they don't change the in-game or Discord alerts above (those use the settings file).</p>
       </section>
 
       <section id="data" class="card">
@@ -301,19 +307,19 @@ dashboard:
           <thead><tr><th>Table</th><th>Holds</th></tr></thead>
           <tbody>
             <tr><td><code>cycles</code></td><td>Each hunt, rest, dead and idle stretch: start, end, reason, profile, exp (the total, and regular and ascension apart), fame, mind and encumbrance at both ends.</td></tr>
-            <tr><td><code>progress</code></td><td>Where each character stands: level, regular and ascension exp, exp to the next level or training point, fame, deeds, long-term exp, Death's Sting, unspent PTPs, MTPs and ATPs, and whether Lumnis, RPA or Fash'lo'nae is on. A row when the level, Lumnis, RPA or Fash'lo'nae changes, when <code>EXPERIENCE</code> output is seen, when the Death's Sting wears off, and at least hourly. Read from what Lich already knows; no command is sent. Fame, deeds, long-term exp, Death's Sting and the unspent training points come from <code>EXPERIENCE</code> output when anything (you or a script) types it, so a row has them only when that output came since the row before; otherwise they're empty, never an old reading.</td></tr>
+            <tr><td><code>progress</code></td><td>Where each character stands: level, regular and ascension exp, exp to the next level or training point, fame, deeds, long-term exp, Death's Sting, unspent PTPs, MTPs and ATPs, and whether Lumnis, RPA or Fash'lo'nae is on. Also your resources from <code>RESOURCE</code> output: your profession's resource (Essence, Devotion, Grit...) this week and in total, suffused, Voln favor, covert arts charges and shadow essence. A row when the level, Lumnis, RPA or Fash'lo'nae changes, for each <code>EXPERIENCE</code> or <code>RESOURCE</code> output seen (at the moment it was shown), when the Death's Sting wears off, and at least hourly. No command is sent: those readings come from the output when anything (you or a script) types the command, read straight from the text, so a row has them only when it's that reading's row; otherwise they're empty, never an old reading.</td></tr>
             <tr><td><code>rest_steps</code></td><td>Time per rest step.</td></tr>
             <tr><td><code>kill_stats</code></td><td>Kills, corpse silver and boxes, per character, day, profile and creature.</td></tr>
             <tr><td><code>bounties</code></td><td>Bounties you worked: type, target, area, count done of required, outcome, rewards.</td></tr>
             <tr><td><code>bounty_offers</code></td><td>Every task offered, kept or not: what it was, how it ended, expedited or not.</td></tr>
             <tr><td><code>bank_snapshots</code></td><td>Bank listings and teller moves, with the tracked total.</td></tr>
-            <tr><td><code>silver_events</code>, <code>item_sales</code></td><td>Box silver, sales, bounty silver and spending; each item sold.</td></tr>
+            <tr><td><code>silver_events</code>, <code>item_sales</code></td><td>Box silver, coins picked up off the floor, sales, bounty silver and spending; each item sold.</td></tr>
             <tr><td><code>logins</code></td><td>Each game login: when Lich connected, and when the script last ran in it.</td></tr>
             <tr><td><code>metadata</code></td><td>The schema version, and the time zone Lich runs in (rewritten on every start). Kills are filed by this computer's date, so the dashboard warns when it opens the file in a browser set to another zone.</td></tr>
             <tr><td><code>vendor_visits</code></td><td>Each stop at a shop, the bank or a locksmith: how long, the silver made and spent there, the room and the town. Recorded by itself from the map's room tags (the same tags <code>go2</code> and <code>eloot</code> travel by), so it works with any selling script. See <code>track_shops</code>.</td></tr>
           </tbody>
         </table></div>
-        <p>This is schema 9. The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
+        <p>This is schema 10. The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
           You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
       </section>
 
@@ -321,7 +327,7 @@ dashboard:
         <h3>How the numbers work</h3>
         <ul>
           <li><b>Silver per hour</b> comes from your bank balance, so it counts everything you deposit, whatever its source. Per hour means per hour logged in with the script running; per hunting hour divides by hunting time only.</li>
-          <li><b>Creature silver</b> counts what a corpse had when you searched it. Coins picked up off the floor show up only in the bank balance.</li>
+          <li><b>Creature silver</b> counts what a corpse had when you searched it. Coins picked up off the floor (<code>GET COINS</code>, as eloot does) are their own source, "Coins off the floor".</li>
           <li><b>Fame</b> is only as fresh as the last <code>EXPERIENCE</code> output Lich saw, and a hunt or rest gets fame only from output seen in the last two minutes. To see fame per hunt and rest, have your rest script run <code>EXPERIENCE</code>. The Progress page says when each reading was taken.</li>
           <li><b>Death's Sting</b> runs from the death to the moment the game says it has faded. Its level is the last <code>EXPERIENCE</code> reading in between; if none came, the level shows as "not read".</li>
           <li><b>A hunt that ends with no rest</b>, for example when you <code>;kill</code> the hunting script, is recorded with the reason "hunt stopped". It isn't counted as a crash.</li>

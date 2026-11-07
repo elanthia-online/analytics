@@ -31,6 +31,13 @@ const pad = (n) => String(n).padStart(2, '0');
 const localDate = (ts) => { const d = new Date(ts * 1000); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const midnightOf = (ts) => { const d = new Date(ts * 1000); return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 1000); };
 
+// The profession resource RESOURCE shows (as tools/fixtures-schema10.js gives the fixture's characters)
+const RESOURCE = { Karai: 'Essence', Casey: 'Devotion', Bebop: 'Grit', Leonardo: 'Devotion' };
+const resourceAt = (ts) => ({
+  weekly: Math.min(50_000, Math.round((ts % (7 * 86_400)) / (7 * 86_400) * 42_000)),
+  total: Math.min(200_000, 60_000 + Math.round((ts % (30 * 86_400)) / 86_400) * 2_100),
+});
+
 const PEOPLE = [
   { name: 'Karai', profile: 'karai_ashfall', area: 'the Ashfall', town: "Wehnimer's Landing", days: 8,
     creatures: ['cinder wraith', 'ashen skulker', 'storm griffin'], exp0: CAP_EXP + 3_650_000, asc0: 1_880_000, fame0: 2_400_000,
@@ -80,7 +87,7 @@ export function buildSample(SQL, fixture, now) {
     }
     const rows = { cycles: [], kills: new Map(), banks: [], events: [], sales: [], visits: [], steps: [], bounties: [], offers: [], progress: [], logins: [] };
     let bounty = null, lastProgress = 0, sting = null;
-    // Rows as schema 9 writes them: the EXPERIENCE readings (fame, deeds, long-term
+    // Rows as schema 9 and 10 write them: the EXPERIENCE readings (fame, deeds, long-term
     // exp, Death's Sting) only on a row a reading came before (fresh: typed at
     // login and after a death), the training points once, and a None row when
     // the sting fades
@@ -248,11 +255,16 @@ export function buildSample(SQL, fixture, now) {
       const e = R(p.exp), a = A(p.asc), level = levelOf(e), capped = level >= 100;
       const tp = p.fresh && !tpWritten ? who.unspent : null;
       if (tp) tpWritten = true;
+      // RESOURCE typed with EXPERIENCE, on the same row
+      const res = p.fresh && p.fame != null ? resourceAt(p.at) : null;
       run(`INSERT OR REPLACE INTO progress (game, character, timestamp, level, exp, ascension_exp, until_next, fame, deeds, long_term_exp, deaths_sting,
-           ptp, mtp, atp, lumnis, rpa, fashlonae) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+           ptp, mtp, atp, lumnis, rpa, fashlonae, resource_name, resource_weekly, resource_total, suffused, voln_favor, covert_arts_charges,
+           shadow_essence) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [G, C, p.at, level, e, a, capped ? 2500 - ((e - CAP_EXP) % 2500) : EXP_FOR_LEVEL[level + 1] - e, p.fame,
         p.fresh ? (who.backfill ? 9 : who.name === 'Karai' ? 212 : 31) : null, p.fresh ? between(0, 90) : null, p.sting,
-        tp?.ptp ?? null, tp?.mtp ?? null, tp?.atp ?? null, p.lumnis, null, null]);
+        tp?.ptp ?? null, tp?.mtp ?? null, tp?.atp ?? null, p.lumnis, null, null,
+        res ? RESOURCE[C] : null, res?.weekly ?? null, res?.total ?? null, res ? Math.round(res.total / 9) : null, null, null,
+        res && C === 'Karai' ? 3 : null]);
     }
   }
   db.run('VACUUM');

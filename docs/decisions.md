@@ -353,3 +353,26 @@ reading; its level is the last reading between, or "not read".
 more, and the script has no migrations by design. Leaving old readings stamped on every row
 made "fame now" and the sting's end look known when they weren't. A death is the real start
 of a sting; the first reading that shows it can come hours later.
+
+## 2026-11-07: Dashboard alerts are tuned and dismissed in the browser
+
+**Decision.** The overview's alerts can be turned off by kind, re-thresholded, and dismissed
+for the rest of the day. The choices live in `localStorage` (`gs4a-alerts`,
+`gs4a-dismissed`) and go into the aggregation as data (`buildOverview({ now, alerts,
+dismissed })`), with the Ruby dashboard's thresholds as `ALERT_DEFAULTS`.
+
+**Why.** Players asked for it. The page has no backend and never writes the database, so the
+browser is the only place to keep a reader's choice, as it already is for pins, hidden
+characters and targets. Built without settings, the overview is still the golden shape
+exactly, so parity holds. The script's own in-game and Discord alerts stay in its settings
+file; they're a different reader.
+
+## 2026-11-07: Schema 10, again before the first release
+
+**Decision.** The EXPERIENCE and RESOURCE readings the script stores are read from the game
+text, each as a row of its own, and RESOURCE adds seven `progress` columns. That needs a new
+schema version: a schema 9 file has no place for them.
+
+**Why.** A night of real play showed infomon's timestamps can't say when EXPERIENCE was typed
+(it stamps only values that changed), which lost every Death's Sting. The script's hook
+already sees the output; reading it there is exact and still sends no command.
