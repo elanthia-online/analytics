@@ -345,6 +345,18 @@ try {
   check(/Could not reach analytics\.lic/.test(deadText), 'unreachable: the chooser explains the script is not answering');
   check(/Local network access/.test(deadText), 'unreachable: and mentions the browser permission, which looks the same to the page');
   check(await deadPage.$('#source a[href="guide/"]') !== null, 'unreachable: the chooser links to the guide');
+  // A script that answers but can't serve the database: its reason is shown (#21)
+  const refuse = spawn(process.execPath, [new URL('./mock-server.js', import.meta.url).pathname, '--port', String(API_PORT + 1), '--refuse'],
+    { stdio: ['ignore', 'pipe', 'inherit'] });
+  await new Promise((resolve) => refuse.stdout.once('data', resolve));
+  try {
+    await deadPage.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 1}`);
+    await deadPage.waitForSelector('#sourceError:not([hidden])', { timeout: 15_000 });
+    const why = await deadPage.textContent('#sourceError');
+    check(/made by another build/.test(why) && /Rename or move it/.test(why), `refused: the script's reason is shown (${why.slice(0, 80)}...)`);
+  } finally {
+    refuse.kill();
+  }
   await fileContext.close();
 
   // ---- the guide -------------------------------------------------------

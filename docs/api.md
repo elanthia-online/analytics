@@ -24,8 +24,19 @@ consistent copy of its SQLite database, and the browser does everything else
 | `GET /api/db?token=T` | The database, as one SQLite file image |
 
 The page polls `/api/meta` every 5 seconds and fetches `/api/db` only when the token
-has changed. Everything else answers 404, except `/`, which redirects to the hosted page
-(see below).
+has changed. `/` and `/index.html` redirect to the hosted page (see below), and anything
+else answers 404.
+
+Errors, all with the CORS headers below so the page can read them:
+
+| Status | When | Body |
+|---|---|---|
+| `400` | A cut-off request line, a second `Host` or `Origin` header, more than 100 headers | `Bad request` |
+| `403` | A `Host` other than this computer, or an `Origin` not allowed | `Forbidden` |
+| `404` | Any other path | `Not found` |
+| `405` | Any method but `GET` (and the preflight `OPTIONS`) | `Method not allowed` |
+| `500` | An error in the script while answering; it is logged in the game window | `Internal error` |
+| `503` | The script can't serve the database: none yet, or one made by another build | The reason, which the page shows. It includes the database's path on this computer |
 
 ## `GET /api/meta`
 
@@ -34,7 +45,7 @@ has changed. Everything else answers 404, except `/`, which redirects to the hos
   "app": "analytics",
   "api": 1,
   "script_version": "1.1.0",
-  "schema_version": "8",
+  "schema_version": "9",
   "token": "k3j2a1.42",
   "now": 1793997420,
   "db_bytes": 413696
@@ -147,7 +158,7 @@ the browser, and CORS would not apply at all.
   page can fetch them without a mixed-content block in Chromium and Firefox. **Safari has
   not been checked.** See [open-questions.md](open-questions.md).
 
-## `GET /`
+## `GET /` and `GET /index.html`
 
 `302` to `https://analytics.elanthia.online/?live=<port>`, so the URL the script
 prints when it starts the server (and old bookmarks of `http://localhost:8080`) open the
@@ -167,16 +178,15 @@ The existing request limits stay as they are: request line, header line and head
 count, the 5-second read timeout, a 400 for a cut-off line, and a 400 for a second
 `Host` header.
 
-## LAN mode
+## LAN mode (dropped)
 
-Today `--lan` lets another computer on the network open the dashboard. That doesn't carry
-over:
+`lan` is refused with a line pointing to the guide, and the server binds this computer
+only (decisions.md). The reasons it didn't carry over:
 
 - The hosted page is https. A fetch from it to `http://192.168.x.y:8080` is mixed content
   and is blocked, because only loopback addresses are exempt.
 - In LAN mode `/api/db` would hand the whole database to anyone on the network. Today
   LAN mode exposes only the computed figures.
 
-The proposal in [script-changes.md](script-changes.md) is to drop `--lan` for the API, or
-to refuse it with an explanation. [open-questions.md](open-questions.md) lists the
-alternatives.
+To view another computer's data, copy its `analytics.db` (or a backup) and open it as a
+file.

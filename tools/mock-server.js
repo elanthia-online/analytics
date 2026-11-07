@@ -22,6 +22,9 @@ const PORT = Number(opt('port', 8080));
 // --demo serves the site's sample data (the fixture plus more characters; tools/build-sample.js)
 const DB_PATH = opt('db', new URL(args.includes('--demo') ? '../site/demo/sample.db' : '../test/fixtures/afternoon.db', import.meta.url).pathname);
 const DEMO = args.includes('--demo');
+// --refuse answers every API request 503 with the script's reason for a
+// database made by another build, as analytics.lic does (docs/api.md)
+const REFUSE = args.includes('--refuse');
 
 // The origins whose pages may read the API (docs/api.md, "CORS"). The
 // project's site (its own domain, so no other Pages site shares the
@@ -82,9 +85,14 @@ const server = http.createServer((req, res) => {
   }
   if (req.method !== 'GET') return reply(405, 'text/plain', 'Method not allowed');
 
+  if (REFUSE && url.pathname.startsWith('/api/')) {
+    return reply(503, 'text/plain', `${DB_PATH} was made by another build of analytics.lic (schema 7, this one uses 9). ` +
+      'Rename or move it, then start ;analytics again for a fresh one.');
+  }
   const token = `${bootId}.${version}`;
   switch (url.pathname) {
     case '/':
+    case '/index.html':
       return reply(302, 'text/plain', '', { Location: `https://analytics.elanthia.online/?live=${PORT}` });
     case '/api/meta':
       return reply(200, 'application/json', JSON.stringify({

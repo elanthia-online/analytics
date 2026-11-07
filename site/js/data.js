@@ -45,7 +45,7 @@ export class LiveSource {
     }
     if (meta.token === this.token && this.bytes) return { bytes: this.bytes, changed: false, asOf: meta.now, meta };
     const response = await fetch(`${this.base}/api/db?token=${encodeURIComponent(meta.token)}`, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`analytics.lic answered ${response.status} for the database`);
+    if (!response.ok) throw await answerError(response, 'for the database');
     this.bytes = new Uint8Array(await response.arrayBuffer());
     // The image can be newer than the token that asked for it; it says which it is
     this.token = response.headers.get('X-Analytics-Token') || meta.token;
@@ -64,8 +64,19 @@ async function getJson(url) {
       'site settings, Local network access. See the guide: guide/#connect');
 
   }
-  if (!response.ok) throw new Error(`analytics.lic answered ${response.status}`);
+  if (!response.ok) throw await answerError(response);
   return response.json();
+}
+
+// What a failed answer says. analytics.lic answers 503 with the reason it
+// can't serve the database (made by another build, not created yet), which
+// tells the player what to do; a 500 is its own error, logged in the game.
+async function answerError(response, what = '') {
+  let text = '';
+  try { text = (await response.text()).trim().slice(0, 400); } catch { /* no body */ }
+  if (response.status === 503 && text) return new Error(`analytics.lic can't serve the database: ${text}`);
+  if (response.status === 500) return new Error('analytics.lic hit an error answering (500). The game window shows what it was.');
+  return new Error(`analytics.lic answered ${response.status}${what ? ` ${what}` : ''}${text ? `: ${text}` : ''}`);
 }
 
 // The folder that holds analytics.db (Lich's data directory). Re-reading it
