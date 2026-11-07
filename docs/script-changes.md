@@ -338,3 +338,9 @@ release, so the schema changed rather than gaining a migration.
 The page: the Progress page shows the latest of each reading wherever it is, and when it was
 read; Death's Sting stretches run from the death (the end of the `dead` cycle) to the next
 None; a hunt ended "hunt stopped" is shown as is, not as a crash.
+
+### Setting: `dashboard.autostart` (2026-11-07)
+
+elanthia-online/scripts@64be5f3e. Off by default. When on, starting `;analytics` also
+serves the API on `dashboard.port`, as `--dashboard` does, unless it already runs in this
+session or another session answers `/api/meta` on that port as analytics.lic. No API change.
