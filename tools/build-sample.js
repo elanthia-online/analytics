@@ -154,7 +154,7 @@ export function buildSample(SQL, fixture, now) {
         if (!bounty && rand() < 0.7) {
           const type = pick(TYPES), b = { bid: id('q'), type, creature: type === 'gem' ? pick(GEMS)[0] : pick(who.creatures), need: between(12, 20), done: 0, received: t, status: 'active' };
           rows.bounties.push(b); bounty = b;
-          rows.offers.push({ at: t - 20, ended: t, type, creature: b.creature, outcome: 'accepted', bid: b.bid, expedited: rand() < 0.15 });
+          rows.offers.push({ at: t - 20, ended: null, type, creature: b.creature, outcome: 'open', bid: b.bid, expedited: rand() < 0.15 });
         }
         // Everything banked in one deposit, tracked through the teller
         const bstart = Math.min(t, at + restLen - 20);
@@ -174,6 +174,14 @@ export function buildSample(SQL, fixture, now) {
     // A bounty still open at the end of the data stays active; one never finished before a back-filled day ends, expired
     for (const b of rows.bounties) if (b.status === 'active' && b.completed) b.status = 'completed';
     for (const b of rows.bounties) if (b.status === 'active' && who.backfill) b.status = 'expired';
+    // An offer ends as the script ends it: completed with its bounty, expired
+    // when the bounty did, and open while the task is still held
+    const byId = new Map(rows.bounties.map((b) => [b.bid, b]));
+    for (const o of rows.offers) {
+      const b = byId.get(o.bid);
+      if (b.status === 'completed') { o.outcome = 'completed'; o.ended = b.completed; }
+      else if (b.status === 'expired') { o.outcome = 'expired'; o.ended = b.received + 3600; }
+    }
 
     // A back-filled character's added days end where its own data starts
     let dr = 0, da = 0, db0 = 0;

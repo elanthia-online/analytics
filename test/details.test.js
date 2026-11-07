@@ -174,6 +174,7 @@ test('compare: each character\'s own figures, side by side, every field', () => 
     assert.ok(inc.shops.length && h.creatures.length && b.types.length, `${id} has something in each`);
   }
   assert.equal(c.characters, ids.length);
+  assert.equal(buildCompare(conn, ids, 'ytd', { now }).label, 'This Year', 'never "YTD"');
 });
 
 test('bank checks: only listings, never the deposits and withdrawals, of the types the script writes', () => {

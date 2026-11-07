@@ -385,13 +385,16 @@ function loadOverview() {
 }
 function loadDetail() {
   if (!who || !dash || !dash.conn || !ov) return;
-  var d = null;
-  try { d = dash.character(who, summaryRange()); } catch (e) { d = null; }
+  var d = null, failed = false;
+  try { d = dash.character(who, summaryRange()); } catch (e) { d = null; failed = true; }
   if (d) {
     det = d;
     try { sdata = section !== 'summary' ? dash.details(who, section, range) : null; } catch (e) { sdata = null; }
     renderDetail(); tick(); setTitle(); return;
   }
+  // Not in this image at all (another source, or a database without it): the
+  // last image's figures would be wrong, so they go. A failed build keeps them.
+  if (!failed) { det = null; sdata = null; }
   if (!det) {
     setHtml($('detail'), '<div class="card empty big">' + icon('pulse', 'empty-ic') + '<h3>No data for ' + esc(shownId(who)) + '</h3>' +
       '<p class="muted">This database has nothing recorded for that character.</p><button class="btn" id="back" type="button">' + icon('back') + 'Back to everyone</button></div>');
