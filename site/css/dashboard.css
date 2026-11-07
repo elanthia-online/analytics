@@ -375,10 +375,16 @@ section { margin-top: 24px; }
 .alert-row .alert { flex: 1; min-width: 0; }
 .al-x { align-self: center; flex: none; color: var(--muted); }
 .as-undo { margin: 0 0 10px; }
-.alert-settings { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
-.alert-settings summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 650; color: var(--ink-2); padding: 4px 2px; }
-.alert-settings summary .ic { width: 16px; height: 16px; }
-.alert-settings[open] summary { margin-bottom: 6px; }
+/* The link to the Alert settings page: in the Alerts card's head, and under a character's alerts */
+.al-settings { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 650; color: var(--accent-ink); text-decoration: none; }
+.al-settings:hover { text-decoration: underline; }
+.al-settings .ic { width: 16px; height: 16px; }
+.card-head .al-settings { margin-left: auto; }
+.health .al-settings { margin-top: 10px; }
+.as-dismissed { list-style: none; margin: 4px 0 14px; padding: 0; display: grid; gap: 6px; }
+.as-dismissed li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px;
+                   background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; color: var(--ink-2); }
+.as-dismissed b { color: var(--ink); font-weight: 680; margin-right: 6px; }
 .as-list { border: 0; margin: 10px 0 12px; padding: 0; display: grid; gap: 8px 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 .as-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 36px; }
 .as-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); cursor: pointer; }

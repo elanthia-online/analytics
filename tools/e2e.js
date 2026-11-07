@@ -312,16 +312,49 @@ try {
   await pg.click('#alertsCard [data-undismiss]');
   await pg.waitForFunction((n) => document.querySelectorAll('#alertsCard .alert').length === n, alertsBefore);
   check(await pg.evaluate(() => localStorage.getItem('gs4a-dismissed')) === null, 'alerts: Show them again brings it back');
-  // Settings: turning a kind off hides it everywhere; a threshold moves when one shows
-  await pg.click('#alertsCard .alert-settings summary');
+  // Alert settings: a page of its own (#alerts), reached from the Alerts card, a character's page and the menu
+  const onAlertsPage = () => pg.waitForFunction(() => location.hash === '#alerts' && !document.querySelector('#alertsPage').hidden &&
+    document.querySelector('#navAlerts').getAttribute('aria-current') === 'page');
+  await pg.click('#alertsCard a.al-settings');
+  await onAlertsPage();
+  check(await pg.evaluate(() => document.activeElement?.matches('#alertsPage h1') && document.querySelector('#overview').hidden),
+    'alerts: the Alerts card opens the Alert settings page, current in the menu, focus on its heading');
+  // Turning a kind off is saved and hides those alerts on the overview
   const kind = firstKey.slice(firstKey.lastIndexOf('|') + 1);
-  await pg.uncheck(`#alertsCard [data-alert-on="${kind}"]`);
-  await pg.waitForFunction((k) => !document.querySelector(`#alertsCard [data-dismiss$="|${k}"]`), kind);
-  check((await pg.$eval('#alertsCard .alert-settings', (d) => d.open)) && JSON.parse(await pg.evaluate(() => localStorage.getItem('gs4a-alerts')))[kind] === false,
-    `alerts: turning off "${kind}" hides those alerts and is saved, and the settings stay open`);
-  await pg.click('#alertsCard [data-alerts-reset]');
-  await pg.waitForFunction((k) => !!document.querySelector(`#alertsCard [data-dismiss$="|${k}"]`), kind);
-  check(await pg.evaluate(() => localStorage.getItem('gs4a-alerts')) === null, 'alerts: Back to the defaults restores them');
+  await pg.uncheck(`#alertsPage [data-alert-on="${kind}"]`);
+  await pg.waitForFunction((k) => JSON.parse(localStorage.getItem('gs4a-alerts') || '{}')[k] === false, kind);
+  await pg.goBack();
+  await pg.waitForSelector('#overview:not([hidden]) #alertsCard');
+  check(!(await pg.$(`#alertsCard [data-dismiss$="|${kind}"]`)), `alerts: turning off "${kind}" there hides those alerts, and Back returns to the overview`);
+  // From a character's page, and the menu
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#GS4%3ABebop`);
+  await pg.waitForSelector('#detail .health a.al-settings');
+  await pg.click('#detail .health a.al-settings');
+  await onAlertsPage();
+  await pg.click('#navOverview');
+  await pg.waitForSelector('#overview:not([hidden]) #alertsCard');
+  await pg.click('#navAlerts');
+  await onAlertsPage();
+  check(true, "alerts: a character's page and the menu open it too");
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#alerts`);
+  await onAlertsPage();
+  check(true, 'alerts: its address opens it directly, like a bookmark');
+  // What's dismissed today is listed there, and can be shown again one by one
+  await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
+  await pg.waitForSelector('#alertsCard [data-dismiss]');
+  const another = await pg.getAttribute('#alertsCard [data-dismiss]', 'data-dismiss');
+  await pg.click('#alertsCard [data-dismiss]');
+  await pg.waitForSelector('#alertsCard [data-undismiss]');
+  await pg.click('#alertsCard a.al-settings');
+  await onAlertsPage();
+  check((await pg.$$eval('#alertsPage [data-undismiss-one]', (b) => b.map((x) => x.getAttribute('data-undismiss-one')))).join() === another,
+    'alerts: the page lists what was dismissed today');
+  await pg.click('#alertsPage [data-undismiss-one]');
+  await pg.waitForFunction(() => !document.querySelector('#alertsPage [data-undismiss-one]') && localStorage.getItem('gs4a-dismissed') === null);
+  check(true, 'alerts: Show again brings one back');
+  await pg.click('#alertsPage [data-alerts-reset]');
+  await pg.waitForFunction(() => localStorage.getItem('gs4a-alerts') === null && document.querySelector('#alertsPage [data-alert-on]').checked);
+  check(true, 'alerts: Back to the defaults restores them');
   check(pgProblems.length === 0, `pages: no console errors${pgProblems.length ? `: ${pgProblems.join(' | ')}` : ''}`);
   await pages.close();
 
@@ -454,7 +487,7 @@ try {
   const guideResponse = await guide.goto(`http://localhost:${SITE_PORT}/guide/`);
   check(guideResponse.ok(), `guide: served (${guideResponse.status()})`);
   const sections = await guide.$$eval('main section[id]', (els) => els.map((el) => el.id));
-  const tocTargets = await guide.$$eval('.toc a', (els) => els.map((a) => a.getAttribute('href').slice(1)));
+  const tocTargets = await guide.$$eval('.toc ol a', (els) => els.map((a) => a.getAttribute('href').slice(1)));
   check(sections.length >= 10 && JSON.stringify(sections) === JSON.stringify(tocTargets), `guide: every section is in the contents (${sections.length})`);
   const anchors = await guide.$$eval('a[href^="#"]', (els) => els.map((a) => a.getAttribute('href').slice(1)));
   const missing = [];
@@ -466,6 +499,15 @@ try {
   check(icons.length === 3 && served.every(Boolean), `favicon: the SVG, PNG and touch icons are linked and served, and /favicon.ico (${served.filter(Boolean).length}/${served.length})`);
   check(guideProblems.length === 0, `guide: no console errors or CSP violations${guideProblems.length ? `: ${guideProblems.join(' | ')}` : ''}`);
   if (shots) await guide.screenshot({ path: `${shots}/guide.png`, fullPage: true });
+  // What's changed: linked from the guide, and its links into the guide land
+  await guide.click('.toc-more a[href="changes.html"]');
+  await guide.waitForSelector('.changes section[id]');
+  const intoGuide = await guide.$$eval('.changes a[href^="./#"]', (els) => els.map((a) => a.getAttribute('href').slice(3)));
+  await guide.goto(`http://localhost:${SITE_PORT}/guide/`);
+  const gone = [];
+  for (const id of intoGuide) if (!(await guide.$(`[id="${id}"]`))) gone.push(id);
+  check(intoGuide.length > 0 && gone.length === 0, `changes: linked from the guide, and every link into the guide has a target${gone.length ? ` (missing ${gone.join(', ')})` : ''}`);
+  check(guideProblems.length === 0, `changes: no console errors or CSP violations${guideProblems.length ? `: ${guideProblems.join(' | ')}` : ''}`);
   await guideContext.close();
 } finally {
   await browser.close();

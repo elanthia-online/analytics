@@ -74,20 +74,35 @@ export var ALERT_KINDS = [
   ['mind', 'Starting hunts with a full mind', 'mind_pct', 'Percent full']
 ];
 
-// The Alerts card's settings: which show, and their thresholds (saved in this browser)
-function alertSettingsHtml(a, open) {
+// The link to the Alert settings page, from the overview's Alerts card and a character's page
+export function alertSettingsLink(cls) {
+  return '<a class="al-settings ' + (cls || '') + '" href="#alerts">' + icon('settings') + '<span>Alert settings</span></a>';
+}
+
+// The Alert settings page (#alerts): which alerts show and their thresholds,
+// and what's dismissed today. a: alertSettings; dismissed: [{ key, name, kind }]
+export function alertsPageHtml(a, dismissed) {
   var num = function (key, label, min, max) {
     return '<label class="fl as-num"><span>' + esc(label) + '</span><input type="number" inputmode="numeric" min="' + min + '" max="' + max + '" step="1" data-alert-num="' +
       key + '" value="' + esc(String(a[key])) + '"></label>';
   };
-  return '<details class="alert-settings no-export"' + (open ? ' open' : '') + '><summary>' + icon('settings') + '<span>Choose which alerts show</span></summary>' +
-    '<p class="small muted">Saved in this browser only. The script\'s in-game and Discord alerts are set in its settings file.</p>' +
+  var label = function (kind) { var k = ALERT_KINDS.find(function (x) { return x[0] === kind; }); return k ? k[1] : kind; };
+  var which = '<section class="card">' + head('Which alerts show', 'on the overview and each character') +
     '<fieldset class="as-list"><legend class="sr">Alerts to show</legend>' + ALERT_KINDS.map(function (k) {
       return '<div class="as-row"><label class="as-check"><input type="checkbox" data-alert-on="' + k[0] + '"' + (a[k[0]] ? ' checked' : '') + '><span>' + esc(k[1]) + '</span></label>' +
         (k[2] ? num(k[2], k[3], 1, 1000) : '') + '</div>';
     }).join('') + '</fieldset>' +
     '<div class="filters as-pace">' + num('pace_amber_pct', 'Behind typical pace: amber at % below', 1, 100) + num('pace_red_pct', 'red at % below', 1, 100) + '</div>' +
-    '<button type="button" class="btn" data-alerts-reset>Back to the defaults</button></details>';
+    '<button type="button" class="btn" data-alerts-reset>Back to the defaults</button></section>';
+  var gone = '<section class="card">' + head('Dismissed today', dismissed.length ? plural(dismissed.length, 'alert') : '') +
+    (dismissed.length ? '<ul class="as-dismissed">' + dismissed.map(function (d) {
+      return '<li><span><b>' + esc(shown(d.name)) + '</b> ' + esc(label(d.kind)) + '</span><button type="button" class="link-btn" data-undismiss-one="' + esc(d.key) +
+        '" aria-label="Show again: ' + esc(shown(d.name)) + ', ' + esc(label(d.kind)) + '">Show again</button></li>';
+    }).join('') + '</ul><button type="button" class="btn" data-undismiss>Show them all again</button>'
+      : '<p class="small muted note-p first">Nothing dismissed. Dismiss an alert with its &times; on the overview; it stays hidden until midnight.</p>') + '</section>';
+  return '<div class="page-head"><div><div class="eyebrow">Alerts</div><h1 tabindex="-1">Alert settings</h1>' +
+    '<p class="small muted">Which of the dashboard\'s alerts show, and when. Saved in this browser only; the script\'s in-game and Discord alerts are set in its settings file.</p></div></div>' +
+    which + gone;
 }
 
 function alertsHtml(ov, visible, dismissedCount) {
@@ -108,8 +123,7 @@ function alertsHtml(ov, visible, dismissedCount) {
   }).join('') + '</div>';
 }
 
-// opts: { hidden: [ids], daily: buildDaily for the shown characters,
-//         alertSettings, alertSettingsOpen, dismissedCount }
+// opts: { hidden: [ids], daily: buildDaily for the shown characters, dismissedCount }
 export function overviewHtml(ov, chars, pinned, width, opts) {
   opts = opts || {};
   var hidden = opts.hidden || [];
@@ -171,12 +185,12 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
     (opts.daily ? '<section class="card">' + head('Experience by day', 'last ' + opts.daily.labels.length + ' days' + (hidden.length ? ', shown characters' : ', every character')) +
       barChart('ov-daily', opts.daily.labels, [{ name: 'Experience', color: '--k1', values: opts.daily.labels.map(function (_, i) {
         return chars.reduce(function (a, c) { var s = opts.daily.series[c.id]; return a + (s ? s.exp[i] : 0); }, 0); }) }], short, width, 'Experience by day, all shown characters') + '</section>' : '') +
-    '<section class="card" id="alertsCard">' + head('Alerts', ov.alerts.filter(function (a) { return visible(a.id); }).length ? plural(ov.alerts.filter(function (a) { return visible(a.id); }).length, 'item') : '') +
-      alertsHtml(ov, visible, opts.dismissedCount || 0) + (opts.alertSettings ? alertSettingsHtml(opts.alertSettings, opts.alertSettingsOpen) : '') + '</section>' +
     '<section>' +
       '<div class="card">' + head('Side by side', 'today') + scroll('Side by side, today') + '<table><thead><tr><th>Character</th><th>Silver</th><th title="Silver per hour the script ran today">Silver / hr</th><th>Exp</th>' +
       '<th title="Experience per hour the script ran today">Exp / hr</th><th>Bounties</th><th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
-    '</section>';
+    '</section>' +
+    '<section class="card" id="alertsCard">' + head('Alerts', ov.alerts.filter(function (a) { return visible(a.id); }).length ? plural(ov.alerts.filter(function (a) { return visible(a.id); }).length, 'item') : '',
+      alertSettingsLink('no-export')) + alertsHtml(ov, visible, opts.dismissedCount || 0) + '</section>';
 }
 
 export function rangeTabs(ranges, range) {
@@ -242,7 +256,7 @@ export function detailHtml(c, range, width, section, data, filter, ui) {
           (c.state.profile ? '<span class="tag">' + icon('map') + esc(c.state.profile) + '</span>' : '') +
           (c.state.type === 'rest' && c.state.reason ? '<span class="small muted">resting: ' + esc(c.state.reason) + '</span>' : '') + '</div></div>' +
         '<div class="health"><div class="health-head">' + status(c.light.level) + '<span>' + light[1] + '</span></div>' +
-          (reasonsHtml(c.light) || '<p class="small muted">Nothing unusual right now.</p>') + '</div>' +
+          (reasonsHtml(c.light) || '<p class="small muted">Nothing unusual right now.</p>') + alertSettingsLink('no-export') + '</div>' +
       '</div>' +
       '<div class="tiles">' +
         tile('target', 'Last kill', '<span data-ago="' + (c.last_kill || '') + '"></span>', c.last_kill ? clock(c.last_kill) : 'none yet') +

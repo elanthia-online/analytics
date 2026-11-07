@@ -10,6 +10,11 @@ a { color: var(--accent-ink); }
 .toc ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 2px; }
 .toc a { display: block; padding: 5px 8px; border-radius: 7px; color: var(--ink-2); text-decoration: none; font-size: 13.5px; }
 .toc a:hover { background: var(--sunken); color: var(--ink); }
+/* The guide pages' footer: a short line of links, not spread across the width */
+.wrap > .foot { justify-content: flex-start; gap: 8px; flex-wrap: wrap; }
+.toc-more { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13.5px; }
+.toc-more a { padding: 5px 8px; }
+.changes li .chip { height: 22px; font-size: 12px; font-weight: 650; margin-right: 4px; vertical-align: 1px; }
 
 .doc { min-width: 0; max-width: 900px; }
 .doc .page-head { margin-top: 0; }
