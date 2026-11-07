@@ -240,7 +240,7 @@ export function historyRows(cycles, filter) {
   if (!shown.length) return { html: '<tr><td colspan="' + span + '" class="muted">Nothing matches.</td></tr>', count: 0 };
   return { count: shown.length, html: shown.map(function (c) {
     return '<tr><td>' + stamp(c.start) + '</td><td class="l"><span class="state st-' + esc(c.type) + '"><i style="background:' + css(STATE_COL[c.type] || '--gray') + '"></i>' +
-      esc(STATE_NAME[c.type] || c.type) + '</span></td><td>' + (c.end == null ? dur(c.seconds) + ' so far' : dur(c.seconds)) + '</td><td class="l wrapcell">' +
+      esc(STATE_NAME[c.type] || c.type) + '</span></td><td>' + (c.stale ? '<span class="muted">ended, time unknown</span>' : c.end == null ? dur(c.seconds) + ' so far' : dur(c.seconds)) + '</td><td class="l wrapcell">' +
       esc(c.reason || c.profile || '') + '</td><td>' + (c.exp == null ? '--' : short(c.exp)) + '</td>' + (cols.fame ? '<td>' + (c.fame == null ? '--' : short(c.fame)) + '</td>' : '') +
       (cols.silver ? '<td>' + (c.silver == null ? '--' : short(c.silver)) + '</td>' : '') + '</tr>';
   }).join('') };

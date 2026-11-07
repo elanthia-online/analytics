@@ -272,3 +272,17 @@ test('DST: on the fall-back day, pace compares the same wall-clock hours', async
   assert.equal(char.pace.exp.pct, 0);
   d.close();
 });
+
+test('history: an open cycle past the stale cap ended at an unknown time (#31)', () => {
+  const d = new SQL.Database();
+  d.run('CREATE TABLE cycles (cycle_id TEXT, game TEXT, character TEXT, cycle_type TEXT, start_time INTEGER, end_time INTEGER, duration_seconds INTEGER, rest_reason TEXT, profile TEXT, exp_total_start INTEGER, exp_total_end INTEGER, fame_start INTEGER, fame_end INTEGER)');
+  d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time) VALUES ('old', 'GS3', 'Splinter', 'hunt', ?), ('new', 'GS3', 'Splinter', 'rest', ?)",
+    [now - 3 * 3600, now - 600]);
+  try {
+    const [fresh, crashed] = buildHistory(new Conn(d), ID, 'daily', { now }).cycles;
+    assert.deepEqual([fresh.stale, fresh.seconds], [false, 600], 'still going');
+    assert.deepEqual([crashed.stale, crashed.seconds, crashed.end], [true, null, null], 'no duration that grows');
+  } finally {
+    d.close();
+  }
+});

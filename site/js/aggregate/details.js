@@ -8,6 +8,7 @@
 import { toI } from './ruby.js';
 import { dayOf, addDays, midnight, dayStr, dateOf, windowDay } from './time.js';
 import { rangeFromArg, parseWho, shortProfile } from './report.js';
+import { STALE_OPEN } from './overview.js';
 
 export const SECTIONS = ['summary', 'income', 'hunting', 'bounties', 'progress', 'history'];
 
@@ -206,9 +207,12 @@ export function buildHistory(conn, id, range, { now, limit = 400 }) {
   const gain = (a, b) => (a == null || b == null ? null : Math.max(0, toI(b) - toI(a)));
   return {
     label, from,
+    // An open cycle older than STALE_OPEN was left by a crash (the overview's
+    // cap too): it ended, but when isn't known, so it gets no duration
     cycles: rows.map((r) => ({
       type: r.cycle_type, start: toI(r.start_time), end: r.end_time == null ? null : toI(r.end_time),
-      seconds: r.end_time == null ? Math.max(0, now - toI(r.start_time)) : toI(r.duration_seconds),
+      stale: r.end_time == null && now - toI(r.start_time) >= STALE_OPEN,
+      seconds: r.end_time != null ? toI(r.duration_seconds) : now - toI(r.start_time) >= STALE_OPEN ? null : Math.max(0, now - toI(r.start_time)),
       reason: r.rest_reason || null, profile: r.profile ? shortProfile(r.profile, who[1]) : null,
       exp: gain(r.exp_total_start, r.exp_total_end), fame: gain(r.fame_start, r.fame_end),
       silver: silver.has(r.cycle_id) ? silver.get(r.cycle_id) : null,
