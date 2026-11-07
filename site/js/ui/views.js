@@ -185,12 +185,12 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
     (opts.daily ? '<section class="card">' + head('Experience by day', 'last ' + opts.daily.labels.length + ' days' + (hidden.length ? ', shown characters' : ', every character')) +
       barChart('ov-daily', opts.daily.labels, [{ name: 'Experience', color: '--k1', values: opts.daily.labels.map(function (_, i) {
         return chars.reduce(function (a, c) { var s = opts.daily.series[c.id]; return a + (s ? s.exp[i] : 0); }, 0); }) }], short, width, 'Experience by day, all shown characters') + '</section>' : '') +
-    '<section class="card" id="alertsCard">' + head('Alerts', ov.alerts.filter(function (a) { return visible(a.id); }).length ? plural(ov.alerts.filter(function (a) { return visible(a.id); }).length, 'item') : '',
-      alertSettingsLink('no-export')) + alertsHtml(ov, visible, opts.dismissedCount || 0) + '</section>' +
     '<section>' +
       '<div class="card">' + head('Side by side', 'today') + scroll('Side by side, today') + '<table><thead><tr><th>Character</th><th>Silver</th><th title="Silver per hour the script ran today">Silver / hr</th><th>Exp</th>' +
       '<th title="Experience per hour the script ran today">Exp / hr</th><th>Bounties</th><th>Kills</th><th>Hunting</th><th>Uptime</th><th>Deaths</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' +
-    '</section>';
+    '</section>' +
+    '<section class="card" id="alertsCard">' + head('Alerts', ov.alerts.filter(function (a) { return visible(a.id); }).length ? plural(ov.alerts.filter(function (a) { return visible(a.id); }).length, 'item') : '',
+      alertSettingsLink('no-export')) + alertsHtml(ov, visible, opts.dismissedCount || 0) + '</section>';
 }
 
 export function rangeTabs(ranges, range) {
