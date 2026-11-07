@@ -4,7 +4,7 @@
 // See docs/architecture.md.
 import { Dashboard, LiveSource, FolderSource, FileSource, DemoSource, rememberSource, rememberedSource, savedFolder } from './data.js';
 import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml, plural } from './ui/util.js';
-import { overviewHtml, detailHtml, navHtml, comparePageHtml } from './ui/views.js';
+import { overviewHtml, detailHtml, navHtml, comparePageHtml, alertsPageHtml } from './ui/views.js';
 import { sortState } from './ui/parts.js';
 import { SECTION_NAMES, historyRows } from './ui/sections.js';
 import { SECTIONS, RANGES, DETAIL_RANGES } from './aggregate/index.js';
@@ -32,13 +32,13 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ap
 // ---------------- state ----------------
 // The URL hash names the character as players know it, and the page:
 // #GS4%3ASplinter (its summary) or #GS4%3ASplinter/income
-// #compare is the Compare page
+// #compare is the Compare page, #alerts the Alert settings page
 function readHash() {
   // A cut-off link ("#GS4%3") is read as no page at all, not an error that stops the page
   var text = location.hash.slice(1);
   try { text = decodeURIComponent(text); } catch (e) { text = ''; }
   var at = text.lastIndexOf('/');
-  if (text === 'compare') return ['', 'summary', 'compare'];
+  if (text === 'compare' || text === 'alerts') return ['', 'summary', text];
   var sec = at > 0 ? text.slice(at + 1) : '';
   if (SECTIONS.indexOf(sec) < 0) sec = 'summary'; else text = text.slice(0, at);
   return [storedId(text), sec, null];
@@ -61,7 +61,7 @@ var booting = params.has('demo') || params.has('live') || !!(saved && saved.kind
 // Pinned characters, saved in this browser, come first everywhere
 // Alerts: which show and at what thresholds (gs4a-alerts), and those dismissed
 // for today (gs4a-dismissed, { day, keys: ["id|kind"] }); both in this browser
-var alertPrefs = {}, dismissed = { day: '', keys: [] }, alertsOpen = false;
+var alertPrefs = {}, dismissed = { day: '', keys: [] };
 try { alertPrefs = JSON.parse(localStorage.getItem('gs4a-alerts') || '{}') || {}; } catch (e) { alertPrefs = {}; }
 try { dismissed = JSON.parse(localStorage.getItem('gs4a-dismissed') || 'null') || dismissed; } catch (e) { /* keep the empty list */ }
 function localDay() { var d = new Date(nowSrv() * 1000); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
@@ -79,7 +79,7 @@ function saveAlerts() {
     if (dismissed.keys.length) localStorage.setItem('gs4a-dismissed', JSON.stringify(dismissed)); else localStorage.removeItem('gs4a-dismissed');
   } catch (e) {}
   pushAlertPrefs();
-  if (dash && dash.conn) { ov = dash.overview(); renderNav(); if (!who && !page) renderOverview(); else if (who) loadDetail(); }
+  if (dash && dash.conn) { ov = dash.overview(); renderNav(); if (page === 'alerts') renderAlertsPage(); else if (!who && !page) renderOverview(); else if (who) loadDetail(); }
 }
 var pins = [];
 try { pins = JSON.parse(localStorage.getItem('gs4a-pins') || '[]') || []; } catch (e) { pins = []; }
@@ -92,6 +92,7 @@ function setHidden(list) {
   try { if (hidden.length) localStorage.setItem('gs4a-hidden', JSON.stringify(hidden)); else localStorage.removeItem('gs4a-hidden'); } catch (e) {}
   renderOverview(); renderNav();
   if (page === 'compare') renderCompare();
+  if (page === 'alerts') renderAlertsPage();
 }
 var hiddenOpen = false;
 var histFilter = { type: 'all', q: '' };
@@ -151,18 +152,17 @@ function renderOverview() {
   var daily = dash && dash.conn ? dash.daily(shownChars.map(function (c) { return c.id; })) : null;
   var dismissedHere = todaysDismissed().filter(function (k) { return ov.names.indexOf(k.slice(0, k.lastIndexOf('|'))) >= 0; }).length;
   if (write($('overview'), overviewHtml(ov, shownChars, pinned, chartWidth(), { hidden: hidden.filter(function (id) { return ov.names.indexOf(id) >= 0; }), daily: daily,
-    alertSettings: alertSettings(alertPrefs), alertSettingsOpen: alertsOpen, dismissedCount: dismissedHere }))) tick();
+    dismissedCount: dismissedHere }))) tick();
   if (!who && !sourceOpen) enter($('overview'), 'overview');
 }
 function renderNav() {
   if (!ov) { setHtml($('navChars'), ''); $('navCount').textContent = ''; return; }
   write($('navChars'), navHtml(ov, ordered(ov.characters), who, hidden, hiddenOpen));
   $('navCount').textContent = ov.characters.length;
-  var on = !who && !page && !sourceOpen, cmp = !!page && !sourceOpen;
-  $('navOverview').classList.toggle('on', on);
-  if (on) $('navOverview').setAttribute('aria-current', 'page'); else $('navOverview').removeAttribute('aria-current');
-  $('navCompare').classList.toggle('on', cmp);
-  if (cmp) $('navCompare').setAttribute('aria-current', 'page'); else $('navCompare').removeAttribute('aria-current');
+  var current = function (el, on) { el.classList.toggle('on', on); if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current'); };
+  current($('navOverview'), !who && !page && !sourceOpen);
+  current($('navCompare'), page === 'compare' && !sourceOpen);
+  current($('navAlerts'), page === 'alerts' && !sourceOpen);
 }
 var sdata = null; // the current section's figures
 // The character view is two parts: the bar and page tabs (head), written in
@@ -197,6 +197,7 @@ window.addEventListener('resize', function () {
 });
 function viewTitle() {
   var label = sdata && sdata.label ? sdata.label : det ? det.label : '';
+  if (page === 'alerts') return 'Alert settings';
   if (page) return 'Compare characters ' + DOT + ' ' + (DETAIL_RANGES[range] || '');
   return who ? shown(det ? det.name : shownId(who)) + (section !== 'summary' ? ' ' + DOT + ' ' + SECTION_NAMES[section] : '') + (label && section !== 'progress' ? ' ' + DOT + ' ' + label : '')
     : 'Everyone ' + DOT + ' Today';
@@ -234,20 +235,30 @@ document.addEventListener('click', function (e) {
     nextAlert.focus({ preventScroll: true });
     return;
   }
+  var one = t.closest('[data-undismiss-one]');
+  if (one) {
+    var gone = one.getAttribute('data-undismiss-one');
+    dismissed = { day: localDay(), keys: todaysDismissed().filter(function (k) { return k !== gone; }) };
+    saveAlerts(); announce('Shown again');
+    (document.querySelector('#alertsPage [data-undismiss-one]') || document.querySelector('#alertsPage h1')).focus({ preventScroll: true });
+    return;
+  }
+  var toAlerts = t.closest('a[href="#alerts"]');
+  if (toAlerts && toAlerts.id !== 'navAlerts') { e.preventDefault(); openAlerts(true); return; }
   if (t.closest('[data-undismiss]')) {
     dismissed = { day: localDay(), keys: [] }; saveAlerts(); announce('Dismissed alerts shown again');
-    (document.querySelector('#alertsCard [data-dismiss]') || $('content')).focus({ preventScroll: true });
+    (page === 'alerts' ? document.querySelector('#alertsPage h1') : document.querySelector('#alertsCard [data-dismiss]') || $('content')).focus({ preventScroll: true });
     return;
   }
   if (t.closest('[data-alerts-reset]')) { alertPrefs = {}; saveAlerts(); announce('Alerts back to the defaults'); return; }
   var tab = t.closest('#tabs button[data-r], #cmpTabs button[data-r]');
-  if (tab) { range = tab.getAttribute('data-r'); if (page) renderCompare(); else loadDetail(); return; }
+  if (tab) { range = tab.getAttribute('data-r'); if (page === 'compare') renderCompare(); else loadDetail(); return; }
   var sort = t.closest('[data-sort]');
   if (sort) {
     var key = sort.getAttribute('data-sort'), colN = Number(sort.getAttribute('data-col')), was = sortState[key];
     // The same column again flips it; a new one starts highest first (A to Z for text)
     sortState[key] = { col: colN, dir: was && was.col === colN ? (was.dir === 'asc' ? 'desc' : 'asc') : sort.getAttribute('data-text') === '1' ? 'asc' : 'desc' };
-    if (page) renderCompare(); else renderDetail();
+    if (page === 'compare') renderCompare(); else renderDetail();
     return;
   }
   if (t.closest('[data-target-clear]')) { saveTarget(null); announce('Target cleared'); return; }
@@ -283,10 +294,28 @@ document.addEventListener('toggle', function (e) {
   var d = e.target;
   if (d.matches && d.matches('details.chart-table')) openTables[d.getAttribute('data-k')] = d.open;
   if (d.matches && d.matches('details.nav-hidden')) hiddenOpen = d.open;
-  if (d.matches && d.matches('details.alert-settings')) alertsOpen = d.open;
 }, true);
 $('navOverview').onclick = function (e) { e.preventDefault(); setWho('', true); };
 $('navCompare').onclick = function (e) { e.preventDefault(); openCompare(true); };
+$('navAlerts').onclick = function (e) { e.preventDefault(); openAlerts(true); };
+
+// ---------------- the Alert settings page ----------------
+function openAlerts(focus) {
+  page = 'alerts'; who = ''; section = 'summary'; det = null; sdata = null; sourceOpen = false;
+  if (location.hash !== '#alerts') history[focus ? 'pushState' : 'replaceState'](null, '', location.pathname + location.search + '#alerts');
+  drawer(false); show(); renderAlertsPage(); renderNav(); setTitle(); window.scrollTo(0, 0);
+  if (focus) { var h = document.querySelector('#alertsPage h1'); if (h) h.focus({ preventScroll: true }); }
+}
+function renderAlertsPage() {
+  if (page !== 'alerts' || !ov) return;
+  var names = dash && dash.conn ? dash.characterNames() : {};
+  var list = todaysDismissed().map(function (k) {
+    var i = k.lastIndexOf('|'), id = k.slice(0, i);
+    return { key: k, name: names[id] || shownId(id), kind: k.slice(i + 1) };
+  });
+  if (write($('alertsPage'), alertsPageHtml(alertSettings(alertPrefs), list))) tick();
+  enter($('alertsPage'), 'alerts');
+}
 
 // ---------------- the Compare page ----------------
 function openCompare(focus) {
@@ -296,7 +325,7 @@ function openCompare(focus) {
   if (focus) { var h = document.querySelector('#compare h1'); if (h) h.focus({ preventScroll: true }); }
 }
 function renderCompare() {
-  if (!page || !dash || !dash.conn || !ov) return;
+  if (page !== 'compare' || !dash || !dash.conn || !ov) return;
   if (!DETAIL_RANGES[range]) range = 'daily';
   var names = dash.characterNames();
   var ids = Object.keys(names).filter(function (id) { return hidden.indexOf(id) < 0; });
@@ -355,12 +384,13 @@ function setWho(name, focus, sec) {
 function followUrl() {
   var want = readHash();
   if (want[2] === 'compare') { if (page !== 'compare') openCompare(false); return; }
+  if (want[2] === 'alerts') { if (page !== 'alerts') openAlerts(false); return; }
   if (want[0] !== who || want[1] !== section || page) setWho(want[0], false, want[1]);
 }
 window.addEventListener('popstate', followUrl);
 window.addEventListener('hashchange', followUrl);
 function setTitle() {
-  if (page) { document.title = 'Compare ' + DOT + ' GS4 Analytics'; return; }
+  if (page) { document.title = (page === 'alerts' ? 'Alert settings' : 'Compare') + ' ' + DOT + ' GS4 Analytics'; return; }
   document.title = (who ? shown(det ? det.name : shownId(who)) + ' ' + DOT + ' ' + (section !== 'summary' ? SECTION_NAMES[section] + ' ' + DOT + ' ' : '') : ov && !sourceOpen ? 'Overview ' + DOT + ' ' : '') + 'GS4 Analytics';
 }
 function show() {
@@ -368,7 +398,8 @@ function show() {
   $('source').hidden = booting || (connected && !sourceOpen);
   $('source').classList.toggle('compact', connected);
   $('overview').hidden = connected ? (!!who || !!page || sourceOpen) : !booting;
-  $('compare').hidden = !connected || !page || sourceOpen;
+  $('compare').hidden = !connected || page !== 'compare' || sourceOpen;
+  $('alertsPage').hidden = !connected || page !== 'alerts' || sourceOpen;
   $('detail').hidden = !connected || !who || sourceOpen;
   if (who && !det && connected && !sourceOpen) setHtml($('detail'), skeleton('detail'));
   $('banner').hidden = !(feed && feed.kind === 'demo') || sourceOpen;
@@ -427,7 +458,7 @@ function loadOverview() {
     ov = dash.overview();
     clockState.offset = ov.generated_at - Date.now() / 1000;
     clockState.frozen = feed.live ? null : ov.generated_at;
-    renderNav(); if (page) renderCompare(); else if (!who) renderOverview(); show(); tick(); showWarning(st.warning);
+    renderNav(); if (page === 'compare') renderCompare(); else if (page === 'alerts') renderAlertsPage(); else if (!who) renderOverview(); show(); tick(); showWarning(st.warning);
   }).catch(function (e) {
     if (e && e.superseded) return; // overtaken by a newer refresh or another source: nothing to show
     failed++; errorText = e && e.message ? e.message : String(e); tick();
@@ -491,17 +522,6 @@ $('pickFile').onchange = function () { if (this.files.length) connect(new FileSo
 $('demoBtn').onclick = function () { if (dash) connectDemo(); };
 $('connectBtn').onclick = function () { $('connect').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('port').focus({ preventScroll: true }); };
 $('bannerConnect').onclick = function () { sourceOpen = true; show(); renderNav(); drawer(false); window.scrollTo(0, 0); };
-// Opens the Alerts card's settings on the overview, from any page
-$('alertSettingsBtn').onclick = function () {
-  if (!ov) { sourceOpen = true; show(); renderNav(); drawer(false); return; }
-  alertsOpen = true;
-  setWho('', false);
-  var d = document.querySelector('#alertsCard .alert-settings');
-  if (!d) return;
-  d.open = true;
-  $('alertsCard').scrollIntoView({ block: 'start' });
-  d.querySelector('summary').focus({ preventScroll: true });
-};
 $('sourceBtn').onclick = function () { sourceOpen = !sourceOpen || !ov; show(); renderNav(); drawer(false); window.scrollTo(0, 0); };
 $('sourceClose').onclick = function () { sourceOpen = false; show(); renderNav(); if (who) loadDetail(); else renderOverview(); };
 if (FolderSource.supported()) {
@@ -539,14 +559,14 @@ function restore() {
 function exportName(ext) {
   var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
   var when = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
-  if (page) return 'gs4-analytics-compare-' + range + '-' + when + '.' + ext;
+  if (page) return 'gs4-analytics-' + (page === 'alerts' ? 'alerts' : 'compare-' + range) + '-' + when + '.' + ext;
   return 'gs4-analytics-' + (who ? shownId(who).replace(/[^\w-]+/g, '_') + (section !== 'summary' ? '-' + section : '') + (section !== 'progress' ? '-' + range : '') : 'everyone') + '-' + when + '.' + ext;
 }
 $('export').onclick = function () {
   var btn = $('export'), label = $('exportLabel');
   if (!ov) return;
   btn.disabled = true; label.textContent = 'Saving...';
-  exportImage($(page ? 'compare' : who ? 'detail' : 'overview'), viewTitle(), exportName, function (msg) {
+  exportImage($(page === 'alerts' ? 'alertsPage' : page ? 'compare' : who ? 'detail' : 'overview'), viewTitle(), exportName, function (msg) {
     btn.disabled = false; label.textContent = msg || 'Saved'; announce(msg || 'Image saved');
     setTimeout(function () { label.textContent = 'Save image'; }, 2500);
   });
