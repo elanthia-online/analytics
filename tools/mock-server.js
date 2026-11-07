@@ -12,6 +12,7 @@ import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
 import { shiftTimes } from '../site/js/shift.js';
+import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -20,8 +21,13 @@ const opt = (name, fallback) => {
 };
 const PORT = Number(opt('port', 8080));
 // --demo serves the site's sample data (the fixture plus more characters; tools/build-sample.js)
-const DB_PATH = opt('db', new URL(args.includes('--demo') ? '../site/demo/sample.db' : '../test/fixtures/afternoon.db', import.meta.url).pathname);
+const DB_PATH = opt('db', fileURLToPath(new URL(args.includes('--demo') ? '../site/demo/sample.db' : '../test/fixtures/afternoon.db', import.meta.url)));
 const DEMO = args.includes('--demo');
+// --refuse answers every API request 503 with the script's reason for a
+// database made by another build, as analytics.lic does (docs/api.md)
+const REFUSE = args.includes('--refuse');
+// --still: the demo data, but no new writes (the token never changes)
+const STILL = args.includes('--still');
 
 // The origins whose pages may read the API (docs/api.md, "CORS"). The
 // project's site (its own domain, so no other Pages site shares the
@@ -39,9 +45,9 @@ if (DEMO) {
   const golden = JSON.parse(readFileSync(DB_PATH.replace(/\.db$/, '.json'), 'utf8'));
   // The fixture's moment becomes the real now (the page's own sample data
   // keeps the time of day instead; see site/js/shift.js)
-  shiftTimes(db, Math.floor(Date.now() / 1000) - golden.now, golden.now);
+  shiftTimes(db, Math.floor(Date.now() / 1000) - golden.now, golden.now, golden.tz);
   image = db.export();
-  setInterval(() => {
+  if (!STILL) setInterval(() => {
     const now = Math.floor(Date.now() / 1000);
     const last = db.exec("SELECT balance FROM bank_snapshots WHERE game = 'GS3' AND character = 'Splinter' AND bank_name = '__total__' ORDER BY timestamp DESC LIMIT 1");
     const balance = (last[0]?.values[0][0] ?? 0) + 2500;
@@ -82,13 +88,18 @@ const server = http.createServer((req, res) => {
   }
   if (req.method !== 'GET') return reply(405, 'text/plain', 'Method not allowed');
 
+  if (REFUSE && url.pathname.startsWith('/api/')) {
+    return reply(503, 'text/plain', `${DB_PATH} was made by another build of analytics.lic (schema 7, this one uses 9). ` +
+      'Rename or move it, then start ;analytics again for a fresh one.');
+  }
   const token = `${bootId}.${version}`;
   switch (url.pathname) {
     case '/':
+    case '/index.html':
       return reply(302, 'text/plain', '', { Location: `https://analytics.elanthia.online/?live=${PORT}` });
     case '/api/meta':
       return reply(200, 'application/json', JSON.stringify({
-        app: 'analytics', api: 1, script_version: 'mock', schema_version: '8', token,
+        app: 'analytics', api: 1, script_version: 'mock', schema_version: '9', token,
         now: Math.floor(Date.now() / 1000), db_bytes: image.byteLength,
       }));
     case '/api/db':

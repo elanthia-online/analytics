@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { startDevServer } from './dev-server.js';
+import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : null;
@@ -24,7 +25,7 @@ copyFileSync(new URL('../test/fixtures/afternoon.db', import.meta.url), fixture)
 utimesSync(fixture, golden.now, golden.now);
 
 const site = await startDevServer(SITE_PORT);
-const mock = spawn(process.execPath, [new URL('./mock-server.js', import.meta.url).pathname, '--port', String(API_PORT), '--demo'], { stdio: ['ignore', 'pipe', 'inherit'] });
+const mock = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT), '--demo'], { stdio: ['ignore', 'pipe', 'inherit'] });
 await new Promise((resolve, reject) => {
   mock.stdout.once('data', resolve);
   mock.once('exit', (code) => reject(new Error(`the mock server exited (${code}) before it started`)));
@@ -83,20 +84,47 @@ try {
   await page.click('#export');
   const saved2 = (await download2).suggestedFilename();
   check(/^gs4-analytics-everyone-.*\.png$/.test(saved2), `export: the overview saves as a PNG (${saved2})`);
-  // A refresh that brings nothing new for this character must leave its view alone
-  // (a rewrite resets hover, focus and selection)
+  // Focus stays where it was through a refresh that changes the figures (#15): the
+  // mock writes a deposit every 10 seconds, which rewrites the overview and the menu
+  await page.click('#navOverview');
+  await page.waitForSelector('#overview:not([hidden]) .card[data-who]');
+  for (const [what, sel] of [['a card', '.card[data-who="GS3:Bebop"] .ch-link'], ['a menu link', '.nav-ch[data-who="GS3:April"]']]) {
+    await page.focus(sel);
+    await page.waitForTimeout(11_000);
+    const kept = await page.evaluate((s) => document.activeElement === document.querySelector(s), sel);
+    check(kept, `live: focus on ${what} survives a refresh that rewrote it`);
+  }
+  // A refresh that brings nothing new must leave the view alone (a rewrite resets
+  // hover, focus and selection). The boxes a view is written into are watched (#29).
+  const rewritesOf = (p, boxes, ms) => p.evaluate(([ids, wait]) => new Promise((resolve) => {
+    let n = 0;
+    const hour = new Date().getHours();
+    const watch = new MutationObserver((list) => { n += list.length; });
+    for (const id of ids) { const el = document.querySelector(id); if (el) watch.observe(el, { childList: true }); }
+    setTimeout(() => { watch.disconnect(); resolve({ rewrites: n, newHour: new Date().getHours() !== hour }); }, wait);
+  }), [boxes, ms]);
   await page.click('.nav-ch[data-who="GSF:Splinter"]');
   await page.waitForFunction(() => document.querySelector('.sb-name')?.textContent.includes('GSF'));
   await page.waitForTimeout(1200);
-  const { rewrites, newHour } = await page.evaluate(() => new Promise((resolve) => {
-    let n = 0;
-    const hour = new Date().getHours();
-    const watch = new MutationObserver(() => { n++; });
-    watch.observe(document.getElementById('detail'), { childList: true });
-    setTimeout(() => { watch.disconnect(); resolve({ rewrites: n, newHour: new Date().getHours() !== hour }); }, 16_000);
-  }));
+  const quiet = await rewritesOf(page, ['#detailBar', '#detailTabs ul', '#detailBody'], 16_000);
   // A new hour legitimately redraws the hourly trend labels
-  check(rewrites === 0 || newHour, `live: refreshes with nothing new leave the page alone (${rewrites} rewrites in three refreshes${newHour ? ', across an hour' : ''})`);
+  check(quiet.rewrites === 0 || quiet.newHour, `live: refreshes with nothing new leave a character's page alone (${quiet.rewrites} rewrites in three refreshes)`);
+  // The overview and the menu, on a source with no new writes at all; a stretch still
+  // going is drawn to the minute, so a minute turning over may redraw once
+  const still = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT + 2), '--demo', '--still'],
+    { stdio: ['ignore', 'pipe', 'inherit'] });
+  await new Promise((resolve) => still.stdout.once('data', resolve));
+  try {
+    const sp = await context.newPage();
+    await sp.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 2}`);
+    await sp.waitForSelector('.card[data-who]', { timeout: 15_000 });
+    await sp.waitForTimeout(1500);
+    const ovq = await rewritesOf(sp, ['#overview', '#navChars'], 16_000);
+    check(ovq.rewrites <= 2, `live: refreshes with nothing new leave the overview and menu alone (${ovq.rewrites} rewrites in three refreshes)`);
+    await sp.close();
+  } finally {
+    still.kill();
+  }
   check(problems.length === 0, `live: no console errors or CSP violations${problems.length ? `: ${problems.join(' | ')}` : ''}`);
   await context.close();
 
@@ -114,7 +142,7 @@ try {
   check(/^Bebop \(GS4\)/.test(await kbPage.title()), `keyboard: the window title names the character (${await kbPage.title()})`);
   await kbPage.click('#navOverview');
   const popup = kb.waitForEvent('page');
-  await kbPage.click('.card[data-who="GS3:Splinter"] .ch-link', { modifiers: ['Control'] });
+  await kbPage.click('.card[data-who="GS3:Splinter"] .ch-link', { modifiers: ['ControlOrMeta'] });
   const tab = await popup;
   await tab.waitForSelector('#tabs', { timeout: 15_000 });
   check(tab.url().endsWith('#GS4%3ASplinter') && !kbPage.url().includes('Splinter'), 'keyboard: Ctrl+click opens a character in a new tab and leaves this one');
@@ -236,6 +264,22 @@ try {
   await pg.goBack();
   await pg.waitForSelector('#compare:not([hidden]) table');
   check(true, 'compare: Back returns to it');
+  await pg.click('#compare a[data-who="GS3:Raphael"]');
+  await pg.waitForSelector('#detail h1');
+  check(!/No data for/.test(await pg.textContent('#detail')) && /Raphael/.test(await pg.textContent('#detail h1')),
+    'compare: a character not played today still opens its page');
+  await pg.goBack();
+  await pg.waitForSelector('#compare:not([hidden]) table');
+  await pg.evaluate(() => localStorage.setItem('gs4a-hidden', JSON.stringify(['GS3:Raphael'])));
+  await pg.reload();
+  await pg.waitForSelector('#compare .cmp-hidden [data-unhide="GS3:Raphael"]');
+  await pg.click('#cmpTabs button[data-r="total"]');     // Raphael has nothing today, only in All Time
+  await pg.waitForFunction(() => document.querySelector('#cmpTabs button.on')?.getAttribute('data-r') === 'total');
+  check(!(await pg.$('#compare a[data-who="GS3:Raphael"]')), 'compare: lists a hidden character not played today, and leaves it out');
+  await pg.click('#compare [data-unhide="GS3:Raphael"]');
+  await pg.waitForFunction(() => !!document.querySelector('#compare a[data-who="GS3:Raphael"]'));
+  check(!(await pg.$('#compare .cmp-hidden')) && (await pg.evaluate(() => localStorage.getItem('gs4a-hidden'))) === null,
+    'compare: Show brings it back at once, with no range tab clicked');
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
   await pg.waitForSelector('.card[data-who]');
   await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');
@@ -336,6 +380,17 @@ try {
   check(JSON.stringify(shown) === JSON.stringify(want), 'file: the cards show the same alert texts as the Ruby dashboard did at that moment');
   check(fileProblems.length === 0, `file: no console errors${fileProblems.length ? `: ${fileProblems.join(' | ')}` : ''}`);
   if (shots) await filePage.screenshot({ path: `${shots}/overview-file.png`, fullPage: true });
+  check(await filePage.$eval('#warning', (el) => el.hidden), 'file: written in this browser\'s zone, so no zone warning');
+  // The same file read in another zone: the page says its days may not be that computer's
+  const tokyo = await browser.newContext({ viewport: { width: 1320, height: 900 }, timezoneId: 'Asia/Tokyo' });
+  const tokyoPage = await tokyo.newPage();
+  await tokyoPage.goto(`http://localhost:${SITE_PORT}/`);
+  await tokyoPage.waitForSelector('#source:not([hidden])');
+  await tokyoPage.setInputFiles('#pickFile', fixture);
+  await tokyoPage.waitForSelector('#warning:not([hidden])', { timeout: 15_000 });
+  check(/UTC\u22125 \(EST\), and this browser is at UTC\+9/.test(await tokyoPage.textContent('#warning')),
+    'file: one written in another zone says so, with both offsets');
+  await tokyo.close();
 
   // ---- a source that isn't there ---------------------------------------
   const deadPage = await fileContext.newPage();
@@ -345,6 +400,18 @@ try {
   check(/Could not reach analytics\.lic/.test(deadText), 'unreachable: the chooser explains the script is not answering');
   check(/Local network access/.test(deadText), 'unreachable: and mentions the browser permission, which looks the same to the page');
   check(await deadPage.$('#source a[href="guide/"]') !== null, 'unreachable: the chooser links to the guide');
+  // A script that answers but can't serve the database: its reason is shown (#21)
+  const refuse = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT + 1), '--refuse'],
+    { stdio: ['ignore', 'pipe', 'inherit'] });
+  await new Promise((resolve) => refuse.stdout.once('data', resolve));
+  try {
+    await deadPage.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 1}`);
+    await deadPage.waitForSelector('#sourceError:not([hidden])', { timeout: 15_000 });
+    const why = await deadPage.textContent('#sourceError');
+    check(/made by another build/.test(why) && /Rename or move it/.test(why), `refused: the script's reason is shown (${why.slice(0, 80)}...)`);
+  } finally {
+    refuse.kill();
+  }
   await fileContext.close();
 
   // ---- the guide -------------------------------------------------------

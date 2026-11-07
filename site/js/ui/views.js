@@ -82,7 +82,9 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
   }
   var sum = function (f) { return chars.reduce(function (a, c) { return a + (f(c) || 0); }, 0); };
   var silver = sum(function (c) { return c.pace.silver.so_far; }), exp = sum(function (c) { return c.pace.exp.so_far; });
-  var hours = Math.max((nowSrv() - ov.day_start) / 3600, 0.01);
+  // To the minute, like the stretches still going: a refresh with nothing new
+  // leaves the figure (and so the overview) alone until the minute turns
+  var hours = Math.max((Math.floor(nowSrv() / 60) * 60 - ov.day_start) / 3600, 1 / 60);
   var hunting = chars.filter(function (c) { return c.state.type === 'hunt'; }).length;
   var online = chars.filter(function (c) { return c.state.type !== 'offline'; }).length;
   var flagged = chars.filter(function (c) { return c.light.level === 'red'; }).length;
@@ -138,10 +140,17 @@ export function rangeTabs(ranges, range) {
 }
 
 // ---------------- comparing characters ----------------
-// names: id -> name; entry(id): its overview entry, if it has one today
-export function comparePageHtml(d, range, names, entry, hiddenCount) {
-  return '<div class="page-head"><div><div class="eyebrow">' + plural(d.characters, 'character') + (hiddenCount ? ' &middot; ' + hiddenCount + ' hidden' : '') + '</div>' +
-    '<h1 tabindex="-1">Compare characters</h1><p class="small muted">Each character\'s income, shop stops, creatures and bounties side by side. Choose a column heading to sort by it.</p></div>' +
+// names: id -> name; entry(id): its overview entry, if it has one today;
+// hid: the hidden characters' ids, every one the database has (played today or not),
+// each with a Show button, since the overview and the menu list only today's
+export function comparePageHtml(d, range, names, entry, hid) {
+  hid = hid || [];
+  var shownHid = hid.length ? '<p class="small muted cmp-hidden">Hidden: ' + hid.map(function (id) {
+    var name = esc(shown(names[id] || id));
+    return name + ' <button type="button" class="link-btn" data-unhide="' + esc(id) + '" aria-label="Show ' + name + '">Show</button>';
+  }).join(' &middot; ') + '</p>' : '';
+  return '<div class="page-head"><div><div class="eyebrow">' + plural(d.characters, 'character') + (hid.length ? ' &middot; ' + hid.length + ' hidden' : '') + '</div>' +
+    '<h1 tabindex="-1">Compare characters</h1><p class="small muted">Each character\'s income, shop stops, creatures and bounties side by side. Choose a column heading to sort by it.</p>' + shownHid + '</div>' +
     '<div class="tabs" id="cmpTabs" role="group" aria-label="Range">' + rangeTabs(DETAIL_RANGES, range) + '</div></div>' +
     '<div class="section-body">' + compareHtml(d, names, entry) + '</div>';
 }

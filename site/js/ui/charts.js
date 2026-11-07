@@ -7,8 +7,24 @@ import { U, DOT, DASH, esc, css, num, short, dur, clock, nice, nowSrv, shown,
 // SVG ids are derived from what is drawn (not a counter), so drawing the
 // same data twice gives the same markup and setHtml can skip it
 // ---------------- activity timeline ----------------
+// A stretch still going ends at the minute, so a refresh with nothing new
+// gives the same markup until the minute turns (the now marker moves by itself)
+function seg(s) {
+  var now = nowSrv();
+  return s[2] >= now - 5 ? [s[0], s[1], Math.max(s[1], Math.floor(s[2] / 60) * 60), s[3]] : s;
+}
 function segTip(s) {
   return (STATE_NAME[s[0]] || s[0]) + ' ' + clock(s[1]) + ' ' + DASH + ' ' + clock(s[2]) + ' (' + dur(s[2] - s[1]) + ')' + (s[3] ? ' ' + DOT + ' ' + s[3] : '');
+}
+// A day's real length and its hour starts: 23 or 25 hours on a DST change, so
+// stretches after the change line up with the wall-clock hour labels
+export function hourStart(t0, h) {
+  var d = new Date(t0 * 1000);
+  return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate(), h).getTime() / 1000);
+}
+export function dayEnd(t0) {
+  var d = new Date(t0 * 1000);
+  return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() / 1000);
 }
 // width: the space it will be drawn in, so its text is drawn at its real size
 export function timeline(chars, dayStart, idp, width) {
@@ -16,12 +32,12 @@ export function timeline(chars, dayStart, idp, width) {
   var longest = Math.max.apply(null, chars.map(function (c) { return shown(c.name).length; }).concat([0]));
   var W = Math.round(Math.min(1400, Math.max(300, width || 1000)));
   var rowH = 34, barH = 18, L = multi ? Math.min(Math.round(W * 0.3), Math.max(70, Math.round(longest * 7.5 + 20))) : 0, R = 4, top = 6, n = chars.length, H = top + n * rowH + 22;
-  var span = 86400;
+  var span = dayEnd(dayStart) - dayStart;
   function x(t) { return L + (W - L - R) * Math.min(Math.max((t - dayStart) / span, 0), 1); }
   var svg = '';
   var every = W < 560 ? 6 : 3;
   for (var h = 0; h <= 24; h += every) {
-    var hx = x(dayStart + h * 3600);
+    var hx = x(h === 24 ? dayStart + span : hourStart(dayStart, h));
     svg += '<line x1="' + hx + '" x2="' + hx + '" y1="' + top + '" y2="' + (top + n * rowH) + '" stroke="var(--line)"/>' +
            '<text x="' + hx + '" y="' + (H - 4) + '" text-anchor="' + (h === 24 ? 'end' : h === 0 ? 'start' : 'middle') + '">' + (h === 24 ? '24' : String(h).padStart(2, '0')) + ':00</text>';
   }
@@ -31,7 +47,7 @@ export function timeline(chars, dayStart, idp, width) {
     if (multi) svg += '<text class="tl-name" x="0" y="' + (y + 13) + '">' + esc(shown(c.name)) + '</text>';
     svg += '<clipPath id="' + clip + '"><rect x="' + L + '" y="' + y + '" width="' + (W - L - R) + '" height="' + barH + '" rx="6"/></clipPath>' +
            '<rect x="' + L + '" y="' + y + '" width="' + (W - L - R) + '" height="' + barH + '" rx="6" fill="var(--st-none)"/><g clip-path="url(#' + clip + ')">';
-    c.timeline.forEach(function (s) {
+    c.timeline.map(seg).forEach(function (s) {
       var x1 = x(s[1]), x2 = x(s[2]);
       svg += '<rect class="seg s-' + esc(s[0]) + '" x="' + x1.toFixed(1) + '" y="' + y + '" width="' + Math.max(1.2, x2 - x1).toFixed(1) + '" height="' + barH + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
     });
@@ -39,7 +55,7 @@ export function timeline(chars, dayStart, idp, width) {
   });
   // The now marker is placed by nowMarkers() every second, not drawn at a
   // position here, so the same data always gives the same markup
-  svg += '<g class="nowmk" data-t0="' + dayStart + '" data-x0="' + L + '" data-x1="' + (W - R) + '">' +
+  svg += '<g class="nowmk" data-t0="' + dayStart + '" data-t1="' + (dayStart + span) + '" data-x0="' + L + '" data-x1="' + (W - R) + '">' +
          '<line x1="0" x2="0" y1="' + (top - 4) + '" y2="' + (top + n * rowH) + '" stroke="var(--ink)" stroke-width="1.5"/>' +
          '<circle cx="0" cy="' + (top - 4) + '" r="3.5" fill="var(--ink)"/></g>';
   var leg = ['hunt', 'rest', 'idle', 'dead'].map(function (k) {
@@ -53,7 +69,7 @@ export function timeline(chars, dayStart, idp, width) {
 function summary(chars) {
   return 'Activity today. ' + chars.map(function (c) {
     var by = {};
-    c.timeline.forEach(function (s) { by[s[0]] = (by[s[0]] || 0) + (s[2] - s[1]); });
+    c.timeline.map(seg).forEach(function (s) { by[s[0]] = (by[s[0]] || 0) + (s[2] - s[1]); });
     var parts = ['hunt', 'rest', 'idle', 'dead'].filter(function (k) { return by[k] >= 60; })
       .map(function (k) { return STATE_NAME[k].toLowerCase() + ' ' + dur(by[k]); });
     return shown(c.name) + ': ' + (parts.length ? parts.join(', ') : 'no activity');
@@ -62,17 +78,17 @@ function summary(chars) {
 
 // The day at a glance on a character card: the same stretches, no labels
 export function dayStrip(c, dayStart, idp) {
-  var W = 240, H = 8;
-  function x(t) { return W * Math.min(Math.max((t - dayStart) / 86400, 0), 1); }
+  var W = 240, H = 8, span = dayEnd(dayStart) - dayStart;
+  function x(t) { return W * Math.min(Math.max((t - dayStart) / span, 0), 1); }
   var svg = '<rect width="' + W + '" height="' + H + '" rx="4" fill="var(--st-none)"/>';
-  c.timeline.forEach(function (s) {
+  c.timeline.map(seg).forEach(function (s) {
     svg += '<rect class="s-' + esc(s[0]) + '" x="' + x(s[1]).toFixed(2) + '" width="' + Math.max(0.6, x(s[2]) - x(s[1])).toFixed(2) + '" height="' + H + '" fill="' + css(STATE_COL[s[0]] || '--gray') + '" data-tip="' + esc(segTip(s)) + '"/>';
   });
   var clip = 'ds-' + idp;
   // Hidden from screen readers: the activity timeline below says the same in words
   return '<div class="strip" aria-hidden="true"><svg viewBox="0 -2 ' + W + ' ' + (H + 4) + '" preserveAspectRatio="none" width="100%" height="12" focusable="false">' +
     '<clipPath id="' + clip + '"><rect width="' + W + '" height="' + H + '" rx="4"/></clipPath><g clip-path="url(#' + clip + ')">' + svg + '</g>' +
-    '<g class="nowmk" data-t0="' + dayStart + '" data-x0="0" data-x1="' + W + '"><rect x="-.75" width="1.5" y="-2" height="' + (H + 4) + '" rx=".75" fill="var(--ink)"/></g></svg>' +
+    '<g class="nowmk" data-t0="' + dayStart + '" data-t1="' + (dayStart + span) + '" data-x0="0" data-x1="' + W + '"><rect x="-.75" width="1.5" y="-2" height="' + (H + 4) + '" rx=".75" fill="var(--ink)"/></g></svg>' +
     '<div class="strip-axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div>';
 }
 
@@ -80,8 +96,9 @@ export function dayStrip(c, dayStart, idp) {
 export function nowMarkers(root) {
   var now = nowSrv();
   Array.prototype.forEach.call((root || document).querySelectorAll('.nowmk'), function (g) {
-    var t0 = Number(g.getAttribute('data-t0')), x0 = Number(g.getAttribute('data-x0')), x1 = Number(g.getAttribute('data-x1'));
-    var x = x0 + (x1 - x0) * Math.min(Math.max((now - t0) / 86400, 0), 1);
+    var t0 = Number(g.getAttribute('data-t0')), t1 = Number(g.getAttribute('data-t1')) || t0 + 86400;
+    var x0 = Number(g.getAttribute('data-x0')), x1 = Number(g.getAttribute('data-x1'));
+    var x = x0 + (x1 - x0) * Math.min(Math.max((now - t0) / (t1 - t0), 0), 1);
     g.setAttribute('transform', 'translate(' + x.toFixed(2) + ' 0)');
   });
 }
@@ -227,18 +244,22 @@ function delta(p, highBad) {
 }
 
 // ---------------- rest steps ----------------
+// A step's colour slot. Only the object's own keys: a step named "constructor"
+// or "toString" would otherwise find a built-in function
+function stepColor(k) { return Object.prototype.hasOwnProperty.call(STEP_COL, k) ? STEP_COL[k] : '--gray'; }
 export function stepBar(steps) {
   var keys = Object.keys(steps).filter(function (k) { return steps[k] > 0; }).sort(function (a, b) {
     var ia = STEP_ORDER.indexOf(a), ib = STEP_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
   var total = keys.reduce(function (a, k) { return a + steps[k]; }, 0);
   if (!total) return '<div class="empty small">No step timing in this window yet.</div>';
-  var bar = '<div class="segbar" role="img" aria-label="Average rest: ' + keys.map(function (k) { return k + ' ' + dur(steps[k]); }).join(', ') + '">' + keys.map(function (k) {
+  // Step names are the player's own (rest_steps in analytics.yaml) or a file's: escaped like any database text
+  var bar = '<div class="segbar" role="img" aria-label="' + esc('Average rest: ' + keys.map(function (k) { return k + ' ' + dur(steps[k]); }).join(', ')) + '">' + keys.map(function (k) {
     var share = steps[k] * 100 / total, label = Math.round(share) + '%';
-    var slot = STEP_COL[k] || '--gray';
+    var slot = stepColor(k);
     return '<span style="flex:' + steps[k] + ' 1 0;background:' + css(slot) + ';--on:var(--on-' + slot.slice(2) + ')" data-tip="' +
       esc(k + ' ' + DOT + ' ' + dur(steps[k]) + ' (' + label + ')') + '">' + (share >= 9 ? label : '') + '</span>'; }).join('') + '</div>';
   var list = '<div class="steps">' + keys.map(function (k) {
-    return '<div><i style="background:' + css(STEP_COL[k] || '--gray') + '"></i><span>' + esc(k) + '</span><b>' + dur(steps[k]) + '</b><span class="muted">' +
+    return '<div><i style="background:' + css(stepColor(k)) + '"></i><span>' + esc(k) + '</span><b>' + dur(steps[k]) + '</b><span class="muted">' +
       Math.round(steps[k] * 100 / total) + '%</span></div>'; }).join('') + '</div>';
   return '<div class="step-total"><span class="stat-val">' + dur(total) + '</span><span class="muted small">average rest</span></div>' + bar + list;
 }

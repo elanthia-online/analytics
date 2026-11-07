@@ -6,8 +6,9 @@
 // Every function copes with an older database: a missing table or column
 // gives an empty section, never an error.
 import { toI } from './ruby.js';
-import { dayOf, addDays, midnight, dayStr, dateOf } from './time.js';
+import { dayOf, addDays, midnight, dayStr, dateOf, windowDay } from './time.js';
 import { rangeFromArg, parseWho, shortProfile } from './report.js';
+import { STALE_OPEN } from './overview.js';
 
 export const SECTIONS = ['summary', 'income', 'hunting', 'bounties', 'progress', 'history'];
 
@@ -65,7 +66,7 @@ export function buildIncome(conn, id, range, { now }) {
   const out = { label, from, sources: [], expenses: [], items: [], shops: [], towns: [], total_in: 0, total_out: 0, net: 0 };
   const creature = hasTable(conn, 'kill_stats')
     ? toI(conn.one('SELECT SUM(total_silver) AS s FROM kill_stats WHERE game = ? AND character = ? AND date >= ? AND date <= ?',
-      ...who, dateOf(from), dateOf(now)).s)
+      ...who, windowDay(from), dateOf(now)).s)
     : 0;
   const sums = new Map(SOURCES.map(([key, name]) => [key, { key, label: name, amount: 0, count: 0 }]));
   if (hasTable(conn, 'silver_events')) {
@@ -132,7 +133,7 @@ export function buildHunting(conn, id, range, { now }) {
   const creature = hasColumn(conn, 'kill_stats', 'creature') ? 'creature' : "'creatures'";
   const rows = conn.all(`SELECT ${creature} AS creature, SUM(kill_count) AS kills, SUM(total_silver) AS silver, ${boxes} AS boxes, ` +
     'MAX(last_kill_at) AS last, GROUP_CONCAT(DISTINCT profile) AS profiles FROM kill_stats WHERE game = ? AND character = ? ' +
-    'AND date >= ? AND date <= ? GROUP BY 1 ORDER BY kills DESC, 1', ...who, dateOf(from), dateOf(now));
+    'AND date >= ? AND date <= ? GROUP BY 1 ORDER BY kills DESC, 1', ...who, windowDay(from), dateOf(now));
   const creatures = rows.map((r) => {
     const kills = toI(r.kills), silver = toI(r.silver), box = toI(r.boxes);
     return { creature: r.creature, kills, silver, boxes: box, silver_per_kill: kills ? Math.round(silver / kills) : null,
@@ -206,9 +207,12 @@ export function buildHistory(conn, id, range, { now, limit = 400 }) {
   const gain = (a, b) => (a == null || b == null ? null : Math.max(0, toI(b) - toI(a)));
   return {
     label, from,
+    // An open cycle older than STALE_OPEN was left by a crash (the overview's
+    // cap too): it ended, but when isn't known, so it gets no duration
     cycles: rows.map((r) => ({
       type: r.cycle_type, start: toI(r.start_time), end: r.end_time == null ? null : toI(r.end_time),
-      seconds: r.end_time == null ? Math.max(0, now - toI(r.start_time)) : toI(r.duration_seconds),
+      stale: r.end_time == null && now - toI(r.start_time) >= STALE_OPEN,
+      seconds: r.end_time != null ? toI(r.duration_seconds) : now - toI(r.start_time) >= STALE_OPEN ? null : Math.max(0, now - toI(r.start_time)),
       reason: r.rest_reason || null, profile: r.profile ? shortProfile(r.profile, who[1]) : null,
       exp: gain(r.exp_total_start, r.exp_total_end), fame: gain(r.fame_start, r.fame_end),
       silver: silver.has(r.cycle_id) ? silver.get(r.cycle_id) : null,
@@ -279,12 +283,24 @@ export function buildProgress(conn, id, { now }) {
   const pace = (() => { const w = rate(7); return w && w.exp + w.asc > 0 ? w : rate(28); })();
   const eta = (need, perDay) => (need > 0 && perDay > 0 ? Math.round(need / perDay * 86400) : null);
 
+  // From schema 9 the EXPERIENCE readings (fame, deeds, long-term exp, Death's
+  // Sting) are on a row only when one arrived since the row before, and the
+  // training points only on the row after they were shown: the latest of each
+  // is the latest row that has it. (Schema 8 rows have them on every row, so
+  // the latest row is also the latest that has them.)
+  const latest = (col) => conn.one(`SELECT ${col} AS v, timestamp AS t FROM progress WHERE game = ? AND character = ? ` +
+    `AND timestamp <= ? AND ${col} IS NOT NULL ORDER BY timestamp DESC LIMIT 1`, ...who, now);
+  const int = (r) => (r ? toI(r.v) : null);
+  const fame = latest('fame'), deeds = latest('deeds'), lte = latest('long_term_exp'), sting = latest('deaths_sting');
+  const tp = conn.one('SELECT ptp, mtp, atp, timestamp FROM progress WHERE game = ? AND character = ? AND timestamp <= ? ' +
+    'AND ptp IS NOT NULL ORDER BY timestamp DESC LIMIT 1', ...who, now);
   const out = {
     available: true, at: toI(last.timestamp), level, capped, exp, ascension_exp: axp,
-    fame: last.fame == null ? null : toI(last.fame), deeds: last.deeds == null ? null : toI(last.deeds),
-    long_term_exp: last.long_term_exp == null ? null : toI(last.long_term_exp),
-    deaths_sting: last.deaths_sting || null, lumnis: last.lumnis != null, rpa: last.rpa == null ? null : Number(last.rpa),
-    unspent: { ptp: last.ptp == null ? null : toI(last.ptp), mtp: last.mtp == null ? null : toI(last.mtp), atp: last.atp == null ? null : toI(last.atp) },
+    fame: int(fame), deeds: int(deeds), long_term_exp: int(lte),
+    deaths_sting: sting ? String(sting.v) : null, lumnis: last.lumnis != null, rpa: last.rpa == null ? null : Number(last.rpa),
+    read_at: fame ? toI(fame.t) : null, sting_at: sting ? toI(sting.t) : null,
+    unspent: { ptp: tp ? toI(tp.ptp) : null, mtp: tp && tp.mtp != null ? toI(tp.mtp) : null, atp: tp && tp.atp != null ? toI(tp.atp) : null,
+               at: tp ? toI(tp.timestamp) : null },
     pace: pace ? { days: pace.days, exp_per_day: Math.round(pace.exp), asc_per_day: Math.round(pace.asc) } : null,
   };
   if (capped) {
@@ -300,19 +316,35 @@ export function buildProgress(conn, id, { now }) {
   const toAtp = ASC_PER_ATP - (axp % ASC_PER_ATP);
   out.atp = { earned: Math.floor(axp / ASC_PER_ATP), to_next: toAtp, pct: Math.round((ASC_PER_ATP - toAtp) * 100 / ASC_PER_ATP), eta: eta(toAtp, pace?.asc) };
 
-  // Death's Sting: each stretch from the first row that shows it to the first that doesn't
+  // Death's Sting: each stretch from the death that brought it (the end of the
+  // dead cycle, or the first reading that shows it when no death is recorded)
+  // to the next reading of None. A row without a reading says nothing either
+  // way. The level is the last reading in the stretch; null when none came
+  // between the death and the None. A death no reading or None ever follows
+  // isn't shown: whether it brought a sting isn't known.
+  const from30 = now - 30 * 86400;
   const rows = conn.all('SELECT timestamp, deaths_sting, lumnis, exp, ascension_exp FROM progress WHERE game = ? AND character = ? ' +
-    'AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp', ...who, now - 30 * 86400, now);
+    'AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp', ...who, from30, now);
+  const deaths = hasTable(conn, 'cycles')
+    ? conn.all("SELECT COALESCE(end_time, start_time) AS t FROM cycles WHERE game = ? AND character = ? AND cycle_type = 'dead' " +
+      'AND COALESCE(end_time, start_time) >= ? AND COALESCE(end_time, start_time) <= ?', ...who, from30, now).map((r) => toI(r.t))
+    : [];
+  const events = [...deaths.map((t) => ({ t, death: true })),
+    ...rows.filter((r) => r.deaths_sting != null).map((r) => ({ t: toI(r.timestamp), level: String(r.deaths_sting) }))]
+    .sort((a, b) => a.t - b.t || (a.death ? -1 : 0) - (b.death ? -1 : 0));
   const stings = [];
   let open = null;
-  for (const r of rows) {
-    const s = r.deaths_sting && r.deaths_sting !== 'None' ? r.deaths_sting : null;
-    if (s && !open) open = { level: s, from: toI(r.timestamp), to: null };
-    else if (s && open && s !== open.level) open.level = s; // got worse (or better) without clearing
-    else if (!s && open) { open.to = toI(r.timestamp); open.seconds = open.to - open.from; stings.push(open); open = null; }
+  for (const e of events) {
+    if (e.death) { if (!open) open = { level: null, from: e.t, to: null, seen: false }; continue; }
+    if (e.level !== 'None') {
+      if (!open) open = { level: e.level, from: e.t, to: null, seen: true };
+      else { open.level = e.level; open.seen = true; }
+    } else if (open) {
+      open.to = e.t; open.seconds = open.to - open.from; stings.push(open); open = null;
+    }
   }
-  if (open) { open.seconds = now - open.from; stings.push(open); }
-  out.stings = stings.reverse().slice(0, 10);
+  if (open && open.seen) { open.seconds = now - open.from; stings.push(open); }
+  out.stings = stings.reverse().slice(0, 10).map(({ seen: _, ...x }) => x);
 
   // Lumnis: the share of the last 7 days' experience gained while it was active
   let withL = 0, total = 0;

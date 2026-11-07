@@ -69,7 +69,26 @@ unnoticed. Add a fixture case at a boundary if one starts to matter.
   shifts an hour across DST). Changing it is a behaviour change, not a port fix.
 - `hourLabel` builds hour buckets with `new Date(y, m-1, d, h)`, matching
   `Time.new(y, m, d, h).strftime('%Y-%m-%d %H')`. On a spring-forward day both repeat
-  the 03 label.
+  the 03 label, and on a fall-back day the two real 01:00 hours share one 01 bucket.
+  Kept as in Ruby.
+
+## Intentional differences on DST days
+
+These depart from the Ruby dashboard on purpose. The parity fixtures avoid DST days, so
+the goldens are unchanged; `test/details.test.js` covers each.
+
+- **Pace "by this time".** Ruby measured now as `now - midnight` but bucketed earlier
+  days by wall-clock time of day, so on the 25-hour fall-back day each baseline day
+  counted an extra hour (and today looked behind), and on spring-forward one hour less.
+  The page measures now on the wall clock too (`clockSeconds`). The repeated 01:00 hour on
+  fall-back day stays ambiguous.
+- **Date-keyed windows on the detail pages.** The week and month windows start an hour
+  either side of midnight across DST (above). For `kill_stats`, keyed by date, that hour
+  was a whole extra day: for six days after spring-forward "This Week" counted eight days
+  of kills. The detail pages (`details.js`) take the day the window means (`windowDay`).
+  The character summary's kills (`character.js`, a parity figure) still use the window's
+  own start, as Ruby did, so for those days the summary can count one day more than the
+  Hunting page.
 
 ## Intentional differences from the script
 

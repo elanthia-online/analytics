@@ -5,13 +5,13 @@ The site reads it and never writes. The script has no migrations: it refuses to 
 file whose `schema_version` isn't its own, and the player starts a fresh database. This page lists what the
 aggregation depends on, so a schema change in the script can be checked against it.
 
-Checked against schema version **8** (`metadata.schema_version`). `KNOWN_SCHEMAS` in
+Checked against schema version **9** (`metadata.schema_version`). `KNOWN_SCHEMAS` in
 `site/js/aggregate/index.js` lists the versions the page loads without a warning.
 
 The fixtures can't be regenerated any more (`tools/gen-fixtures.rb` needs the Ruby
 dashboard, which the script no longer has). They were generated at schema 6, converted
-to schema 7, then to schema 8 by `tools/fixtures-schema8.js`, as `test/fixtures/source.json`
-records. To admit a new schema version: convert the fixture databases to its shape the same
+to schema 7, then to schema 8 by `tools/fixtures-schema8.js` and to schema 9 by
+`tools/fixtures-schema9.js`, as `test/fixtures/source.json` records. To admit a new schema version: convert the fixture databases to its shape the same
 way (leaving the golden JSON alone, and filling only columns and tables no golden figure
 reads), run `npm test`, and add the version only if parity still passes. Rebuild
 `site/demo/sample.db` afterwards with `npm run sample` (`test/demo.test.js` checks it). A change to a
@@ -31,11 +31,12 @@ URL hash, the saved image's file name) and maps back at its edges (`shown`, `sho
 | `bounty_offers` | `game`, `character`, `offered_at`, `outcome`, `expedited`, `vouchers_left`, `bounty_type`, `creature`, `area`, `assignment`, `town`, `description`, `rowid` | Task offers. Optional: an older database without the table shows none |
 | `rest_steps` | `game`, `character`, `cycle_id`, `step`, `seconds`, `rest_start` | Average rest breakdown |
 | `logins` | `game`, `character`, `started_at`, `last_seen` | "This login" figures. Optional (`loginFor` tolerates its absence) |
-| `metadata` | `key = 'schema_version'` | The compatibility warning |
+| `metadata` | `key = 'schema_version'`; from schema 9 `utc_offset` (seconds east of UTC) and `zone` (its name), with `updated_at` the moment they were read | The compatibility warning; the warning that a file was written in another zone (`zoneWarning`). Without them the zone is unknown and nothing is shown |
 
-Not read: `silver_events`, `item_sales`, `vendor_visits`. They're stored for the script's
-text reports and for future views here, and the mock server's demo mode shifts their
-timestamps. Schema 7 dropped the `sessions` table (one row per character per day) and every
+The character detail pages and Compare read more tables and columns; they're listed
+[below](#the-character-detail-pages-and-compare-sitejsaggregatedetailsjs).
+
+The mock server's demo mode shifts every table's timestamps. Schema 7 dropped the `sessions` table (one row per character per day) and every
 `session_id` column: nothing read them, and a day is the date of a row's own timestamp.
 
 ## Conventions the figures rely on
@@ -58,11 +59,12 @@ empty section, never an error.
 
 | Table | Columns used | For |
 |---|---|---|
-| `silver_events` | `source_category` (`sale`/`box`/`bounty`/`expense`), `vendor_type`, `amount`, `timestamp` | Income: where silver came from, what was spent |
+| `silver_events` | `source_category` (`sale`/`box`/`bounty`/`expense`), `vendor_type`, `amount`, `timestamp`. From schema 9 a sale's `vendor_type` is the shop's room tag (`gemshop`, `furrier`, `pawnshop`, ...) when it happened during a shop visit, and an expense's is its kind (`warehouse` among them) | Income: where silver came from, what was spent |
 | `item_sales` | `item_name`, `total_price`, `vendor_type`, `timestamp` | Income: best sellers |
 | `vendor_visits` | `vendor` (the room tag), `start_time`, `duration_seconds`, `silver`, and from schema 8 `spent`, `town` | Income: shops and stops, by town |
 | `kill_stats` | `creature`, `kill_count`, `total_silver`, `boxes`, `profile`, `last_kill_at`, `date` | Hunting; Income's coins on creatures |
 | `bounties` | `bp_reward` as well as the columns above | Bounties: points each and an hour |
 | `bank_snapshots` | `cycle_id`; and `snapshot_type`, `balance`, `delta_silver` on `'__total__'` rows that aren't `deposit` or `withdraw` | History: silver per cycle; Income's bank checks (a listing's `delta_silver` is how far it was from the tracked total) |
-| `progress` (schema 8) | `timestamp`, `level`, `exp`, `ascension_exp`, `fame`, `deeds`, `long_term_exp`, `deaths_sting`, `ptp`, `mtp`, `atp`, `lumnis`, `rpa` | Progress: level or training points, ascension points, pace and ETAs, Death's Sting stretches, Lumnis share |
+| `progress` (schema 8; WITHOUT ROWID from 9) | `timestamp`, `level`, `exp`, `ascension_exp`, `lumnis`, `rpa` on every row; `fame`, `deeds`, `long_term_exp`, `deaths_sting` only on a row an EXPERIENCE reading came before, and `ptp`, `mtp`, `atp` only on the row after they were shown (schema 9; NULL means "not read", never zero) | Progress: level or training points, ascension points, pace and ETAs, the latest of each reading and when it was read, Lumnis share |
+| `progress` and `cycles` | `deaths_sting` readings (a `'None'` row is written when the sting wears off), and the end of each `dead` cycle | Death's Sting: each stretch from the death to the next None, its level the last reading between |
 

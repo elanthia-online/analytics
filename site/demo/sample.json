@@ -1,5 +1,5 @@
 {
-  "about": "Sample data for the page's demo: a copy of test/fixtures/afternoon.db (synthetic, made-up characters). now and tz are that fixture's moment; test/demo.test.js keeps them in step.",
+  "about": "Sample data for the page's demo, built by tools/build-sample.js (npm run sample): every row of test/fixtures/afternoon.db plus more made-up characters and a week of history. Never copy the fixture over it. now and tz are that fixture's moment; test/demo.test.js keeps them in step.",
   "now": 1793824620,
   "tz": "America/New_York"
 }

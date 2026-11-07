@@ -8,10 +8,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import initSqlJs from 'sql.js';
 import { applyWal, walSalt } from '../site/js/wal.js';
+import { fileURLToPath } from 'node:url';
 
 const SQL = await initSqlJs();
 const dir = mkdtempSync(join(tmpdir(), 'wal-test-'));
-execFileSync('python3', [new URL('./wal-writer.py', import.meta.url).pathname, dir]);
+execFileSync('python3', [fileURLToPath(new URL('./wal-writer.py', import.meta.url)), dir]);
 const file = (name) => new Uint8Array(readFileSync(join(dir, name)));
 const count = (bytes) => {
   const db = new SQL.Database(bytes);

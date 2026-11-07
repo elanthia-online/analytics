@@ -60,7 +60,7 @@ export function windows(now) {
     ['Today', day],
     ['This Week', day - 6 * 86_400],
     ['This Month', day - 29 * 86_400],
-    ['YTD', midnight({ y: today.y, m: 1, d: 1 })],
+    ['This Year', midnight({ y: today.y, m: 1, d: 1 })],
   ];
 }
 

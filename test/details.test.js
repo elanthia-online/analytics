@@ -9,6 +9,7 @@ import { Conn } from '../site/js/db.js';
 import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress } from '../site/js/aggregate/index.js';
 import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
 import { rangeFromArg } from '../site/js/aggregate/report.js';
+import { windowDay, clockSeconds, dayOf, addDays, dayStr, midnight, dateOf } from '../site/js/aggregate/time.js';
 
 const SQL = await initSqlJs();
 const golden = JSON.parse(readFileSync(new URL('fixtures/afternoon.json', import.meta.url)));
@@ -26,7 +27,7 @@ test('income: every silver event in the window, plus coins searched from creatur
     const events = one("SELECT SUM(amount) AS s FROM silver_events WHERE game = ? AND character = ? AND source_category <> 'expense' AND timestamp >= ? AND timestamp <= ?", ...W, from, now).s ?? 0;
     const spent = one("SELECT SUM(amount) AS s FROM silver_events WHERE game = ? AND character = ? AND source_category = 'expense' AND timestamp >= ? AND timestamp <= ?", ...W, from, now).s ?? 0;
     const coins = one('SELECT SUM(total_silver) AS s FROM kill_stats WHERE game = ? AND character = ? AND date >= ? AND date <= ?',
-      ...W, new Date(from * 1000).toLocaleDateString('sv'), new Date(now * 1000).toLocaleDateString('sv')).s ?? 0;
+      ...W, windowDay(from), new Date(now * 1000).toLocaleDateString('sv')).s ?? 0;
     assert.equal(inc.total_in, events + coins, `${range}: in`);
     assert.equal(inc.total_out, spent, `${range}: out`);
     assert.equal(inc.net, inc.total_in - inc.total_out);
@@ -59,8 +60,15 @@ test('bounties: counted by type, with success, time and rewards for the complete
   assert.equal(b.all.completed, n.c);
   assert.equal(b.all.points, n.p ?? 0);
   assert.equal(b.types.reduce((a, t) => a + t.received, 0), n.n);
-  const ended = b.all.completed + b.all.abandoned + b.all.expired;
-  assert.equal(b.all.success_pct, Math.round(b.all.completed * 100 / ended));
+  // the endings and the time to complete, from SQL rather than the function's own counts
+  const e = one("SELECT SUM(status = 'abandoned') AS a, SUM(status = 'expired') AS x, " +
+    "AVG(CASE WHEN status = 'completed' THEN MAX(0, completed_time - received_time) END) AS t FROM bounties " +
+    'WHERE game = ? AND character = ? AND received_time >= ? AND received_time <= ?', ...W, from, now);
+  assert.equal(b.all.abandoned, e.a ?? 0);
+  assert.equal(b.all.expired, e.x ?? 0);
+  assert.ok(b.all.abandoned + b.all.expired > 0, 'the fixture has bounties that did not complete');
+  assert.equal(b.all.avg_seconds, Math.round(e.t));
+  assert.equal(b.all.success_pct, Math.round(n.c * 100 / (n.c + (e.a ?? 0) + (e.x ?? 0))));
   assert.ok(b.offers && b.offers.offered >= 0);
 });
 
@@ -95,20 +103,30 @@ test('progress, before the cap: level and the share of it done, from the last ro
   assert.equal(p.next_level.to_next, EXP_FOR_LEVEL[last.level + 1] - last.exp);
 });
 
-// A small schema 8 database, built here: one capped character
+// A small schema 9 database, built here: one capped character. Readings
+// (fame, deeds, long-term exp, Death's Sting) only on the rows an EXPERIENCE
+// reading came before, training points only once, and a None row when the
+// sting faded, as the script writes them.
 function capped() {
   const d = new SQL.Database();
   d.run(`CREATE TABLE progress (game TEXT, character TEXT, timestamp INTEGER, level INTEGER, exp INTEGER, ascension_exp INTEGER,
     until_next INTEGER, fame INTEGER, deeds INTEGER, long_term_exp INTEGER, deaths_sting TEXT, ptp INTEGER, mtp INTEGER, atp INTEGER,
-    lumnis INTEGER, rpa REAL, fashlonae INTEGER, PRIMARY KEY (game, character, timestamp))`);
+    lumnis INTEGER, rpa REAL, fashlonae INTEGER, PRIMARY KEY (game, character, timestamp)) WITHOUT ROWID`);
+  d.run('CREATE TABLE cycles (cycle_id TEXT, game TEXT, character TEXT, cycle_type TEXT, start_time INTEGER, end_time INTEGER)');
   const t0 = 1_800_000_000;
-  const row = (dt, exp, axp, sting, lumnis) => d.run('INSERT INTO progress VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    ['GS3', 'Rocksteady', t0 + dt, 100, exp, axp, null, 1000, 5, 10, sting, 36, 0, 6, lumnis, null, null]);
-  row(0, CAP_EXP + 10_000, 120_000, 'None', 1);
-  row(86400, CAP_EXP + 20_000, 130_000, 'Light', 1); // a death: Light sting
-  row(2 * 86400, CAP_EXP + 25_000, 135_000, 'Light', null);
-  row(3 * 86400, CAP_EXP + 30_500, 140_000, 'None', null); // cleared two days later
-  return { conn: new Conn(d), now: t0 + 3 * 86400, close: () => d.close() };
+  const row = (dt, exp, axp, lumnis, r = {}) => d.run('INSERT INTO progress VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    ['GS3', 'Rocksteady', t0 + dt, 100, exp, axp, null, r.fame ?? null, r.deeds ?? null, r.lte ?? null, r.sting ?? null,
+      r.ptp ?? null, r.mtp ?? null, r.atp ?? null, lumnis, null, null]);
+  const died = (end) => d.run("INSERT INTO cycles VALUES (?, 'GS3', 'Rocksteady', 'dead', ?, ?)", [`d${end}`, t0 + end - 300, t0 + end]);
+  row(0, CAP_EXP + 10_000, 120_000, 1, { fame: 1000, deeds: 5, lte: 10, sting: 'None', ptp: 36, mtp: 0, atp: 6 });
+  died(86400 - 3600);                                                  // a death, an hour before EXPERIENCE shows its sting
+  row(86400, CAP_EXP + 20_000, 130_000, 1, { fame: 1100, deeds: 5, lte: 12, sting: 'Light' });
+  row(2 * 86400, CAP_EXP + 25_000, 135_000, null);                     // the hourly heartbeat: no readings
+  row(3 * 86400, CAP_EXP + 30_500, 140_000, null, { sting: 'None' });  // the sting faded
+  died(3 * 86400 + 600);                                               // died again; it faded before any EXPERIENCE
+  row(3 * 86400 + 4200, CAP_EXP + 30_500, 140_000, null, { sting: 'None' });
+  died(3 * 86400 + 5000);                                              // and again, with nothing after it yet
+  return { conn: new Conn(d), now: t0 + 3 * 86400 + 6000, close: () => d.close() };
 }
 
 test('progress, past the cap: training points from regular experience, ATPs from ascension, ETAs at the recent pace', () => {
@@ -119,10 +137,16 @@ test('progress, past the cap: training points from regular experience, ATPs from
     assert.deepEqual([p.tp.earned, p.tp.to_next, p.tp.pct], [12, 2000, 20]); // 30,500 past the cap = 12 TPs + 500
     assert.deepEqual([p.atp.earned, p.atp.to_next], [2, 10_000]); // 140,000 = 2 ATPs + 40,000
     assert.equal(p.pace.days, 7);
-    assert.equal(p.pace.exp_per_day, Math.round(20_500 / 3));
-    assert.equal(p.tp.eta, Math.round(2000 / (20_500 / 3) * 86400));
-    assert.deepEqual(p.unspent, { ptp: 36, mtp: 0, atp: 6 });
-    assert.deepEqual(p.stings.map((s) => [s.level, s.seconds]), [['Light', 2 * 86400]]);
+    const days = (3 * 86400 + 4200) / 86400; // first row to the last
+    assert.equal(p.pace.exp_per_day, Math.round(20_500 / days));
+    assert.equal(p.tp.eta, Math.round(2000 / (20_500 / days) * 86400));
+    // the latest reading of each, wherever it is
+    assert.deepEqual(p.unspent, { ptp: 36, mtp: 0, atp: 6, at: 1_800_000_000 });
+    assert.deepEqual([p.fame, p.deeds, p.long_term_exp, p.read_at], [1100, 5, 12, 1_800_000_000 + 86400]);
+    assert.deepEqual([p.deaths_sting, p.sting_at], ['None', 1_800_000_000 + 3 * 86400 + 4200]);
+    // from the death to the None; a heartbeat with no reading doesn't end it; a sting
+    // never read has no level; a death with nothing after it isn't shown
+    assert.deepEqual(p.stings.map((s) => [s.level, s.seconds]), [[null, 3600], ['Light', 2 * 86400 + 3600]]);
     // Each step's gain counts toward Lumnis when the row before it had Lumnis active:
     // 20,000 (after row 0, active) + 10,000 (after row 1, active) of 20,000 + 10,000 + 10,500
     assert.equal(p.lumnis_share, Math.round(30_000 * 100 / 40_500));
@@ -151,16 +175,35 @@ test('bank reconciliation: every listing that found the total off, and by how mu
   assert.ok(r.listings >= r.checks.length);
 });
 
-test('compare: each character\'s own figures, side by side', () => {
+test('compare: each character\'s own figures, side by side, every field', () => {
   const ids = [ID, 'GS3:April'];
   const c = buildCompare(conn, ids, 'monthly', { now });
   for (const id of ids) {
     const inc = buildIncome(conn, id, 'monthly', { now }), h = buildHunting(conn, id, 'monthly', { now }), b = buildBounties(conn, id, 'monthly', { now });
-    const mine = (list) => list.filter((r) => r.id === id);
-    assert.deepEqual(mine(c.shops).map((s) => [s.vendor, s.visits, s.silver]), inc.shops.map((s) => [s.vendor, s.visits, s.silver]), `${id} shops`);
-    assert.equal(mine(c.creatures).reduce((a, r) => a + r.kills, 0), h.kills, `${id} kills`);
-    assert.equal(mine(c.bounties).reduce((a, r) => a + r.received, 0), b.all.received, `${id} bounties`);
-    assert.equal(mine(c.income)[0]?.total_in ?? 0, inc.total_in, `${id} income`);
+    const mine = (list) => list.filter((r) => r.id === id).map(({ id: _, ...rest }) => rest);
+    assert.deepEqual(mine(c.shops), inc.shops, `${id} shops`);
+    assert.deepEqual(mine(c.towns), inc.towns, `${id} towns`);
+    assert.deepEqual(mine(c.creatures), h.creatures, `${id} creatures`);
+    assert.deepEqual(mine(c.bounties), b.types, `${id} bounties`);
+    const top = [...inc.sources].sort((x, y) => y.amount - x.amount)[0]?.label ?? null;
+    assert.deepEqual(mine(c.income), [{ total_in: inc.total_in, total_out: inc.total_out, net: inc.net, top }], `${id} income`);
+    assert.ok(inc.shops.length && h.creatures.length && b.types.length, `${id} has something in each`);
+  }
+  assert.equal(c.characters, ids.length);
+  assert.equal(buildCompare(conn, ids, 'ytd', { now }).label, 'This Year', 'never "YTD"');
+});
+
+test('bank checks: only listings, never the deposits and withdrawals, of the types the script writes', () => {
+  const d = new SQL.Database();
+  d.run('CREATE TABLE bank_snapshots (game TEXT, character TEXT, timestamp INTEGER, bank_name TEXT, balance INTEGER, delta_silver INTEGER, snapshot_type TEXT, cycle_id TEXT)');
+  const rows = [['bank_account', 50], ['baseline', -20], ['rest_cycle', 7], ['deposit', 1000], ['withdraw', -400], ['bank_account', 0]];
+  rows.forEach(([type, delta], i) => d.run("INSERT INTO bank_snapshots VALUES ('GS3', 'Splinter', ?, '__total__', 5000, ?, ?, NULL)", [now - 3600 + i, delta, type]));
+  try {
+    const r = buildReconciliation(new Conn(d), ID, 'daily', { now });
+    assert.deepEqual(r.checks.map((x) => x.type).sort(), ['bank_account', 'baseline', 'rest_cycle']);
+    assert.deepEqual([r.off, r.apart, r.listings], [37, 77, 4]);
+  } finally {
+    d.close();
   }
 });
 
@@ -222,4 +265,85 @@ test('Dashboard.details answers only the known pages, whatever the URL says', as
   }
   assert.ok(dash.details(ID, 'income', 'daily').sources);
   assert.ok(dash.details(ID, 'progress', 'daily').progress.available);
+});
+
+test('a character off the overview (not played in the last day) still has a page', async () => {
+  const { buildOverview, buildCharacter } = await import('../site/js/aggregate/index.js');
+  const overview = buildOverview(conn, { now });
+  assert.ok(!overview.names.includes('GS3:Raphael'), 'the fixture leaves Raphael off the overview');
+  const last = one("SELECT MAX(COALESCE(end_time, start_time)) AS t FROM cycles WHERE game = 'GS3' AND character = 'Raphael'").t;
+  const char = buildCharacter(conn, overview, 'gs3:raphael', 'weekly', { now });
+  assert.equal(char.id, 'GS3:Raphael');
+  assert.equal(char.state.type, 'offline');
+  assert.equal(char.state.since, last, 'last seen at its last cycle, however old');
+  assert.equal(buildCharacter(conn, overview, 'GS3:Nobody', 'daily', { now }), null);
+});
+
+test('DST: date-keyed windows start on the day they mean; the pace cut-off is the wall clock', () => {
+  // the Wednesday after spring-forward: the week's seconds start an hour early, the evening before
+  const spring = Math.floor(new Date(2027, 2, 17, 15).getTime() / 1000);
+  const from = rangeFromArg('weekly', spring)[1];
+  assert.equal(dateOf(from), '2027-03-10');
+  assert.equal(windowDay(from), '2027-03-11');
+  assert.equal(windowDay(rangeFromArg('monthly', spring)[1]), dayStr(addDays(dayOf(spring), -29)));
+  // and after fall-back (the fixture's week) an hour late, the same day
+  assert.equal(windowDay(rangeFromArg('weekly', now)[1]), dayStr(addDays(dayOf(now), -6)));
+  // 15:00 on the 25-hour fall-back day is 16 hours after midnight, 15 on the clock
+  const fallBack = Math.floor(new Date(2026, 10, 1, 15).getTime() / 1000);
+  assert.equal(fallBack - midnight(dayOf(fallBack)), 16 * 3600);
+  assert.equal(clockSeconds(fallBack), 15 * 3600);
+});
+
+test('DST: on the fall-back day, pace compares the same wall-clock hours', async () => {
+  const { buildOverview } = await import('../site/js/aggregate/index.js');
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  for (const [name] of d.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values) d.run(`DELETE FROM "${name}"`);
+  const at = (day, h, m = 0) => Math.floor(new Date(2026, 9, day, h, m).getTime() / 1000);
+  let exp = 0;
+  const hunt = (from, to, gain) => {
+    d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, exp_total_start, exp_total_end) VALUES (?, 'GS3', 'April', 'hunt', ?, ?, ?, ?, ?)",
+      [`c${from}`, from, to, to - from, exp, exp += gain]);
+  };
+  for (let day = 20; day <= 32; day++) {           // Oct 20 .. Nov 1 (day 32), the 25-hour day
+    hunt(at(day, 10), at(day, 14), 1000);
+    if (day < 32) hunt(at(day, 15, 10), at(day, 15, 50), 500);   // done after 15:00 on the clock
+  }
+  const now = at(32, 15);                            // 15:00 on Nov 1, 16 hours after midnight
+  const char = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April');
+  assert.equal(char.pace.exp.typical_now, 1000, 'baseline days count only what was done before 15:00');
+  assert.equal(char.pace.exp.pct, 0);
+  d.close();
+});
+
+test('history: an open cycle past the stale cap ended at an unknown time (#31)', () => {
+  const d = new SQL.Database();
+  d.run('CREATE TABLE cycles (cycle_id TEXT, game TEXT, character TEXT, cycle_type TEXT, start_time INTEGER, end_time INTEGER, duration_seconds INTEGER, rest_reason TEXT, profile TEXT, exp_total_start INTEGER, exp_total_end INTEGER, fame_start INTEGER, fame_end INTEGER)');
+  d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time) VALUES ('old', 'GS3', 'Splinter', 'hunt', ?), ('new', 'GS3', 'Splinter', 'rest', ?)",
+    [now - 3 * 3600, now - 600]);
+  try {
+    const [fresh, crashed] = buildHistory(new Conn(d), ID, 'daily', { now }).cycles;
+    assert.deepEqual([fresh.stale, fresh.seconds], [false, 600], 'still going');
+    assert.deepEqual([crashed.stale, crashed.seconds, crashed.end], [true, null, null], 'no duration that grows');
+  } finally {
+    d.close();
+  }
+});
+
+test('a hunt stopped by hand is not a crash; the old unhandled exit still is (#25)', async () => {
+  const { buildOverview } = await import('../site/js/aggregate/index.js');
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  for (const [name] of d.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values) d.run(`DELETE FROM "${name}"`);
+  const crashes = (reason) => {
+    d.run('DELETE FROM cycles');
+    d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, rest_reason) VALUES ('h', 'GS3', 'April', 'hunt', ?, ?, 1800, ?)",
+      [now - 3600, now - 1800, reason]);
+    const char = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April');
+    return char.light.reasons.filter((r) => /crash/.test(r.text)).length;
+  };
+  try {
+    assert.equal(crashes('hunt stopped'), 0);
+    assert.equal(crashes('unhandled exit'), 1);
+  } finally {
+    d.close();
+  }
 });

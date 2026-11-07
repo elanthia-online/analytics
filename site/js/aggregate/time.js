@@ -17,6 +17,21 @@ export function midnight(day) {
   return Math.floor(new Date(day.y, day.m - 1, day.d, 0, 0, 0).getTime() / 1000);
 }
 
+// Wall-clock seconds since local midnight, the measure SQL's tod() uses. On a
+// DST day this differs from now - midnight by the hour that was skipped or repeated.
+export function clockSeconds(ts) {
+  const t = new Date(ts * 1000);
+  return t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
+}
+
+// The calendar day a window starting at +from+ stands for. The week and month
+// windows start whole multiples of 86,400 s before midnight, so across a DST
+// change they start an hour either side of the midnight they mean. The nearest
+// midnight's day is the one meant, for tables keyed by date (kill_stats).
+export function windowDay(from) {
+  return dateOf(from + 43_200);
+}
+
 const pad = (n) => String(n).padStart(2, '0');
 
 // Date#to_s

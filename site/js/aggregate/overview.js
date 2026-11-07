@@ -1,7 +1,7 @@
 // The "Everyone" view: today, every character. A port of
 // GS4Analytics::Dashboard.build_overview and everything under it.
 import { toI, toF, rround, idiv, floatStr, mean, median, percent, sortBy, uniq, autoMap } from './ruby.js';
-import { dayOf, addDays, midnight, dayStr, dateOf } from './time.js';
+import { dayOf, addDays, midnight, dayStr, dateOf, clockSeconds } from './time.js';
 import { WHO_SQL as WHO, labels as reportLabels, shortProfile, bountyTarget, parseWho } from './report.js';
 
 export const IDLE_WARN = 480; // seconds idle before amber/red, matches the cycle manager
@@ -11,7 +11,10 @@ export const DAY_HUNT = 7200; // hunting seconds for a day to count toward "typi
 export const HOUR_HUNT = 1200; // hunting seconds for an hour to count toward "typical"
 export const BASE_DAYS = 30;
 export const MIN_SAMPLES = 5;
-// The cycle each crash reason is recorded on
+// The cycle each crash reason is recorded on. Up to schema 8 the script wrote
+// 'unhandled exit' on any hunt that went idle without a rest, a stop by hand
+// included; from schema 9 that is 'hunt stopped', which isn't a crash and
+// isn't listed. 'unhandled exit' stays for the golden figures.
 const CRASH_REASONS = { 'unhandled exit': 'hunt', 'idle recovery': 'rest' };
 
 // ---- SQL fragments ---------------------------------------------------------
@@ -22,10 +25,26 @@ const tod = (col) =>
   `(CAST(strftime('%H', ${local(col)}) AS INTEGER) * 3600 + CAST(strftime('%M', ${local(col)}) AS INTEGER) * 60 ` +
   `+ CAST(strftime('%S', ${local(col)}) AS INTEGER))`;
 
-export function buildOverview(conn, { now }) {
+function context(now, latestFrom) {
   const today = dayOf(now);
   const dayStart = midnight(today);
-  const ctx = { now, dayStart, todayS: dayStr(today), todNow: now - dayStart, baseFrom: midnight(addDays(today, -BASE_DAYS)), today };
+  return { now, dayStart, todayS: dayStr(today), todNow: clockSeconds(now), baseFrom: midnight(addDays(today, -BASE_DAYS)), today,
+           latestFrom: latestFrom ?? now - 7 * 86_400 };
+}
+
+// The overview entry for one character the overview leaves out (not played in
+// the last day): the same figures, with its last cycle found however old it is.
+// null when the database has nothing for that character.
+export function buildStatusFor(conn, id, { now }) {
+  const ctx = context(now, Number.MIN_SAFE_INTEGER);
+  const data = overviewData(conn, ctx);
+  const wanted = String(id).toLowerCase();
+  const found = [...data.labels.keys()].find((key) => key.toLowerCase() === wanted);
+  return found == null ? null : buildStatus(found, data.labels.get(found) || found, ctx, data);
+}
+
+export function buildOverview(conn, { now }) {
+  const ctx = context(now);
   const data = overviewData(conn, ctx);
 
   const names = uniq([
@@ -38,7 +57,7 @@ export function buildOverview(conn, { now }) {
     chars.flatMap((char) => char.light.reasons.map((r) => ({ id: char.id, character: char.name, level: r.level, text: r.text }))),
     (alert) => [alert.level === 'red' ? 0 : 1, alert.character],
   );
-  return { generated_at: now, day_start: dayStart, characters: chars, alerts, names: chars.map((char) => char.id) };
+  return { generated_at: now, day_start: ctx.dayStart, characters: chars, alerts, names: chars.map((char) => char.id) };
 }
 
 function overviewData(conn, ctx) {
@@ -63,7 +82,7 @@ function overviewData(conn, ctx) {
     `SELECT ${WHO} AS who, cycle_type, start_time, end_time, rest_reason, profile FROM cycles ` +
       'WHERE start_time >= ? AND start_time = (SELECT MAX(c2.start_time) FROM cycles c2 ' +
       'WHERE c2.game = cycles.game AND c2.character = cycles.character)',
-    now - 7 * 86_400,
+    ctx.latestFrom,
   ).map((row) => [row.who, row]));
 
   // per-day totals for pace: the full day, and up to this time of day

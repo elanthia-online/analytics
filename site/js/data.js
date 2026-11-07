@@ -33,6 +33,9 @@ export class LiveSource {
 
   get label() { return `analytics.lic on port ${this.port}`; }
 
+  // The last image didn't open: ask for it again next time (see Dashboard.refresh)
+  forget() { this.token = null; this.bytes = null; }
+
   // { bytes, changed, asOf, meta } or throws
   async load() {
     const meta = await getJson(`${this.base}/api/meta`);
@@ -42,7 +45,7 @@ export class LiveSource {
     }
     if (meta.token === this.token && this.bytes) return { bytes: this.bytes, changed: false, asOf: meta.now, meta };
     const response = await fetch(`${this.base}/api/db?token=${encodeURIComponent(meta.token)}`, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`analytics.lic answered ${response.status} for the database`);
+    if (!response.ok) throw await answerError(response, 'for the database');
     this.bytes = new Uint8Array(await response.arrayBuffer());
     // The image can be newer than the token that asked for it; it says which it is
     this.token = response.headers.get('X-Analytics-Token') || meta.token;
@@ -61,8 +64,19 @@ async function getJson(url) {
       'site settings, Local network access. See the guide: guide/#connect');
 
   }
-  if (!response.ok) throw new Error(`analytics.lic answered ${response.status}`);
+  if (!response.ok) throw await answerError(response);
   return response.json();
+}
+
+// What a failed answer says. analytics.lic answers 503 with the reason it
+// can't serve the database (made by another build, not created yet), which
+// tells the player what to do; a 500 is its own error, logged in the game.
+async function answerError(response, what = '') {
+  let text = '';
+  try { text = (await response.text()).trim().slice(0, 400); } catch { /* no body */ }
+  if (response.status === 503 && text) return new Error(`analytics.lic can't serve the database: ${text}`);
+  if (response.status === 500) return new Error('analytics.lic hit an error answering (500). The game window shows what it was.');
+  return new Error(`analytics.lic answered ${response.status}${what ? ` ${what}` : ''}${text ? `: ${text}` : ''}`);
 }
 
 // The folder that holds analytics.db (Lich's data directory). Re-reading it
@@ -112,11 +126,14 @@ export class FileSource {
     const list = [...files];
     this.kind = 'file';
     this.live = false;
-    this.main = list.find((f) => !f.name.endsWith('-wal')) || list[0];
+    // The main file: not the -wal beside it, nor the -shm (a shared-memory index, never a database)
+    this.main = list.find((f) => !/-(?:wal|shm)$/.test(f.name)) || list[0];
     this.wal = list.find((f) => f !== this.main && f.name.endsWith('-wal')) || null;
   }
 
   get label() { return this.main.name; }
+
+  forget() { this.bytes = null; }
 
   async load() {
     if (this.bytes) return { bytes: this.bytes, changed: false, asOf: this.asOf };
@@ -128,8 +145,8 @@ export class FileSource {
   }
 }
 
-// The site's sample database (site/demo/, a copy of the synthetic test
-// fixture), moved so its afternoon is today's. A snapshot: its clock stands
+// The site's sample database (site/demo/, built by tools/build-sample.js from
+// the synthetic test fixture plus more made-up characters), moved so its afternoon is today's. A snapshot: its clock stands
 // at the sample's moment, so the day always looks the same.
 export class DemoSource {
   constructor(SQL) {
@@ -150,7 +167,7 @@ export class DemoSource {
     // Opened only to move it, then closed: sql.js memory is not garbage collected
     const db = new this.SQL.Database(new Uint8Array(raw));
     try {
-      shiftTimes(db, delta, meta.now);
+      shiftTimes(db, delta, meta.now, meta.tz);
       this.bytes = db.export();
     } finally {
       db.close();
@@ -160,16 +177,44 @@ export class DemoSource {
   }
 }
 
+// A refresh overtaken by a newer one, or by a change of source
+function superseded() {
+  const error = new Error('superseded');
+  error.superseded = true;
+  return error;
+}
+
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 // ---- the open database and the views over it --------------------------------
 
+
+
+// analytics.lic records the zone its Lich runs in (metadata utc_offset and
+// zone, read at updated_at). Days here are this browser's, and kill_stats.date
+// is that computer's date, so a different zone moves days. The offsets are
+// compared at the moment the script read its own, so DST alone never differs.
+export function zoneWarning(conn) {
+  let row = null;
+  try { row = conn.one("SELECT value, updated_at FROM metadata WHERE key = 'utc_offset'"); } catch { return null; }
+  if (!row || row.value == null || row.updated_at == null || !/^-?\d+$/.test(String(row.value))) return null;
+  const theirs = Number(row.value), ours = -new Date(Number(row.updated_at) * 1000).getTimezoneOffset() * 60;
+  if (theirs === ours) return null;
+  const utc = (s) => `UTC${s < 0 ? '\u2212' : '+'}${Math.floor(Math.abs(s) / 3600)}${Math.abs(s) % 3600 ? ':' + String(Math.abs(s) % 3600 / 60).padStart(2, '0') : ''}`;
+  const name = conn.metadata('zone');
+  return `This database was written by a Lich running at ${utc(theirs)}${name ? ` (${name})` : ''}, and this browser is at ${utc(ours)}. ` +
+    'Days here are this browser\'s, and kills are filed under that computer\'s dates, so near midnight they can land on the next or previous day. ' +
+    'Open it in a browser set to the same zone for exact days.';
+}
+
+const LONG_RANGES = new Set(['ytd', 'total']);
 export class Dashboard {
   constructor(SQL) {
     this.SQL = SQL;
     this.source = null;
     this.db = null;
     this.version = 0;
+    this.generation = 0; // counts refreshes, so an overtaken one is ignored
     this.cache = new Map();
   }
 
@@ -187,26 +232,52 @@ export class Dashboard {
 
   // Loads the source again (cheap when nothing changed). Returns a status
   // { asOf, live, warning } for the header.
+  //
+  // A load that finishes after the source was switched, or after a newer
+  // refresh started, is thrown away (error.superseded): it must never land
+  // on the source that replaced it.
   async refresh() {
-    if (!this.source) throw new Error('No data source chosen');
-    const { bytes, changed, asOf } = await this.source.load();
+    const source = this.source;
+    if (!source) throw new Error('No data source chosen');
+    const generation = ++this.generation;
+    const stale = () => this.source !== source || generation !== this.generation;
+    let loaded;
+    try {
+      loaded = await source.load();
+    } catch (error) {
+      throw stale() ? superseded() : error;
+    }
+    if (stale()) throw superseded();
+    const { bytes, changed, asOf } = loaded;
     if (changed || !this.db) {
-      const db = new this.SQL.Database(bytes);
-      const conn = new Conn(db);
-      if (!conn.tableExists('cycles')) {
-        db.close();
-        throw new Error('That file is not an analytics.lic database (it has no cycles table).');
+      let db = null;
+      try {
+        db = new this.SQL.Database(bytes);
+        const conn = new Conn(db);
+        if (!conn.tableExists('cycles')) throw new Error('That file is not an analytics.lic database (it has no cycles table).');
+        this.close();
+        this.db = db;
+        this.conn = conn;
+        this.schema = conn.metadata('schema_version');
+        this.version++;
+      } catch (error) {
+        // Not adopted: freed now (WASM memory is never collected), and the
+        // source forgets it, so a live one asks for the image again
+        if (db && db !== this.db) db.close();
+        source.forget?.();
+        if (/not a database|file is encrypted|malformed/i.test(error.message)) {
+          throw new Error("That file isn't an analytics.lic database (it isn't an SQLite database at all).");
+        }
+        throw error;
       }
-      this.close();
-      this.db = db;
-      this.conn = conn;
-      this.schema = conn.metadata('schema_version');
-      this.version++;
     }
     this.asOf = asOf;
-    const warning = this.schema && !KNOWN_SCHEMAS.includes(String(this.schema))
-      ? `This database is schema ${this.schema}; this page was checked against ${KNOWN_SCHEMAS.join(', ')}. Some figures may be missing or wrong.`
-      : null;
+    const warning = [
+      this.schema && !KNOWN_SCHEMAS.includes(String(this.schema))
+        ? `This database is schema ${this.schema}; this page was checked against ${KNOWN_SCHEMAS.join(', ')}. Some figures may be missing or wrong.`
+        : null,
+      zoneWarning(this.conn),
+    ].filter(Boolean).join(' ') || null;
     return { asOf, live: this.source.live, warning, label: this.source.label, kind: this.source.kind };
   }
 
@@ -218,9 +289,14 @@ export class Dashboard {
 
   // Built at most once per database image and second, so the overview and
   // the character view of one refresh share their work
-  memo(key, build) {
+  // A long range (This Year, All Time) is kept for up to a minute while the
+  // image is unchanged: it reads all of history, and a refresh with nothing new
+  // would rebuild it every 5 seconds for figures that differ only by an open
+  // stretch's last seconds.
+  memo(key, build, range) {
     const now = this.now();
-    const full = `${this.version}|${now}|${key}`;
+    const when = LONG_RANGES.has(range) ? `m${Math.floor(now / 60)}` : now;
+    const full = `${this.version}|${when}|${key}`;
     if (!this.cache.has(full)) {
       if (this.cache.size > 50) this.cache.clear();
       this.cache.set(full, build(now));
@@ -245,13 +321,13 @@ export class Dashboard {
       case 'progress':
         return this.memo(`progress|${who}`, (now) => ({ progress: buildProgress(this.conn, who, { now }), daily: buildDaily(this.conn, [who], { now }) }));
       case 'income':
-        return this.memo(`income|${who}|${range}`, (now) => ({ ...buildIncome(this.conn, who, range, { now }), reconciliation: buildReconciliation(this.conn, who, range, { now }) }));
+        return this.memo(`income|${who}|${range}`, (now) => ({ ...buildIncome(this.conn, who, range, { now }), reconciliation: buildReconciliation(this.conn, who, range, { now }) }), range);
       case 'hunting': build = buildHunting; break;
       case 'bounties': build = buildBounties; break;
       case 'history': build = buildHistory; break;
       default: return null;
     }
-    return this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now }));
+    return this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now }), range);
   }
 
   // Every character in the database (not only today's), with its name
@@ -261,7 +337,7 @@ export class Dashboard {
 
   // The Compare page, for these characters
   compare(ids, range) {
-    return this.memo(`compare|${ids.join(',')}|${range}`, (now) => buildCompare(this.conn, ids, range, { now }));
+    return this.memo(`compare|${ids.join(',')}|${range}`, (now) => buildCompare(this.conn, ids, range, { now }), range);
   }
 
   // Experience by day for the last four weeks, per character

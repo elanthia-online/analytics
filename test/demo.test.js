@@ -1,5 +1,6 @@
-// The page's sample data is the synthetic fixture, unchanged, and the shift
-// that moves it to today keeps every row and moves every time by the same gap.
+// The page's sample data: the synthetic fixture plus made-up characters and
+// history (tools/build-sample.js), and the shift that moves it to today, which
+// keeps every row and moves every time by the same gap.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,13 +16,19 @@ test('site/demo/sample.db is what tools/build-sample.js makes from the fixture',
   const SQL = await initSqlJs();
   const meta = JSON.parse(read('../site/demo/sample.json'));
   const built = Buffer.from(buildSample(SQL, read('fixtures/afternoon.db'), meta.now));
-  assert.ok(built.equals(read('../site/demo/sample.db')), 'run npm run sample');
+  assert.ok(built.equals(read('../site/demo/sample.db')),
+    'the rebuilt sample differs: run this through npm test (it pins TZ=America/New_York), then npm run sample if it still differs');
 });
 
 test('the sample keeps every fixture row unchanged, and adds only for its own characters', async () => {
   const SQL = await initSqlJs();
   const fix = new SQL.Database(read('fixtures/afternoon.db')), sample = new SQL.Database(read('../site/demo/sample.db'));
   try {
+    // the same tables, indexes and columns as the fixture, and the same metadata, row for row
+    const schema = (db) => db.exec("SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name")[0].values;
+    assert.deepEqual(schema(sample), schema(fix), 'the sample has the fixture\'s schema, nothing more');
+    const meta = (db) => db.exec('SELECT * FROM metadata ORDER BY 1')[0]?.values ?? [];
+    assert.deepEqual(meta(sample), meta(fix), 'metadata unchanged');
     const tables = fix.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values.map((r) => r[0]);
     for (const t of tables) {
       const rows = (db, where = '') => (db.exec(`SELECT * FROM ${t}${where}`)[0]?.values ?? []).map((r) => JSON.stringify(r));
@@ -29,7 +36,10 @@ test('the sample keeps every fixture row unchanged, and adds only for its own ch
       const missing = rows(fix).filter((r) => !have.has(r));
       assert.equal(missing.length, 0, `${t}: ${missing.length} fixture rows changed or missing`);
       const cols = fix.exec(`PRAGMA table_info(${t})`)[0].values.map((r) => r[1]);
-      if (!cols.includes('character')) continue;
+      if (!cols.includes('character')) {
+        assert.equal(rows(sample).length, rows(fix).length, `${t}: no rows added to a table that isn't per character`);
+        continue;
+      }
       const extra = new Set(rows(fix));
       const added = (sample.exec(`SELECT character, * FROM ${t}`)[0]?.values ?? []).filter((r) => !extra.has(JSON.stringify(r.slice(1))));
       const who = [...new Set(added.map((r) => r[0]))].sort();
@@ -69,7 +79,7 @@ test('shiftTimes moves every timestamp by the gap and keeps every row', async ()
   const after = new SQL.Database(read('fixtures/afternoon.db'));
   try {
     const delta = 9 * 86400 + 3600;
-    shiftTimes(after, delta, 1793824620);
+    shiftTimes(after, delta, 1793824620, 'America/New_York');
     for (const [table, cols] of Object.entries(TIME_COLUMNS)) {
       for (const col of cols) {
         const q = `SELECT COUNT(*), MIN(${col}), MAX(${col}) FROM ${table}`;
@@ -85,5 +95,74 @@ test('shiftTimes moves every timestamp by the gap and keeps every row', async ()
   } finally {
     before.close();
     after.close();
+  }
+});
+
+test('every time column in the sample is one shiftTimes moves (#23)', async () => {
+  const SQL = await initSqlJs();
+  const db = new SQL.Database(read('../site/demo/sample.db'));
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values.map((r) => r[0]);
+    const timeLike = /(_time|_at|^timestamp$|^started_at$|_seen$|^rest_start$)/;
+    for (const t of tables) {
+      const cols = db.exec(`PRAGMA table_info(${t})`)[0].values.filter((c) => /int/i.test(c[2]) && timeLike.test(c[1])).map((c) => c[1]);
+      for (const c of cols) assert.ok(TIME_COLUMNS[t]?.includes(c), `${t}.${c} is a time that shiftTimes doesn't move`);
+    }
+  } finally {
+    db.close();
+  }
+});
+
+test('the sample shifts by whole days without its keys colliding (#23)', async () => {
+  const SQL = await initSqlJs();
+  for (const days of [1, 3, 7]) {
+    const db = new SQL.Database(read('../site/demo/sample.db'));
+    try {
+      const before = db.exec('SELECT COUNT(*), MIN(timestamp) FROM progress')[0].values[0];
+      shiftTimes(db, days * 86400, 1793824620, 'America/New_York');
+      const after = db.exec('SELECT COUNT(*), MIN(timestamp) FROM progress')[0].values[0];
+      assert.deepEqual(after, [before[0], before[1] + days * 86400], `${days} days`);
+    } finally {
+      db.close();
+    }
+  }
+});
+
+test('kill dates land on the viewer\'s day, wherever the viewer is (#22)', async () => {
+  const SQL = await initSqlJs();
+  const meta = JSON.parse(read('../site/demo/sample.json'));
+  const saved = process.env.TZ;
+  try {
+    for (const zone of ['Asia/Tokyo', 'Pacific/Auckland', 'America/Los_Angeles', 'Europe/London']) {
+      process.env.TZ = zone; // Node re-reads the zone when TZ changes
+      const db = new SQL.Database(read('../site/demo/sample.db'));
+      try {
+        const now = Date.UTC(2027, 0, 20, 3, 0, 0) / 1000;
+        shiftTimes(db, sameTimeToday(meta.now, meta.tz, now), meta.now, meta.tz);
+        // The newest kills: their date is the day of their last kill, here
+        const [date, last] = db.exec('SELECT date, MAX(last_kill_at) FROM kill_stats GROUP BY date ORDER BY date DESC LIMIT 1')[0].values[0];
+        const here = new Date(last * 1000);
+        const local = `${here.getFullYear()}-${String(here.getMonth() + 1).padStart(2, '0')}-${String(here.getDate()).padStart(2, '0')}`;
+        assert.equal(date, local, zone);
+      } finally {
+        db.close();
+      }
+    }
+  } finally {
+    process.env.TZ = saved;
+  }
+});
+
+test('the shifted sample reads as written in this zone, so it never warns about one', async () => {
+  const SQL = await initSqlJs();
+  const golden = JSON.parse(read('fixtures/afternoon.json'));
+  const db = new SQL.Database(read('../site/demo/sample.db'));
+  try {
+    db.run("UPDATE metadata SET value = '32400' WHERE key = 'utc_offset'"); // as if made in Tokyo
+    shiftTimes(db, 5 * 86400 + 1234, golden.now, golden.tz);
+    const [offset, at] = db.exec("SELECT value, updated_at FROM metadata WHERE key = 'utc_offset'")[0].values[0];
+    assert.equal(Number(offset), -new Date(at * 1000).getTimezoneOffset() * 60);
+  } finally {
+    db.close();
   }
 });

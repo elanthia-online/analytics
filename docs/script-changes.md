@@ -299,3 +299,42 @@ For the character detail pages; analytics.lic as of elanthia-online/scripts@7bfc
 - `SCHEMA_VERSION` 8; `KNOWN_SCHEMAS` is `['8']`. A schema 7 file is refused (no migrations
   before release).
 
+
+## Schema 9 (2026-11-06)
+
+From MahtraDR's reviews of elanthia-online/scripts#2556 and of this repo (analytics.lic as
+of elanthia-online/scripts@1a03e72e, da37cb4b for the sting row and 8798c180 for the zone). Still before the first
+release, so the schema changed rather than gaining a migration.
+
+- `progress` is a `WITHOUT ROWID` table: its primary key `(game, character, timestamp)` is
+  the row, with no separate rowid and index to store.
+- `progress` readings are honest about their age. Fame, deeds, long-term exp and Death's
+  Sting come only from `EXPERIENCE` output, so a row carries them only when a reading
+  arrived since the row before (`Experience.updated_at`), and NULL otherwise. The reading
+  present when the script starts (infomon keeps it across logins) doesn't count as new.
+  Training points are written once, on the row after the `PTPs/MTPs` line, then cleared.
+  When the game says "You feel the sting of a recent death slowly fade away." a row with
+  `deaths_sting = 'None'` (and no other reading) is written at that moment. Experience moving
+  alone waits for the hourly heartbeat.
+- Fame on a cycle (`fame_start`/`fame_end`) is taken only from a reading less than two
+  minutes old at that moment.
+- A hunt that goes idle without a rest is recorded as `rest_reason = 'hunt stopped'` (was
+  `'unhandled exit'`, which the page counted as a crash). Stopping the hunting script by hand
+  is the usual cause.
+- A sale made during a shop visit records the shop's room tag (`gemshop`, `furrier`,
+  `pawnshop`, ...) as `vendor_type` and the speaker as `vendor_name`, instead of the first
+  word of the sale line. Visits record the town as the location of the nearest room the map
+  tags `town`.
+- New spending: warehouse storage fees paid from hand (`vendor_type = 'warehouse'`). A
+  locksmith quote counts only when it's told to you, and coins a fossil charm returns only
+  when they're returned to you: another player's in the same room were counted before.
+- `metadata` records the zone Lich runs in: `utc_offset` (seconds) and `zone`, with
+  `updated_at` the moment they were read, written on every start in the same transaction as
+  the schema version (elanthia-online/scripts@8798c180). `kill_stats.date` and the reports'
+  days are that computer's dates; the page warns when its own offset at that moment differs.
+- `SCHEMA_VERSION` 9; `KNOWN_SCHEMAS` is `['9']`. A schema 8 file is refused. The fixtures
+  were converted by `tools/fixtures-schema9.js`.
+
+The page: the Progress page shows the latest of each reading wherever it is, and when it was
+read; Death's Sting stretches run from the death (the end of the `dead` cycle) to the next
+None; a hunt ended "hunt stopped" is shown as is, not as a crash.

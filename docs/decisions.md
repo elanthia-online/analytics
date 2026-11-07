@@ -310,3 +310,46 @@ sources it's the browser clock.
 
 **Why.** Every figure is relative to now. Showing last week's backup against today's clock
 would show everyone offline and today empty, which looks like a bug.
+
+## 2026-11-06: Long ranges are rebuilt at most once a minute on an unchanged image
+
+**Decision.** The This Year and All Time pages, and Compare on those ranges, are cached on
+the database image and the minute (`LONG_RANGES` in `data.js`). Shorter ranges are still
+rebuilt every second.
+
+**Why.** On a live source the page refreshes every 5 seconds, and those ranges read all of
+history: tens of milliseconds a refresh at twelve times the sample's size, and more for a
+player with years of data. With nothing new written, the only thing that changes is how
+long an open stretch has run, which those pages show to the minute anyway. A new write
+changes the image and rebuilds them at once.
+
+## 2026-11-06: A file source is read in the browser's zone, and says when that's wrong
+
+**Decision.** Figures stay in the browser's zone. Schema 9 records the zone Lich ran in
+(`metadata` `utc_offset` and `zone`, rewritten on every start), and the page warns when its
+own offset at that moment differs (`zoneWarning` in `data.js`). It doesn't convert: the
+warning says days can be a day off near midnight, and to open the file in a browser set to
+the same zone.
+
+**Why.** The live source can only be the same computer, so its zone always matches. A file
+copied from another machine, or written by a Lich in WSL or a container on UTC, files kills
+under that computer's dates while every timestamp is placed here. Converting would mean
+reading every figure in another zone, which sql.js's `'localtime'` can't do. Recording the
+zone cost one metadata row before the first release, and later it would have been a schema
+change. Raised in #37. Comparing the offsets at the moment the script read its own means a
+DST change since then is never taken for a different zone. The demo sample is moved into
+the reader's zone, so its offset is rewritten to the reader's.
+
+## 2026-11-06: Schema 9, before the first release
+
+**Decision.** The script went to schema 9 for MahtraDR's review instead of adding the fixes
+to schema 8: `progress` became `WITHOUT ROWID`, its EXPERIENCE readings are NULL unless
+fresh, and a hunt stopped by hand is "hunt stopped", not a crash. The page admits only 9.
+The Progress page takes the latest non-NULL value of each reading and says when it was
+read. A Death's Sting stretch runs from the end of the `dead` cycle to the next None
+reading; its level is the last reading between, or "not read".
+
+**Why.** Nothing is released yet, so a schema change costs a fresh database and nothing
+more, and the script has no migrations by design. Leaving old readings stamped on every row
+made "fame now" and the sting's end look known when they weren't. A death is the real start
+of a sting; the first reading that shows it can come hours later.

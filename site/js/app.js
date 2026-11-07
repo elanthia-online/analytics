@@ -33,7 +33,10 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ap
 // #GS4%3ASplinter (its summary) or #GS4%3ASplinter/income
 // #compare is the Compare page
 function readHash() {
-  var text = decodeURIComponent(location.hash.slice(1)), at = text.lastIndexOf('/');
+  // A cut-off link ("#GS4%3") is read as no page at all, not an error that stops the page
+  var text = location.hash.slice(1);
+  try { text = decodeURIComponent(text); } catch (e) { text = ''; }
+  var at = text.lastIndexOf('/');
   if (text === 'compare') return ['', 'summary', 'compare'];
   var sec = at > 0 ? text.slice(at + 1) : '';
   if (SECTIONS.indexOf(sec) < 0) sec = 'summary'; else text = text.slice(0, at);
@@ -65,6 +68,7 @@ function setHidden(list) {
   hidden = list;
   try { if (hidden.length) localStorage.setItem('gs4a-hidden', JSON.stringify(hidden)); else localStorage.removeItem('gs4a-hidden'); } catch (e) {}
   renderOverview(); renderNav();
+  if (page === 'compare') renderCompare();
 }
 var hiddenOpen = false;
 var histFilter = { type: 'all', q: '' };
@@ -95,11 +99,27 @@ function skeleton(kind) {
     '<div class="skel-row">' + b('s-card') + b('s-card') + b('s-card') + '</div></div>';
 }
 // Writes a view, putting focus (and the caret in a text field) back where it was
+// A control is found again by its id, or else by what it points at (its
+// data attributes and link), and which of the matching ones it was
+var FOCUS_ATTRS = ['data-who', 'data-sec', 'data-pin', 'data-hide', 'data-unhide', 'data-unhide-all', 'data-r', 'data-sort', 'data-col', 'data-k', 'href'];
+function focusPlace(el, a) {
+  if (!a || a === document.body || !el.contains(a)) return null;
+  if (a.id) return { id: a.id };
+  var sel = a.tagName.toLowerCase() + FOCUS_ATTRS.filter(function (n) { return a.hasAttribute(n); })
+    .map(function (n) { return '[' + n + '="' + CSS.escape(a.getAttribute(n)) + '"]'; }).join('');
+  return { sel: sel, index: Array.prototype.indexOf.call(el.querySelectorAll(sel), a) };
+}
 function write(el, html) {
-  var a = document.activeElement, id = a && el.contains(a) ? a.id : '';
-  var caret = id && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
+  var a = document.activeElement, place = focusPlace(el, a);
+  var caret = place && place.id && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
   var changed = setHtml(el, html);
-  if (changed && id && $(id)) { $(id).focus({ preventScroll: true }); if (caret) try { $(id).setSelectionRange(caret[0], caret[1]); } catch (e) {} }
+  if (changed && place) {
+    var back = place.id ? $(place.id) : el.querySelectorAll(place.sel)[Math.max(0, place.index)];
+    if (back) {
+      back.focus({ preventScroll: true });
+      if (caret) try { back.setSelectionRange(caret[0], caret[1]); } catch (e) {}
+    }
+  }
   return changed;
 }
 function renderOverview() {
@@ -231,7 +251,8 @@ function renderCompare() {
   var names = dash.characterNames();
   var ids = Object.keys(names).filter(function (id) { return hidden.indexOf(id) < 0; });
   var entry = function (id) { return ov.characters.find(function (c) { return c.id === id; }); };
-  if (write($('compare'), comparePageHtml(dash.compare(ids, range), range, names, entry, Object.keys(names).length - ids.length))) tick();
+  var hid = Object.keys(names).filter(function (id) { return hidden.indexOf(id) >= 0; });
+  if (write($('compare'), comparePageHtml(dash.compare(ids, range), range, names, entry, hid))) tick();
   enter($('compare'), 'compare');
 }
 
@@ -357,19 +378,23 @@ function loadOverview() {
     clockState.frozen = feed.live ? null : ov.generated_at;
     renderNav(); if (page) renderCompare(); else if (!who) renderOverview(); show(); tick(); showWarning(st.warning);
   }).catch(function (e) {
+    if (e && e.superseded) return; // overtaken by a newer refresh or another source: nothing to show
     failed++; errorText = e && e.message ? e.message : String(e); tick();
     if (!ov) showSource(errorText);
   });
 }
 function loadDetail() {
   if (!who || !dash || !dash.conn || !ov) return;
-  var d = null;
-  try { d = dash.character(who, summaryRange()); } catch (e) { d = null; }
+  var d = null, failed = false;
+  try { d = dash.character(who, summaryRange()); } catch (e) { d = null; failed = true; }
   if (d) {
     det = d;
     try { sdata = section !== 'summary' ? dash.details(who, section, range) : null; } catch (e) { sdata = null; }
     renderDetail(); tick(); setTitle(); return;
   }
+  // Not in this image at all (another source, or a database without it): the
+  // last image's figures would be wrong, so they go. A failed build keeps them.
+  if (!failed) { det = null; sdata = null; }
   if (!det) {
     setHtml($('detail'), '<div class="card empty big">' + icon('pulse', 'empty-ic') + '<h3>No data for ' + esc(shownId(who)) + '</h3>' +
       '<p class="muted">This database has nothing recorded for that character.</p><button class="btn" id="back" type="button">' + icon('back') + 'Back to everyone</button></div>');
@@ -393,6 +418,7 @@ function connect(source) {
   $('overview').hidden = false;
   setHtml($('overview'), skeleton('overview'));
   return loadOverview().then(function () {
+    if (dash.source !== source) return; // the reader picked another source meanwhile
     if (!ov) { setHtml($('overview'), ''); show(); return; }
     rememberSource(source); show(); loadDetail(); setTitle();
     announce(source.kind === 'demo' ? 'Showing sample data' : 'Connected to ' + source.label);
