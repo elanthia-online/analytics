@@ -8,7 +8,7 @@ import initSqlJs from 'sql.js';
 import { Conn } from '../site/js/db.js';
 import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress } from '../site/js/aggregate/index.js';
 import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
-import { rangeFromArg } from '../site/js/aggregate/report.js';
+import { rangeFromArg, offerLabel } from '../site/js/aggregate/report.js';
 import { windowDay, clockSeconds, dayOf, addDays, dayStr, midnight, dateOf } from '../site/js/aggregate/time.js';
 
 const SQL = await initSqlJs();
@@ -174,7 +174,7 @@ test('longer ranges: this year and all time hold at least the month', () => {
 test('bank reconciliation: every listing that found the total off, and by how much', () => {
   const r = buildReconciliation(conn, ID, 'total', { now });
   const t = one("SELECT COUNT(*) AS n, SUM(delta_silver) AS s, SUM(ABS(delta_silver)) AS a FROM bank_snapshots WHERE game = ? AND character = ? AND bank_name = '__total__' " +
-    "AND snapshot_type NOT IN ('deposit', 'withdraw') AND delta_silver IS NOT NULL AND delta_silver <> 0 AND timestamp <= ?", ...W, now);
+    "AND snapshot_type NOT IN ('deposit', 'withdraw', 'unstated') AND delta_silver IS NOT NULL AND delta_silver <> 0 AND timestamp <= ?", ...W, now);
   assert.deepEqual([r.checks.length, r.off, r.apart], [t.n, t.s ?? 0, t.a ?? 0]);
   assert.ok(r.checks.length > 0, 'the fixture has listings that were off');
   assert.ok(r.checks.every((c, i, all) => i === 0 || all[i - 1].at >= c.at), 'newest first');
@@ -199,10 +199,10 @@ test('compare: each character\'s own figures, side by side, every field', () => 
   assert.equal(buildCompare(conn, ids, 'ytd', { now }).label, 'This Year', 'never "YTD"');
 });
 
-test('bank checks: only listings, never the deposits and withdrawals, of the types the script writes', () => {
+test('bank checks: only listings, never the teller lines (deposits, withdrawals, unstated moves), of the types the script writes', () => {
   const d = new SQL.Database();
   d.run('CREATE TABLE bank_snapshots (game TEXT, character TEXT, timestamp INTEGER, bank_name TEXT, balance INTEGER, delta_silver INTEGER, snapshot_type TEXT, cycle_id TEXT)');
-  const rows = [['bank_account', 50], ['baseline', -20], ['rest_cycle', 7], ['deposit', 1000], ['withdraw', -400], ['bank_account', 0]];
+  const rows = [['bank_account', 50], ['baseline', -20], ['rest_cycle', 7], ['deposit', 1000], ['withdraw', -400], ['unstated', -3807], ['bank_account', 0]];
   rows.forEach(([type, delta], i) => d.run("INSERT INTO bank_snapshots VALUES ('GS3', 'Splinter', ?, '__total__', 5000, ?, ?, NULL)", [now - 3600 + i, delta, type]));
   try {
     const r = buildReconciliation(new Conn(d), ID, 'daily', { now });
@@ -378,4 +378,14 @@ test('alerts: without settings the Ruby shape; with them each has a kind, can be
   assert.ok(!buildOverview(conn, { now, alerts: { idle_minutes: mins + 1 } }).alerts.some((a) => a.kind === 'idle' && a.id === idle.id));
   // only known keys of the right type are taken
   assert.deepEqual(alertSettings({ idle: 'no', idle_minutes: -3, bogus: true, mind_pct: 80 }), { ...ALERT_DEFAULTS, mind_pct: 80 });
+});
+
+test('offer labels: the taskmaster\'s words until the guard names the target, and an escort always by its destination', () => {
+  const label = (row) => offerLabel({ assignment: null, bounty_type: null, creature: null, area: null, town: null, description: null, ...row });
+  assert.equal(label({ assignment: 'bandit_assignment', bounty_type: 'bandit', town: 'Vornavis' }), 'bandit task from Vornavis');
+  assert.equal(label({ assignment: 'bandit_assignment', bounty_type: 'bandit', area: 'Darkstone' }), 'bandit: Darkstone');
+  assert.equal(label({ assignment: 'creature_assignment', bounty_type: 'cull', creature: 'kobold', area: 'Icemule' }), 'cull: kobold');
+  assert.equal(label({ assignment: 'escort', bounty_type: 'escort', area: 'Zul Logoth' }), 'escort to Zul Logoth');
+  assert.equal(label({ assignment: 'gem_assignment', bounty_type: 'gem', creature: 'blue sapphire', area: 'Solhaven' }), 'gem: blue sapphire (Solhaven)');
+  assert.equal(label({ assignment: 'unknown', description: 'Something new.' }), 'Something new.');
 });
