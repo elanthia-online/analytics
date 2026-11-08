@@ -392,7 +392,7 @@ export function buildReconciliation(conn, id, range, { now }) {
   const { label, from } = window(range, now);
   if (!hasColumn(conn, 'bank_snapshots', 'snapshot_type')) return { label, from, listings: 0, checks: [], off: 0 };
   const rows = conn.all("SELECT timestamp, balance, delta_silver, snapshot_type FROM bank_snapshots WHERE game = ? AND character = ? " +
-    "AND bank_name = '__total__' AND snapshot_type NOT IN ('deposit', 'withdraw') AND timestamp >= ? AND timestamp <= ? " +
+    "AND bank_name = '__total__' AND snapshot_type NOT IN ('deposit', 'withdraw', 'unstated') AND timestamp >= ? AND timestamp <= ? " +
     'ORDER BY timestamp DESC', ...who, from, now);
   const checks = rows.filter((r) => r.delta_silver != null && toI(r.delta_silver) !== 0)
     .map((r) => ({ at: toI(r.timestamp), balance: toI(r.balance), off: toI(r.delta_silver), type: r.snapshot_type }));

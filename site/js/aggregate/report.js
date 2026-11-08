@@ -21,11 +21,14 @@ export function bountyTarget(type, creature, area) {
 
 // Util.offer_label
 export function offerLabel(row) {
-  const type = String(row.bounty_type ?? '');
-  if (type !== '') return `${type}: ${bountyTarget(type, row.creature, row.area)}`.replace(/: $/, '');
-
   const assignment = String(row.assignment ?? '');
   if (assignment === 'escort') return `escort to ${row.area ?? ''}`.replace(/ to $/, '');
+
+  // Until the guard names the target, the taskmaster's words say more
+  const type = String(row.bounty_type ?? '');
+  const target = bountyTarget(type, row.creature, row.area);
+  if (type !== '' && target !== '') return `${type}: ${target}`;
+
   if (assignment.endsWith('_assignment')) {
     return `${assignment.slice(0, -'_assignment'.length)} task from ${row.town ?? ''}`.replace(/ from $/, '');
   }
