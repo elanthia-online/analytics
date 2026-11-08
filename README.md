@@ -77,8 +77,8 @@ fixture): seven made-up characters, served live by the mock API. Click one for t
   </tr>
   <tr>
     <td colspan="2" valign="top">
-      <a href="docs/images/settings.png"><img src="docs/images/settings-preview.png" width="100%" alt="The Settings page: whether the cards show totals or per hour, the figure beside each character in the menu, and which alerts show, grouped and explained, with their thresholds"></a>
-      <br><b>Settings</b>: totals or per hour on the cards, the menu's figure, and which alerts show and when. Kept in your browser.
+      <a href="docs/images/settings.png"><img src="docs/images/settings-preview.png" width="100%" alt="The Settings page: whether the cards show totals or per hour, the figure beside each character in the menu, how each date range is counted, and which alerts show, grouped and explained, with their thresholds"></a>
+      <br><b>Settings</b>: totals or per hour on the cards, the menu's figure, whether each date range resets at midnight or rolls, and which alerts show and when. Kept in your browser.
     </td>
   </tr>
   <tr>

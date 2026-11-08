@@ -347,10 +347,26 @@ try {
   await pg.reload();
   await pg.waitForSelector('#overview:not([hidden]) .ch-card');
   check(/Silver \/ hr/.test(await pg.$eval('.ch-card .kpis', (k) => k.textContent)), 'settings: the display choice is remembered after a reload');
+  // Date ranges: the tabs are named and counted as chosen; the week's first day only matters for a calendar week
+  await pg.click('#navSettings');
+  await onAlertsPage();
+  check(await pg.$eval('#settingsPage input[data-display="weekStart"]', (i) => i.closest('fieldset').disabled), 'settings: the week\'s first day waits for a week counted since it began');
+  await pg.check('#settingsPage input[data-display="day"][value="rolling"]');
+  await pg.check('#settingsPage input[data-display="week"][value="calendar"]');
+  await pg.waitForFunction(() => !document.querySelector('#settingsPage input[data-display="weekStart"]').closest('fieldset').disabled);
+  await pg.check('#settingsPage input[data-display="weekStart"][value="sunday"]');
+  await pg.waitForFunction(() => JSON.parse(localStorage.getItem('gs4a-display') || '{}').weekStart === 'sunday');
+  await pg.click('#navChars a');
+  await pg.waitForSelector('#detail:not([hidden]) #tabs button[data-r="daily"]');
+  const tabNames = await pg.$$eval('#tabs button', (b) => b.map((x) => x.textContent));
+  check(tabNames.includes('Last 24 Hours') && tabNames.includes('Since Sunday'), 'settings: date ranges rename and recount the range tabs');
   await pg.click('#navSettings');
   await onAlertsPage();
   await pg.check('#settingsPage input[data-display="card"][value="total"]');
   await pg.check('#settingsPage input[data-display="nav"][value="silver"]');
+  await pg.check('#settingsPage input[data-display="day"][value="midnight"]');
+  await pg.check('#settingsPage input[data-display="weekStart"][value="monday"]');
+  await pg.check('#settingsPage input[data-display="week"][value="days"]');
   await pg.waitForFunction(() => localStorage.getItem('gs4a-display') === null);
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}#settings`);
   await onAlertsPage();

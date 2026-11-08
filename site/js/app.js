@@ -4,10 +4,10 @@
 // See docs/architecture.md.
 import { Dashboard, LiveSource, FolderSource, FileSource, DemoSource, rememberSource, rememberedSource, savedFolder } from './data.js';
 import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml, plural } from './ui/util.js';
-import { overviewHtml, detailHtml, navHtml, comparePageHtml, settingsPageHtml, DISPLAY_DEFAULTS, NAV_FIGURES } from './ui/views.js';
+import { overviewHtml, detailHtml, navHtml, comparePageHtml, settingsPageHtml, DISPLAY_DEFAULTS, NAV_FIGURES, setRangeNames } from './ui/views.js';
 import { sortState } from './ui/parts.js';
 import { SECTION_NAMES, historyRows } from './ui/sections.js';
-import { SECTIONS, RANGES, DETAIL_RANGES } from './aggregate/index.js';
+import { SECTIONS, RANGES, DETAIL_RANGES, RANGE_CHOICES, rangeRules, rangeLabels } from './aggregate/index.js';
 import { ALERT_DEFAULTS, alertSettings } from './aggregate/overview.js';
 import { icon } from './ui/icons.js';
 import { nowMarkers, openTables } from './ui/charts.js';
@@ -72,6 +72,7 @@ function todaysDismissed() {
   return dismissed.keys.filter(function (k) { return typeof k === 'string'; });
 }
 function pushAlertPrefs() {
+  if (dash) dash.setRanges(rangeRules(display));
   if (dash) dash.setAlerts({ alerts: alertPrefs, dismissed: todaysDismissed().map(function (k) { var i = k.lastIndexOf('|'); return k.slice(0, i) + '\u0000' + k.slice(i + 1); }) });
 }
 function saveAlerts() {
@@ -82,16 +83,22 @@ function saveAlerts() {
   pushAlertPrefs();
   if (dash && dash.conn) { ov = dash.overview(); renderNav(); if (page === 'settings') renderSettings(); else if (!who && !page) renderOverview(); else if (who) loadDetail(); }
 }
-// What the cards and the menu show (gs4a-display: { card, nav }), in this browser
+// What the cards and the menu show, and how each range is counted
+// (gs4a-display: { card, nav, day, week, weekStart, month, year }), in this browser
 var display = Object.assign({}, DISPLAY_DEFAULTS);
 try { Object.assign(display, JSON.parse(localStorage.getItem('gs4a-display') || '{}') || {}); } catch (e) { /* the defaults */ }
 if (['total', 'hour'].indexOf(display.card) < 0) display.card = DISPLAY_DEFAULTS.card;
 if (!Object.hasOwn(NAV_FIGURES, display.nav)) display.nav = DISPLAY_DEFAULTS.nav;
+Object.keys(RANGE_CHOICES).forEach(function (k) { if (RANGE_CHOICES[k].indexOf(display[k]) < 0) display[k] = DISPLAY_DEFAULTS[k]; });
+setRangeNames(rangeLabels(display));
 function saveDisplay() {
   try {
-    if (display.card === DISPLAY_DEFAULTS.card && display.nav === DISPLAY_DEFAULTS.nav) localStorage.removeItem('gs4a-display');
+    var same = Object.keys(DISPLAY_DEFAULTS).every(function (k) { return display[k] === DISPLAY_DEFAULTS[k]; });
+    if (same) localStorage.removeItem('gs4a-display');
     else localStorage.setItem('gs4a-display', JSON.stringify(display));
   } catch (e) {}
+  setRangeNames(rangeLabels(display));
+  pushAlertPrefs();
   renderNav(); if (page === 'settings') renderSettings(); else if (!who && !page) renderOverview();
 }
 var pins = [];
@@ -211,7 +218,7 @@ window.addEventListener('resize', function () {
 function viewTitle() {
   var label = sdata && sdata.label ? sdata.label : det ? det.label : '';
   if (page === 'settings') return 'Settings';
-  if (page) return 'Compare characters ' + DOT + ' ' + (DETAIL_RANGES[range] || '');
+  if (page) return 'Compare characters ' + DOT + ' ' + (rangeLabels(display)[range] || '');
   return who ? shown(det ? det.name : shownId(who)) + (section !== 'summary' ? ' ' + DOT + ' ' + SECTION_NAMES[section] : '') + (label && section !== 'progress' ? ' ' + DOT + ' ' + label : '')
     : 'Everyone ' + DOT + ' Today';
 }

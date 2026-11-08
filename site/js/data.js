@@ -306,6 +306,13 @@ export class Dashboard {
 
   // The reader's alert settings and today's dismissals (app.js keeps them in
   // the browser); the overview and character views are built with them
+  // How the reader counts each range (Settings > Date ranges); every ranged
+  // view is built with them
+  setRanges(rules) {
+    this.ranges = rules;
+    this.rangeKey = JSON.stringify(rules || {});
+  }
+
   setAlerts(prefs) {
     this.alertPrefs = { alerts: prefs.alerts || {}, dismissed: [...(prefs.dismissed || [])].sort() };
     this.alertKey = JSON.stringify(this.alertPrefs);
@@ -320,8 +327,8 @@ export class Dashboard {
     const prefs = this.alertPrefs || { alerts: {}, dismissed: [] };
     // The range figures (per hour and the rest) are taken to the minute, like the
     // overview's: a refresh with nothing new leaves the page alone until it turns
-    return this.memo(`char|${who}|${range}|${this.alertKey || ''}`,
-      (now) => buildCharacter(this.conn, this.overview(), who, range, { now: Math.floor(now / 60) * 60, ...prefs }));
+    return this.memo(`char|${who}|${range}|${this.alertKey || ''}|${this.rangeKey || ''}`,
+      (now) => buildCharacter(this.conn, this.overview(), who, range, { now: Math.floor(now / 60) * 60, ...prefs, ranges: this.ranges }));
   }
 
   // One of a character's detail pages (aggregate/details.js). The section
@@ -333,13 +340,14 @@ export class Dashboard {
       case 'progress':
         return this.memo(`progress|${who}`, (now) => ({ progress: buildProgress(this.conn, who, { now }), daily: buildDaily(this.conn, [who], { now }) }));
       case 'income':
-        return this.memo(`income|${who}|${range}`, (now) => ({ ...buildIncome(this.conn, who, range, { now }), reconciliation: buildReconciliation(this.conn, who, range, { now }) }), range);
+        return this.memo(`income|${who}|${range}|${this.rangeKey || ''}`, (now) => ({ ...buildIncome(this.conn, who, range, { now, ranges: this.ranges }),
+          reconciliation: buildReconciliation(this.conn, who, range, { now, ranges: this.ranges }) }), range);
       case 'hunting': build = buildHunting; break;
       case 'bounties': build = buildBounties; break;
       case 'history': build = buildHistory; break;
       default: return null;
     }
-    return this.memo(`${section}|${who}|${range}`, (now) => build(this.conn, who, range, { now }), range);
+    return this.memo(`${section}|${who}|${range}|${this.rangeKey || ''}`, (now) => build(this.conn, who, range, { now, ranges: this.ranges }), range);
   }
 
   // Every character in the database (not only today's), with its name
@@ -349,7 +357,7 @@ export class Dashboard {
 
   // The Compare page, for these characters
   compare(ids, range) {
-    return this.memo(`compare|${ids.join(',')}|${range}`, (now) => buildCompare(this.conn, ids, range, { now }), range);
+    return this.memo(`compare|${ids.join(',')}|${range}|${this.rangeKey || ''}`, (now) => buildCompare(this.conn, ids, range, { now, ranges: this.ranges }), range);
   }
 
   // Experience by day for the last four weeks, per character
