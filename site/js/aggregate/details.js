@@ -42,8 +42,8 @@ function hasColumn(conn, table, column) {
 }
 const hasTable = (conn, table) => hasColumn(conn, table, 'game');
 
-function window(range, now) {
-  const [label, from] = rangeFromArg(range, now) || rangeFromArg('daily', now);
+function window(range, now, ranges) {
+  const [label, from] = rangeFromArg(range, now, ranges) || rangeFromArg('daily', now, ranges);
   return { label, from };
 }
 
@@ -64,9 +64,9 @@ const SOURCES = [
   ['bounties', 'Bounty rewards', (r) => r.source_category === 'bounty'],
 ];
 
-export function buildIncome(conn, id, range, { now }) {
+export function buildIncome(conn, id, range, { now, ranges }) {
   const who = parseWho(id);
-  const { label, from } = window(range, now);
+  const { label, from } = window(range, now, ranges);
   const out = { label, from, sources: [], expenses: [], items: [], shops: [], towns: [], total_in: 0, total_out: 0, net: 0 };
   const creature = hasTable(conn, 'kill_stats')
     ? toI(conn.one('SELECT SUM(total_silver) AS s FROM kill_stats WHERE game = ? AND character = ? AND date >= ? AND date <= ?',
@@ -129,9 +129,9 @@ export function buildIncome(conn, id, range, { now }) {
 
 // ---- hunting ------------------------------------------------------------------
 
-export function buildHunting(conn, id, range, { now }) {
+export function buildHunting(conn, id, range, { now, ranges }) {
   const who = parseWho(id);
-  const { label, from } = window(range, now);
+  const { label, from } = window(range, now, ranges);
   if (!hasTable(conn, 'kill_stats')) return { label, from, creatures: [], kills: 0, boxes: 0, silver: 0 };
   const boxes = hasColumn(conn, 'kill_stats', 'boxes') ? 'SUM(boxes)' : '0';
   const creature = hasColumn(conn, 'kill_stats', 'creature') ? 'creature' : "'creatures'";
@@ -150,9 +150,9 @@ export function buildHunting(conn, id, range, { now }) {
 
 // ---- bounties -----------------------------------------------------------------
 
-export function buildBounties(conn, id, range, { now }) {
+export function buildBounties(conn, id, range, { now, ranges }) {
   const who = parseWho(id);
-  const { label, from } = window(range, now);
+  const { label, from } = window(range, now, ranges);
   const bp = hasColumn(conn, 'bounties', 'bp_reward') ? 'bp_reward' : 'NULL';
   const rows = conn.all(`SELECT bounty_type, status, received_time, completed_time, silver_reward, exp_reward, ${bp} AS bp ` +
     'FROM bounties WHERE game = ? AND character = ? AND received_time >= ? AND received_time <= ?', ...who, from, now);
@@ -195,9 +195,9 @@ export function buildBounties(conn, id, range, { now }) {
 
 // ---- history ------------------------------------------------------------------
 
-export function buildHistory(conn, id, range, { now, limit = 400 }) {
+export function buildHistory(conn, id, range, { now, ranges, limit = 400 }) {
   const who = parseWho(id);
-  const { label, from } = window(range, now);
+  const { label, from } = window(range, now, ranges);
   const rows = conn.all('SELECT cycle_id, cycle_type, start_time, end_time, duration_seconds, rest_reason, profile, ' +
     'exp_total_start, exp_total_end, fame_start, fame_end FROM cycles WHERE game = ? AND character = ? ' +
     'AND start_time >= ? AND start_time <= ? ORDER BY start_time DESC LIMIT ?', ...who, from, now, limit);
@@ -387,9 +387,9 @@ export const DETAIL_RANGES = { daily: 'Today', weekly: 'This Week', monthly: 'Th
 // through deposits and withdrawals (delta_silver). Nonzero means the banks
 // moved without a teller line being read: silver per hour counts it as
 // income or spending like any other change, so it is shown, not hidden.
-export function buildReconciliation(conn, id, range, { now }) {
+export function buildReconciliation(conn, id, range, { now, ranges }) {
   const who = parseWho(id);
-  const { label, from } = window(range, now);
+  const { label, from } = window(range, now, ranges);
   if (!hasColumn(conn, 'bank_snapshots', 'snapshot_type')) return { label, from, listings: 0, checks: [], off: 0 };
   const rows = conn.all("SELECT timestamp, balance, delta_silver, snapshot_type FROM bank_snapshots WHERE game = ? AND character = ? " +
     "AND bank_name = '__total__' AND snapshot_type NOT IN ('deposit', 'withdraw', 'unstated') AND timestamp >= ? AND timestamp <= ? " +
@@ -404,13 +404,13 @@ export function buildReconciliation(conn, id, range, { now }) {
 
 // The per-character figures of Income, Hunting and Bounties, side by side.
 // Each list is flat (one row per character and thing) so tables can sort it.
-export function buildCompare(conn, ids, range, { now }) {
-  const { label, from } = window(range, now);
+export function buildCompare(conn, ids, range, { now, ranges }) {
+  const { label, from } = window(range, now, ranges);
   const out = { label, from, characters: ids.length, shops: [], towns: [], creatures: [], bounties: [], income: [] };
   for (const id of ids) {
-    const inc = buildIncome(conn, id, range, { now });
-    const hunt = buildHunting(conn, id, range, { now });
-    const b = buildBounties(conn, id, range, { now });
+    const inc = buildIncome(conn, id, range, { now, ranges });
+    const hunt = buildHunting(conn, id, range, { now, ranges });
+    const b = buildBounties(conn, id, range, { now, ranges });
     if (inc.total_in || inc.total_out) {
       out.income.push({ id, total_in: inc.total_in, total_out: inc.total_out, net: inc.net,
         top: inc.sources.slice().sort((x, y) => y.amount - x.amount)[0]?.label || null });

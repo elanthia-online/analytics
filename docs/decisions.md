@@ -2,6 +2,25 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-08: The range tabs are counted as the reader chooses
+
+**Decision.** Settings has a *Date ranges* card: today since midnight or the last 24 hours;
+the week and month as whole days (the default), rolling 7 or 30 x 24 hours, or since they
+began (the week on Monday or Sunday); the year since January 1 or the last 365 days. The
+choice is kept with Display in `gs4a-display` and reaches the aggregation as data
+(`{ now, ranges }`, `report.js` `windows(now, rules)`); the tabs are named for it. The
+overview, its alerts and the menu always count today from midnight.
+
+**Why.** Players asked whether the ranges roll or reset, and wanted both. With no rules
+passed, `windows` is the text reports' `Report.windows` exactly, so parity holds. The
+overview stays on the calendar day because its pace and alerts compare today with typical
+days up to the same time of day, which a rolling 24 hours can't. Kills are stored per day,
+so a range starting mid-day counts its first day by the nearest midnight (`windowDay`).
+
+**Rejected.** Making the overview's today follow the choice (its pace and alerts would need
+a typical "last 24 hours" to compare with), and the same choice in the script's text reports
+(a reader's browser setting can't reach the script; it can be a script setting later).
+
 ## 2026-11-06: More sample characters, built on top of the fixture
 
 **Decision.** The sample data is no longer a byte copy of the parity fixture.

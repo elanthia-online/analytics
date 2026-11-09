@@ -55,20 +55,58 @@ export function labels(conn) {
   return new Map(sortBy([...map], ([, label]) => String(label).toLowerCase()));
 }
 
-// Report.windows / range_from_arg: [label, start]
-export function windows(now) {
-  const today = dayOf(now);
-  const day = midnight(today);
-  return [
-    ['Today', day],
-    ['This Week', day - 6 * 86_400],
-    ['This Month', day - 29 * 86_400],
-    ['This Year', midnight({ y: today.y, m: 1, d: 1 })],
-  ];
+// How each range is counted, as the reader chose (Settings > Date ranges).
+// The defaults are the text reports' (Report.windows): whole days, the week
+// and month rolling a day at a time, the year from January 1.
+//   day:   midnight (since midnight) | rolling (the last 24 hours)
+//   week:  days (the last 7 whole days) | rolling (the last 7 x 24 hours) | calendar (since the week began)
+//   month: days (the last 30 whole days) | rolling (the last 30 x 24 hours) | calendar (since the 1st)
+//   year:  calendar (since January 1) | rolling (the last 365 x 24 hours)
+//   weekStart: monday | sunday, for a calendar week
+export const RANGE_DEFAULTS = Object.freeze({ day: 'midnight', week: 'days', month: 'days', year: 'calendar', weekStart: 'monday' });
+export const RANGE_CHOICES = Object.freeze({
+  day: ['midnight', 'rolling'], week: ['days', 'rolling', 'calendar'], month: ['days', 'rolling', 'calendar'],
+  year: ['calendar', 'rolling'], weekStart: ['monday', 'sunday'],
+});
+
+// The rules with anything missing or unknown back at its default
+export function rangeRules(rules) {
+  const out = { ...RANGE_DEFAULTS };
+  for (const [key, choices] of Object.entries(RANGE_CHOICES)) {
+    if (rules && choices.includes(rules[key])) out[key] = rules[key];
+  }
+  return out;
 }
 
-export function rangeFromArg(arg, now) {
-  const [today, week, month, year] = windows(now);
+// Report.windows / range_from_arg: [label, start]. With the default rules,
+// exactly the text reports' windows.
+export function windows(now, rules) {
+  const r = rangeRules(rules);
+  const today = dayOf(now);
+  const day = midnight(today);
+  const hours = (n) => now - n * 86_400;
+  const weekStart = () => {
+    const dow = new Date(today.y, today.m - 1, today.d).getDay(); // 0 is Sunday
+    return midnight(addDays(today, -((dow - (r.weekStart === 'sunday' ? 0 : 1) + 7) % 7)));
+  };
+  return [
+    r.day === 'rolling' ? ['Last 24 Hours', hours(1)] : ['Today', day],
+    { days: ['This Week', day - 6 * 86_400], rolling: ['Last 7 Days', hours(7)],
+      calendar: [r.weekStart === 'sunday' ? 'Since Sunday' : 'Since Monday', null] }[r.week],
+    { days: ['This Month', day - 29 * 86_400], rolling: ['Last 30 Days', hours(30)],
+      calendar: ['Since the 1st', midnight({ y: today.y, m: today.m, d: 1 })] }[r.month],
+    r.year === 'rolling' ? ['Last 365 Days', hours(365)] : ['This Year', midnight({ y: today.y, m: 1, d: 1 })],
+  ].map((w) => (w[1] === null ? [w[0], weekStart()] : w));
+}
+
+// The tab names for the ranges, under these rules
+export function rangeLabels(rules) {
+  const [today, week, month, year] = windows(0, rules);
+  return { daily: today[0], weekly: week[0], monthly: month[0], ytd: year[0], total: 'All Time' };
+}
+
+export function rangeFromArg(arg, now, rules) {
+  const [today, week, month, year] = windows(now, rules);
   switch (String(arg ?? '').toLowerCase()) {
     case '': case 'daily': case 'day': case 'today': return today;
     case 'weekly': case 'week': return week;

@@ -2,14 +2,15 @@
 // tables. A port of GS4Analytics::Dashboard.character / range_figures and
 // everything under them.
 import { toI, toF, rround, mean, percent, truthy, sortBy, autoMap } from './ruby.js';
-import { dayOf, addDays, midnight, dayStr, dateOf, hourLabel, hourOf } from './time.js';
-import { rangeFromArg, parseWho, shortProfile, bountyTarget, offerLabel, figures, loginFor } from './report.js';
+import { dayOf, addDays, midnight, dayStr, dateOf, hourLabel, hourOf, windowDay } from './time.js';
+import { rangeFromArg, rangeLabels, rangeRules, parseWho, shortProfile, bountyTarget, offerLabel, figures, loginFor } from './report.js';
 import { local, BASE_DAYS, DAY_HUNT, HOUR_HUNT, buildStatusFor } from './overview.js';
 
 export const RANGES = { daily: 'Today', weekly: 'This Week', monthly: 'This Month' };
 
 // +overview+ is the buildOverview result for the same database and now
-export function buildCharacter(conn, overview, id, range, { now, alerts, dismissed }) {
+// +ranges+: how each range is counted (report.js rangeRules), the defaults when left out
+export function buildCharacter(conn, overview, id, range, { now, alerts, dismissed, ranges }) {
   if (!Object.hasOwn(RANGES, range)) range = 'daily';
   const wanted = String(id).toLowerCase();
   const base = overview.characters.find((entry) => entry.id.toLowerCase() === wanted) ?? buildStatusFor(conn, id, { now, alerts, dismissed });
@@ -17,13 +18,19 @@ export function buildCharacter(conn, overview, id, range, { now, alerts, dismiss
 
   return {
     ...base,
-    ...rangeFigures(conn, base.id, range, now),
-    generated_at: overview.generated_at, day_start: overview.day_start, range, ranges: RANGES,
+    ...rangeFigures(conn, base.id, range, now, ranges),
+    generated_at: overview.generated_at, day_start: overview.day_start, range, ranges: summaryLabels(ranges),
   };
 }
 
-function rangeFigures(conn, id, range, now) {
-  const [label, from] = rangeFromArg(range, now);
+// The summary's three tabs, named for how they're counted
+function summaryLabels(ranges) {
+  const all = rangeLabels(ranges);
+  return Object.fromEntries(Object.keys(RANGES).map((key) => [key, all[key]]));
+}
+
+function rangeFigures(conn, id, range, now, ranges) {
+  const [label, from] = rangeFromArg(range, now, ranges);
   const who = parseWho(id);
   const hours = Math.max((now - from) / 3600, 0.01);
   const huntOk = "cycle_type = 'hunt' AND end_time IS NOT NULL AND duration_seconds >= 10";
@@ -44,7 +51,7 @@ function rangeFigures(conn, id, range, now) {
   ).t);
   const kills = toI(conn.one(
     'SELECT SUM(kill_count) AS t FROM kill_stats WHERE game = ? AND character = ? AND date >= ? AND date <= ?',
-    ...who, dateOf(from), dateOf(now),
+    ...who, windowDay(from), dateOf(now),
   ).t);
   const done = conn.one(
     'SELECT COUNT(*) AS n, SUM(silver_reward) AS s, SUM(exp_reward) AS e FROM bounties WHERE game = ? AND character = ? ' +
@@ -67,7 +74,7 @@ function rangeFigures(conn, id, range, now) {
       'AND rest_start >= ? AND rest_start <= ?',
     ...who, from, now,
   ).n);
-  const [trends, trendMeta] = trendsFor(conn, who, range, now);
+  const [trends, trendMeta] = trendsFor(conn, who, range, now, from, rangeRules(ranges));
 
   const hs = toI(k.hunt_s);
   const hn = toI(k.hunt_n);
@@ -176,24 +183,33 @@ function offersFor(conn, who, from, now) {
 // by hour (baseline: last 14 days of hours with real hunting); week and
 // month by day (baseline: last 30 days of days with real hunting). The
 // current, unfinished hour or day is plotted but left out of the baseline.
-function trendsFor(conn, who, range, now) {
+// Today since midnight plots the day's 24 hours; the last 24 hours plots the
+// 24 hours up to this one. A week or month plots each day from the one the
+// range starts in (the nearest midnight to its start) to today.
+function trendsFor(conn, who, range, now, from, rules) {
   const hourly = range === 'daily';
   const pattern = hourly ? '%Y-%m-%d %H' : '%Y-%m-%d';
   const today = dayOf(now);
   const baseDays = hourly ? 14 : BASE_DAYS;
-  const baseFrom = midnight(addDays(today, -(baseDays - 1)));
+  // Far enough back for the baseline and for the whole range shown
+  const baseFrom = Math.min(midnight(addDays(today, -(baseDays - 1))), from);
   const minHunt = hourly ? HOUR_HUNT : DAY_HUNT;
   const hours = (date) => Array.from({ length: 24 }, (_, h) => hourLabel(date, h));
   let labels;
   let current;
   let baseKeys;
   if (hourly) {
-    labels = hours(today);
+    labels = rules.day === 'rolling' ? Array.from({ length: 24 }, (_, i) => hourOf(now - (23 - i) * 3600)) : hours(today);
     current = hourOf(now);
     baseKeys = Array.from({ length: baseDays }, (_, d) => hours(addDays(today, -(baseDays - 1 - d)))).flat();
   } else {
-    const days = range === 'weekly' ? 7 : 30;
-    labels = Array.from({ length: days }, (_, i) => dayStr(addDays(today, -(days - 1 - i))));
+    const first = windowDay(from);
+    labels = [];
+    for (let d = 0; labels.length < 400; d++) {
+      const label = dayStr(addDays(today, -d));
+      labels.unshift(label);
+      if (label <= first) break;
+    }
     current = dayStr(today);
     baseKeys = Array.from({ length: baseDays }, (_, i) => dayStr(addDays(today, -(baseDays - 1 - i))));
   }

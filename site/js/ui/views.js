@@ -7,6 +7,10 @@ import { icon } from './icons.js';
 import { scroll, nameHtml, kpi, head, statusTag, tile, unit } from './parts.js';
 import { SECTION_NAMES, sectionIcon, incomeHtml, huntingHtml, bountiesHtml, progressHtml, historyHtml, compareHtml } from './sections.js';
 import { DETAIL_RANGES } from '../aggregate/details.js';
+
+// The range tabs' names under the reader's Date ranges settings (app.js sets them)
+var rangeNames = DETAIL_RANGES;
+export function setRangeNames(names) { rangeNames = names || DETAIL_RANGES; }
 import { barChart } from './charts.js';
 
 var CATEGORICAL = ['--k1', '--k2', '--k3', '--k4', '--k5', '--k6', '--k7', '--k8'];
@@ -31,7 +35,7 @@ export function perHourToday(c, value) {
 var hourly = function (c, value) { var v = perHourToday(c, value); return v == null ? '--' : short(v); };
 
 // What the reader chose to see (Settings > Display; app.js keeps it in the browser)
-export var DISPLAY_DEFAULTS = { card: 'total', nav: 'silver' };
+export var DISPLAY_DEFAULTS = { card: 'total', nav: 'silver', day: 'midnight', week: 'days', weekStart: 'monday', month: 'days', year: 'calendar' };
 export var NAV_FIGURES = { silver: 'Silver today', silver_hr: 'Silver per hour', exp: 'Experience today', exp_hr: 'Experience per hour' };
 
 // ---------------- everyone ----------------
@@ -141,8 +145,8 @@ export function settingsPageHtml(display, a, dismissed, defaults) {
       (g.fields ? '<div class="as-shared"><p class="as-shared-head">For both</p>' + g.fields.map(function (f) { return field(f, !anyOn, g.title); }).join('') + '</div>' : '') +
       '</fieldset>';
   }).join('');
-  var radios = function (name, legend, hint, options, value) {
-    return '<fieldset class="as-group"><legend>' + esc(legend) + '</legend><p class="as-note" id="disp-' + name + '-hint">' + esc(hint) + '</p>' +
+  var radios = function (name, legend, hint, options, value, off) {
+    return '<fieldset class="as-group"' + (off ? ' disabled' : '') + '><legend>' + esc(legend) + '</legend><p class="as-note" id="disp-' + name + '-hint">' + esc(hint) + '</p>' +
       '<div class="as-radios" role="radiogroup" aria-describedby="disp-' + name + '-hint">' + Object.keys(options).map(function (k) {
         return '<label class="as-radio"><input type="radio" name="disp-' + name + '" value="' + k + '" data-display="' + name + '"' + (k === value ? ' checked' : '') + '>' +
           '<span>' + esc(options[k]) + '</span></label>';
@@ -153,6 +157,17 @@ export function settingsPageHtml(display, a, dismissed, defaults) {
       { total: 'Total today', hour: 'Per hour today' }, display.card) +
     radios('nav', 'Beside each character in the menu', 'After what the character is doing, such as Hunting.', NAV_FIGURES, display.nav) +
     '<p class="small muted note-p">Per hour is per hour the script ran today, hunting, resting or idle, as the reports count it.</p></section>';
+  var rangesCard = '<section class="card" id="set-ranges">' + head('Date ranges', 'how each range tab is counted', '', 2) +
+    radios('day', 'Today', 'On a character\'s Summary, Income, Hunting, Bounties and History, and on Compare.',
+      { midnight: 'Since midnight', rolling: 'The last 24 hours' }, display.day) +
+    radios('week', 'The week', 'Whole days start at midnight; the last 7 \u00d7 24 hours starts at this time of day a week ago.',
+      { days: 'The last 7 days, whole days', rolling: 'The last 7 \u00d7 24 hours', calendar: 'Since the week began' }, display.week) +
+    radios('weekStart', 'The week begins on', 'For a week counted since it began.', { monday: 'Monday', sunday: 'Sunday' }, display.weekStart, display.week !== 'calendar') +
+    radios('month', 'The month', 'Whole days start at midnight; since the 1st follows the calendar month.',
+      { days: 'The last 30 days, whole days', rolling: 'The last 30 \u00d7 24 hours', calendar: 'Since the 1st' }, display.month) +
+    radios('year', 'The year', 'On Income, Hunting, Bounties, History and Compare.', { calendar: 'Since January 1', rolling: 'The last 365 days' }, display.year) +
+    '<p class="small muted note-p">The overview, its alerts and the menu always count today from midnight, since they compare each character with its typical day up to the same time. ' +
+    'Kills are kept per day, so a range that starts partway through a day counts that day\'s kills if most of it is in the range. The script\'s text reports always count whole days.</p></section>';
   var which = '<section class="card" id="set-alerts">' + head('Alerts', 'which show, on the overview and each character', '', 2) + groups +
     '<div class="as-foot"><button type="button" class="btn" data-alerts-reset>Back to the defaults</button></div></section>';
   var gone = '<section class="card">' + head('Dismissed alerts', dismissed.length ? plural(dismissed.length, 'alert') + ', until midnight' : 'today') +
@@ -163,7 +178,7 @@ export function settingsPageHtml(display, a, dismissed, defaults) {
       : '<p class="small muted note-p first">Nothing dismissed. Dismiss an alert with its &times; on the overview; it stays hidden until midnight.</p>') + '</section>';
   return '<div class="page-head"><div><h1 tabindex="-1">Settings</h1>' +
     '<p class="small muted">How the dashboard shows your characters, and which of its alerts show. Saved in this browser only; the script\'s own settings, ' +
-    'including its in-game and Discord alerts, are in its settings files.</p></div></div>' + displayCard + which + gone;
+    'including its in-game and Discord alerts, are in its settings files.</p></div></div>' + displayCard + rangesCard + which + gone;
 }
 
 function alertsHtml(ov, visible, dismissedCount) {
@@ -268,7 +283,7 @@ export function comparePageHtml(d, range, names, entry, hid) {
   }).join(' &middot; ') + '</p>' : '';
   return '<div class="page-head"><div><div class="eyebrow">' + plural(d.characters, 'character') + (hid.length ? ' &middot; ' + hid.length + ' hidden' : '') + '</div>' +
     '<h1 tabindex="-1">Compare characters</h1><p class="small muted">Each character\'s income, shop stops, creatures and bounties side by side. Choose a column heading to sort by it.</p>' + shownHid + '</div>' +
-    '<div class="tabs" id="cmpTabs" role="group" aria-label="Range">' + rangeTabs(DETAIL_RANGES, range) + '</div></div>' +
+    '<div class="tabs" id="cmpTabs" role="group" aria-label="Range">' + rangeTabs(rangeNames, range) + '</div></div>' +
     '<div class="section-body">' + compareHtml(d, names, entry) + '</div>';
 }
 
@@ -282,7 +297,7 @@ export function detailHtml(c, range, width, section, data, filter, ui) {
   section = section || 'summary';
   var t = c.trend, rs = c.range_stats, b = c.bounty, mind = c.mind, enc = c.encumbrance;
   // The summary keeps its three ranges (its trends are built for them); the other pages take five
-  var tabs = rangeTabs(section === 'summary' ? c.ranges : DETAIL_RANGES, range);
+  var tabs = rangeTabs(section === 'summary' ? c.ranges : rangeNames, range);
   var basis = t.hourly ? 'hours with ' + t.min_hunt_minutes + '+ min of hunting over the last ' + t.baseline_days + ' days'
                        : 'days with ' + (t.min_hunt_minutes / 60) + '+ hours of hunting over the last ' + t.baseline_days + ' days';
   var light = LIGHT[c.light.level] || LIGHT.gray;

@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
 import { Conn } from '../site/js/db.js';
-import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress } from '../site/js/aggregate/index.js';
+import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildOverview, buildCharacter } from '../site/js/aggregate/index.js';
 import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
-import { rangeFromArg, offerLabel } from '../site/js/aggregate/report.js';
-import { windowDay, clockSeconds, dayOf, addDays, dayStr, midnight, dateOf } from '../site/js/aggregate/time.js';
+import { rangeFromArg, offerLabel, windows, rangeLabels, rangeRules } from '../site/js/aggregate/report.js';
+import { windowDay, clockSeconds, dayOf, addDays, dayStr, midnight, dateOf, hourOf } from '../site/js/aggregate/time.js';
 
 const SQL = await initSqlJs();
 const golden = JSON.parse(readFileSync(new URL('fixtures/afternoon.json', import.meta.url)));
@@ -388,4 +388,43 @@ test('offer labels: the taskmaster\'s words until the guard names the target, an
   assert.equal(label({ assignment: 'escort', bounty_type: 'escort', area: 'Zul Logoth' }), 'escort to Zul Logoth');
   assert.equal(label({ assignment: 'gem_assignment', bounty_type: 'gem', creature: 'blue sapphire', area: 'Solhaven' }), 'gem: blue sapphire (Solhaven)');
   assert.equal(label({ assignment: 'unknown', description: 'Something new.' }), 'Something new.');
+});
+
+test('date ranges: whole days by default, or rolling, or since the week, month or year began', () => {
+  const at = (y, m, d, h = 0) => Math.floor(new Date(y, m - 1, d, h).getTime() / 1000);
+  const wed = at(2026, 11, 11, 15); // a Wednesday, 3 PM
+  const start = (rules) => windows(wed, rules).map(([label, from]) => [label, from]);
+  assert.deepEqual(start(), [['Today', at(2026, 11, 11)], ['This Week', at(2026, 11, 5)], ['This Month', at(2026, 11, 11) - 29 * 86_400], ['This Year', at(2026, 1, 1)]],
+    'the defaults are the text reports\' windows');
+  assert.deepEqual(start({ day: 'rolling', week: 'rolling', month: 'rolling', year: 'rolling' }),
+    [['Last 24 Hours', wed - 86_400], ['Last 7 Days', wed - 7 * 86_400], ['Last 30 Days', wed - 30 * 86_400], ['Last 365 Days', wed - 365 * 86_400]]);
+  assert.deepEqual(start({ week: 'calendar', month: 'calendar' }).slice(1, 3), [['Since Monday', at(2026, 11, 9)], ['Since the 1st', at(2026, 11, 1)]]);
+  assert.deepEqual(start({ week: 'calendar', weekStart: 'sunday' })[1], ['Since Sunday', at(2026, 11, 8)]);
+  // On the day the week begins, the week is that day
+  assert.deepEqual(windows(at(2026, 11, 9, 8), { week: 'calendar' })[1], ['Since Monday', at(2026, 11, 9)]);
+  assert.deepEqual(rangeFromArg('weekly', wed, { week: 'rolling' }), ['Last 7 Days', wed - 7 * 86_400]);
+  assert.deepEqual(rangeLabels({ day: 'rolling', month: 'calendar' }),
+    { daily: 'Last 24 Hours', weekly: 'This Week', monthly: 'Since the 1st', ytd: 'This Year', total: 'All Time' });
+  assert.deepEqual(rangeRules({ day: 'yesterday', week: 'calendar', card: 'hour' }),
+    { day: 'midnight', week: 'calendar', month: 'days', year: 'calendar', weekStart: 'monday' }, 'unknown choices fall back');
+});
+
+test('date ranges reach every ranged page, and the summary\'s trend follows the range', () => {
+  const rolling = { day: 'rolling', week: 'calendar', month: 'rolling' };
+  const inc = buildIncome(conn, ID, 'daily', { now, ranges: rolling });
+  assert.equal(inc.label, 'Last 24 Hours');
+  assert.equal(inc.from, now - 86_400);
+  assert.equal(buildCompare(conn, [ID], 'monthly', { now, ranges: rolling }).label, 'Last 30 Days');
+
+  const ov = buildOverview(conn, { now });
+  const day = buildCharacter(conn, ov, ID, 'daily', { now, ranges: rolling });
+  assert.deepEqual(day.ranges, { daily: 'Last 24 Hours', weekly: 'Since Monday', monthly: 'Last 30 Days' });
+  assert.equal(day.trend.labels.length, 24);
+  assert.deepEqual([day.trend.labels[0], day.trend.labels.at(-1)], [hourOf(now - 23 * 3600), hourOf(now)], 'the 24 hours up to this one');
+  const week = buildCharacter(conn, ov, ID, 'weekly', { now, ranges: rolling });
+  const monday = (7 + new Date(now * 1000).getDay() - 1) % 7 + 1; // days since Monday, today included
+  assert.equal(week.trend.labels.length, monday);
+  assert.equal(week.trend.labels.at(-1), dateOf(now));
+  const plain = buildCharacter(conn, ov, ID, 'monthly', { now });
+  assert.equal(plain.trend.labels.length, 30, 'the default month is still 30 days');
 });
