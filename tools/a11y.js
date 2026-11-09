@@ -48,11 +48,19 @@ const VIEWS = [
   }],
   ['character income', `${live}#GS4%3ASplinter/income`, '#detail .brows'],
   ['character hunting', `${live}#GS4%3ASplinter/hunting`, '#detail .brows'],
-  ['character bounties', `${live}#GS4%3ASplinter/bounties`, '#detail .kpi-grid'],
+  // All Time, so the page has figures whatever the hour (just after midnight, today has none yet)
+  ['character bounties', `${live}#GS4%3ASplinter/bounties`, '#tabs', async (page) => {
+    await page.click('#tabs button[data-r="total"]');
+    await page.waitForSelector('#detail .kpi-grid');
+  }],
   ['character progress', `${live}#GS4%3ASplinter/progress`, '#detail .prog', async (page) => {
     for (const d of await page.$$('details.chart-table')) await d.evaluate((el) => { el.open = true; });
   }],
-  ['character history, filtered', `${live}#GS4%3ASplinter/history`, '#histBody tr', async (page) => { await page.fill('#histQ', 'crags'); }],
+  ['character history, filtered', `${live}#GS4%3ASplinter/history`, '#tabs', async (page) => {
+    await page.click('#tabs button[data-r="total"]');
+    await page.waitForSelector('#histBody tr');
+    await page.fill('#histQ', 'crags');
+  }],
   ['overview with a character hidden', live, '.card[data-who]', async (page) => {
     await page.click('.card[data-who="GS3:Bebop"] [data-hide]');
     await page.click('.nav-hidden summary');
@@ -80,7 +88,10 @@ const PHONE_VIEWS = [
   ['phone character', `${live}#GS4%3ASplinter`, '#tabs'],
   ['phone income', `${live}#GS4%3ASplinter/income`, '#detail .brows'],
   ['phone compare', `${live}#compare`, '#compare table'],
-  ['phone history', `${live}#GS4%3ASplinter/history`, '#histBody tr'],
+  ['phone history', `${live}#GS4%3ASplinter/history`, '#tabs', async (page) => {
+    await page.$eval('#tabs button[data-r="total"]', (b) => b.click()); // the tabs scroll sideways on a phone
+    await page.waitForSelector('#histBody tr');
+  }],
 ];
 const THEMES = [
   ['light', { colorScheme: 'light' }, {}],

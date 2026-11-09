@@ -101,7 +101,10 @@ try {
     const hour = new Date().getHours();
     const watch = new MutationObserver((list) => { n += list.length; });
     for (const id of ids) { const el = document.querySelector(id); if (el) watch.observe(el, { childList: true }); }
-    setTimeout(() => { watch.disconnect(); resolve({ rewrites: n, newHour: new Date().getHours() !== hour }); }, wait);
+    // In the first hour after midnight everything today is under an hour, and drawn to the
+    // second (a stretch still going, the time hunted, per hour over a few minutes): each
+    // refresh changes it, so a quiet page can't be told from one that redraws for nothing
+    setTimeout(() => { watch.disconnect(); resolve({ rewrites: n, newHour: new Date().getHours() !== hour, newDay: hour === 0 || new Date().getHours() === 0 }); }, wait);
   }), [boxes, ms]);
   await page.click('.nav-ch[data-who="GSF:Splinter"]');
   await page.waitForFunction(() => document.querySelector('.sb-name')?.textContent.includes('GSF'));
@@ -110,7 +113,7 @@ try {
   // A new hour legitimately redraws the hourly trend labels. Within it, what's shown to
   // the minute (a stretch still going, "idle for N min", each on its own minute) may
   // redraw once each; the per-hour figures are taken to the minute too
-  check(quiet.rewrites <= 2 || quiet.newHour, `live: refreshes with nothing new leave a character's page alone, but for the minute turning (${quiet.rewrites} rewrites in three refreshes)`);
+  check(quiet.rewrites <= 2 || quiet.newHour || quiet.newDay, `live: refreshes with nothing new leave a character's page alone, but for the minute turning (${quiet.rewrites} rewrites in three refreshes)`);
   // The overview and the menu, on a source with no new writes at all; a stretch still
   // going is drawn to the minute, so a minute turning over may redraw once
   const still = spawn(process.execPath, [fileURLToPath(new URL('./mock-server.js', import.meta.url)), '--port', String(API_PORT + 2), '--demo', '--still'],
@@ -122,7 +125,7 @@ try {
     await sp.waitForSelector('.card[data-who]', { timeout: 15_000 });
     await sp.waitForTimeout(1500);
     const ovq = await rewritesOf(sp, ['#overview', '#navChars'], 16_000);
-    check(ovq.rewrites <= 2, `live: refreshes with nothing new leave the overview and menu alone (${ovq.rewrites} rewrites in three refreshes)`);
+    check(ovq.rewrites <= 2 || ovq.newDay, `live: refreshes with nothing new leave the overview and menu alone (${ovq.rewrites} rewrites in three refreshes)`);
     await sp.close();
   } finally {
     still.kill();
@@ -196,7 +199,8 @@ try {
     const steady = await pg.evaluate(() => document.querySelector('#detail .subbar') === window.__bar &&
       document.querySelector('#detail .sub-nav') === window.__tabs && !document.getElementById('detail').classList.contains('enter'));
     check(steady, `pages: opening ${sec} keeps the bar and tabs in place and doesn't replay the page's entrance`);
-    await pg.waitForSelector(`#detail ${ready}`, { timeout: 10_000 });
+    // or the page's empty state: just after midnight, today can have nothing to show yet
+    await pg.waitForSelector(`#detail ${ready}, #detail .empty`, { timeout: 10_000 });
     const ok = (await pg.evaluate(() => location.hash)) === `#GS4%3ASplinter/${sec}` &&
       (await pg.getAttribute(`.sub-nav a[data-sec="${sec}"]`, 'aria-current')) === 'page' &&
       (await pg.evaluate(() => document.activeElement?.matches('#detail h1')));
@@ -256,9 +260,10 @@ try {
   await pg.waitForSelector('#compare .section-body table');
   check((await pg.evaluate(() => location.hash)) === '#compare' && (await pg.getAttribute('#navCompare', 'aria-current')) === 'page' &&
     (await pg.evaluate(() => document.activeElement?.matches('#compare h1'))), 'compare: opens from the menu, current, focus on its heading');
-  const tables = await pg.$$eval('#compare table', (t) => t.length);
+  // Counted over All Time: just after midnight, today can have no stops or bounties yet
   await pg.click('#cmpTabs button[data-r="total"]');
   await pg.waitForFunction(() => document.querySelector('#cmpTabs button.on')?.getAttribute('data-r') === 'total');
+  const tables = await pg.$$eval('#compare table', (t) => t.length);
   check(tables >= 4, `compare: income, stops, creatures and bounties side by side (${tables} tables)`);
   await pg.click('#compare a[data-who="GS3:April"][data-sec="hunting"]');
   await pg.waitForFunction(() => location.hash === '#GS4%3AApril/hunting');
