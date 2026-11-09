@@ -72,7 +72,7 @@
         <ul>
           <li><b>Cycles</b>: each stretch of hunting, resting, being dead or sitting idle, with why the hunt ended, and how long each step of a rest took (travel, looting, the bounty turn-in, healing...).</li>
           <li><b>Kills</b> by creature, with the silver on each corpse and the boxes found.</li>
-          <li><b>Silver</b>: bank balances (the figure every "silver per hour" uses), plus box silver, vendor sales, bounty rewards, and what you spend at the locksmith, the locksmith pool and the priestess, the warehouse storage fees you pay, and what you buy in shops (eherbs buying herbs, for one).</li>
+          <li><b>Silver</b>: bank balances (the figure every "silver per hour" uses), plus box silver, vendor sales, bounty rewards, and what you spend at the locksmith, the locksmith pool and the priestess, the warehouse storage fees and town debts you pay, and what you buy in shops (eherbs buying herbs, for one).</li>
           <li><b>Bounties</b>: every task the taskmaster offers, whether you keep it, remove it or used an expedite voucher; progress (7/11), time taken and the rewards.</li>
           <li><b>Experience, fame, mind and encumbrance</b> at the start and end of each cycle, and each login's totals.</li>
         </ul>
@@ -137,7 +137,7 @@
             <tr><td><code>exp</code></td><td>Experience and fame per character.</td></tr>
             <tr><td><code>bounty</code></td><td>This character's bounties: completed, abandoned, success rate, average time and rewards; by type and creature; value per hour; and the <b>task offers</b> section: offered, removed, expedited, vouchers left, and what you removed.</td></tr>
             <tr><td><code>cycle</code></td><td>Hunt, rest, dead and idle time: counts, averages, longest and shortest; exp and fame; encumbrance; rest reasons; deaths and the time between them.</td></tr>
-            <tr><td><code>silver</code></td><td>Where silver came from (corpses, boxes, sales, bounties) and went (locksmith, locksmith pool, priestess, warehouse fees, shop purchases), the net, the bank change, and sales by vendor.</td></tr>
+            <tr><td><code>silver</code></td><td>Where silver came from (corpses, boxes, sales, bounties) and went (locksmith, locksmith pool, priestess, warehouse fees, debts, shop purchases), the net, the bank change, and sales by vendor.</td></tr>
             <tr><td><code>kills</code></td><td>Kills, boxes, box rate and silver per kill by creature.</td></tr>
             <tr><td><code>session</code></td><td>This <b>login</b> next to today, the week, the month, the year and lifetime: silver, silver per hour and per hunting hour, exp and its rates, deaths, time logged in and hunting. A login lasts from when Lich connected to the game until you log out, even if that's days.</td></tr>
           </tbody>
@@ -245,7 +245,7 @@
         <div class="scroll" tabindex="0" role="region" aria-label="What is read from the game text"><table class="ref">
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
-            <tr><td><code>parse_sales</code></td><td><code>true</code></td><td>Record vendor sales (including promissory notes, gem pouches and containers) and spending at the locksmith, the locksmith pool, the priestess, the warehouse and in shops, so your selling scripts need no changes.</td></tr>
+            <tr><td><code>parse_sales</code></td><td><code>true</code></td><td>Record vendor sales (including promissory notes, gem pouches and containers) and spending at the locksmith, the locksmith pool, the priestess, the warehouse, the town clerk and in shops, so your selling scripts need no changes.</td></tr>
             <tr><td><code>track_shops</code></td><td><code>true</code></td><td>Record each stop at a gem shop, pawnshop, furrier, alchemist, consignment, herbalist, general store, locksmith, locksmith pool, bank, chronomage or debt collector, from the map's room tags, with the time spent and the silver made and spent there. Turn it off if your selling script reports its own visits through the <a href="#hooks">hooks</a>.</td></tr>
             <tr><td><code>parse_bank</code></td><td><code>true</code></td><td>Record <code>BANK ACCOUNT</code> listings, and move the tracked total by every deposit, withdrawal and note. With no total yet, one <code>BANK ACCOUNT</code> is sent quietly a few seconds after starting.</td></tr>
           </tbody>
