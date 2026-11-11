@@ -372,3 +372,18 @@ player requests. Still before the first release.
 The page: Progress shows the latest resources; Death's Sting stretches start at the dead
 cycle's start (a potion can cure the sting before the dead cycle ends); Income has
 "Coins off the floor" and Consignment as their own sources.
+
+## Schema 11 (2026-11-10)
+
+elanthia-online/scripts@fcbb3c49, from a player request: each character's damage and kills
+per creature, for characters hunting together. Still before the first release.
+
+- **combat_stats**: per cycle and creature kind, `fought`, `kills`, `assists`, `damage`,
+  `hits`, `kill_damage`, with the cycle's `start_time`. Summed from Lich's
+  `Combat::Recorder`, which the script runs with the combat tracker (setting `combat`, on
+  by default) and which keeps its own `analytics-combat.db` per character.
+- `SCHEMA_VERSION` 11; `KNOWN_SCHEMAS` is `['11']`. The fixtures are converted by
+  `tools/fixtures-schema11.js` (the table added empty).
+
+The page: a Combat card on Hunting and a Combat section on Compare.
+

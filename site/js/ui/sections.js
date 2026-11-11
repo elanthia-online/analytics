@@ -102,7 +102,10 @@ export function shopCols(who) {
 
 // ---- hunting ------------------------------------------------------------------
 export function huntingHtml(d) {
-  if (!d.creatures.length) return empty('target', 'No kills recorded ' + esc(d.label.toLowerCase()), 'Each creature searched shows up here, with its silver and boxes.');
+  var fight = combatHtml(d.combat);
+  if (!d.creatures.length) {
+    return fight || empty('target', 'No kills recorded ' + esc(d.label.toLowerCase()), 'Each creature searched shows up here, with its silver and boxes.');
+  }
   var kpis = '<div class="kpi-grid even">' +
     kpi('target', 'Kills', num(d.kills), plural(d.creatures.length, 'kind') + ' of creature') +
     kpi('coins', 'Coins searched', short(d.silver), d.kills ? short(Math.round(d.silver / d.kills)) + ' a kill' : '') +
@@ -117,7 +120,36 @@ export function huntingHtml(d) {
       { h: 'Profile', text: true, v: function (c) { return c.profiles.join(', '); }, c: function (c) { return esc(c.profiles.join(', ')); } },
       { h: 'Last kill', v: function (c) { return c.last_kill; }, c: function (c) { return c.last_kill ? stamp(c.last_kill) : '--'; } },
     ]), d.creatures, { col: 1, dir: 'desc' }) + '</section>';
-  return kpis + bars + table;
+  return kpis + bars + table + fight;
+}
+
+// ---- combat (from Lich's combat tracker) ----------------------------------------
+var COMBAT_NOTE = 'Damage this character dealt, read by Lich\'s combat tracker. A kill is its own killing blow; an assist, ' +
+  'a creature it hurt that someone else finished. Each character counts only its own hits.';
+function perHour(n) { return n == null ? '--' : short(n); }
+export function combatHtml(c) {
+  if (!c || !c.fought) return '';
+  var kpis = '<div class="kpi-grid even">' +
+    kpi('pulse', 'Damage dealt', short(c.damage), many(c.fought, 'creature', 'creatures') + ' fought' + (c.per_creature == null ? '' : ' ' + DOT + ' ' + num(c.per_creature) + ' each')) +
+    kpi('target', 'Kills credited', num(c.kills), many(c.assists, 'assist', 'assists')) +
+    kpi('spark', 'Damage per kill', c.per_kill == null ? '--' : num(c.per_kill), c.per_hit == null ? '' : num(c.per_hit) + ' a hit') +
+    kpi('clock', 'Damage per hour', perHour(c.damage_per_hour), c.kills_per_hour == null ? 'needs 10 min of hunting' : num(c.kills_per_hour) + ' kills an hour hunting') + '</div>';
+  return '<section class="card">' + head('Combat', esc(c.label)) + '<p class="small muted note-p">' + COMBAT_NOTE + '</p>' + kpis +
+    sortTable('combat', 'Damage by creature', combatCols(false), c.creatures, { col: 4, dir: 'desc' }) + '</section>';
+}
+
+export function combatCols(who) {
+  var n = function (k) { return { v: function (r) { return r[k]; }, c: function (r) { return r[k] == null ? '--' : num(r[k]); } }; };
+  return (who ? [who] : []).concat([
+    { h: 'Creature', text: true, wrap: true, v: function (r) { return r.creature; }, c: function (r) { return esc(r.creature); } },
+    Object.assign({ h: 'Fought', title: 'Creatures of this kind it hit' }, n('fought')),
+    Object.assign({ h: 'Kills', title: 'Its own killing blow' }, n('kills')),
+    Object.assign({ h: 'Assists', title: 'Hurt by it, finished by someone else' }, n('assists')),
+    { h: 'Damage', v: function (r) { return r.damage; }, c: function (r) { return short(r.damage); } },
+    Object.assign({ h: 'Damage / creature' }, n('per_creature')),
+    Object.assign({ h: 'Damage / kill', title: 'Its damage to the creatures it killed, per kill' }, n('per_kill')),
+    Object.assign({ h: 'Damage / hit' }, n('per_hit')),
+  ]);
 }
 
 export function creatureCols(who) {
@@ -279,6 +311,25 @@ export function historyHtml(d, filter) {
 
 // ---- comparing characters ---------------------------------------------------------
 // names: id -> display name; state: id -> overview entry (or none, shown offline)
+// Every character side by side, the party's total first, then each creature kind
+function combatCompare(d, who) {
+  var sum = function (k) { return d.combat.reduce(function (a, r) { return a + r[k]; }, 0); };
+  var hunt = sum('hunt_s'), kills = sum('kills'), damage = sum('damage');
+  var party = '<p class="small">All characters: <b>' + short(damage) + '</b> damage ' + DOT + ' <b>' + num(kills) + '</b> kills ' + DOT + ' ' +
+    many(sum('assists'), 'assist', 'assists') + (kills ? ' ' + DOT + ' ' + num(Math.round(sum('kill_damage') / kills)) + ' damage a kill' : '') +
+    (hunt >= 600 ? ' ' + DOT + ' ' + short(Math.round(damage * 3600 / hunt)) + ' damage per hour hunting' : '') + '</p>';
+  var totals = sortTable('cmp-combat', 'Combat by character', [who('hunting'),
+    { h: 'Fought', v: function (r) { return r.fought; }, c: function (r) { return num(r.fought); } },
+    { h: 'Kills', v: function (r) { return r.kills; }, c: function (r) { return num(r.kills); } },
+    { h: 'Assists', v: function (r) { return r.assists; }, c: function (r) { return num(r.assists); } },
+    { h: 'Damage', v: function (r) { return r.damage; }, c: function (r) { return short(r.damage); } },
+    { h: 'Damage / kill', v: function (r) { return r.per_kill; }, c: function (r) { return r.per_kill == null ? '--' : num(r.per_kill); } },
+    { h: 'Kills / hr', title: 'Per hour hunting', v: function (r) { return r.kills_per_hour; }, c: function (r) { return perHour(r.kills_per_hour); } },
+    { h: 'Damage / hr', title: 'Per hour hunting', v: function (r) { return r.damage_per_hour; }, c: function (r) { return perHour(r.damage_per_hour); } },
+  ], d.combat, { col: 4, dir: 'desc' });
+  return party + totals + head('By creature', null, null, 3) + sortTable('cmp-combat-creatures', 'Damage by character and creature', combatCols(who('hunting')), d.combat_creatures, { col: 5, dir: 'desc' });
+}
+
 export function compareHtml(d, names, entry) {
   var who = function (page) {
     return { h: 'Character', text: true, v: function (r) { return shown(names[r.id] || r.id); }, c: function (r) {
@@ -286,7 +337,7 @@ export function compareHtml(d, names, entry) {
       return '<a class="cell-ch" href="' + hrefFor(r.id, page) + '" data-who="' + esc(r.id) + '" data-sec="' + page + '">' + avatar(e, 'xs') + '<b>' + esc(shown(e.name)) + '</b></a>';
     } };
   };
-  if (!d.income.length && !d.creatures.length && !d.bounties.length && !d.shops.length) {
+  if (!d.income.length && !d.creatures.length && !d.bounties.length && !d.shops.length && !d.combat.length) {
     return empty('layers', 'Nothing to compare ' + esc(d.label.toLowerCase()), 'Pick a longer range, or play a little first.');
   }
   var sec = function (title, note, html) { return '<section class="card">' + head(title, note) + html + '</section>'; };
@@ -308,6 +359,7 @@ export function compareHtml(d, names, entry) {
     ], d.towns, { col: 5, dir: 'desc' })) : '') +
     sec('Creatures', esc(d.label), d.creatures.length
       ? sortTable('cmp-creatures', 'Creatures by character', creatureCols(who('hunting')), d.creatures, { col: 2, dir: 'desc' }) : none('No kills recorded in this range.')) +
+    (d.combat.length ? sec('Combat', esc(d.label) + ' ' + DOT + ' each character\'s own hits', combatCompare(d, who)) : '') +
     sec('Bounties by type', esc(d.label), d.bounties.length
       ? sortTable('cmp-bounties', 'Bounty types by character', bountyCols(who('bounties')), d.bounties, { col: 2, dir: 'desc' }) : none('No bounties in this range.'));
 }

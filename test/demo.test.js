@@ -30,6 +30,8 @@ test('the sample keeps every fixture row unchanged, and adds only for its own ch
     const meta = (db) => db.exec('SELECT * FROM metadata ORDER BY 1')[0]?.values ?? [];
     assert.deepEqual(meta(sample), meta(fix), 'metadata unchanged');
     const tables = fix.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values.map((r) => r[0]);
+    const fought = sample.exec('SELECT DISTINCT character FROM combat_stats ORDER BY 1')[0].values.map((r) => r[0]);
+    assert.deepEqual(fought, ['Bebop', 'Casey', 'Karai', 'Leonardo'], 'combat only for the sample\'s own additions');
     for (const t of tables) {
       const rows = (db, where = '') => (db.exec(`SELECT * FROM ${t}${where}`)[0]?.values ?? []).map((r) => JSON.stringify(r));
       const have = new Set(rows(sample));

@@ -395,3 +395,22 @@ schema version: a schema 9 file has no place for them.
 **Why.** A night of real play showed infomon's timestamps can't say when EXPERIENCE was typed
 (it stamps only values that changed), which lost every Death's Sting. The script's hook
 already sees the output; reading it there is exact and still sends no command.
+
+## 2026-11-10: Combat from Lich's own recorder, summed per cycle
+
+**Decision.** Damage dealt and credited kills come from Lich's combat tracker and its
+`Combat::Recorder`, run by analytics.lic itself (no `combat_stats.lic`). The recorder writes
+every attack to its own file, `analytics-combat.db` in the character's data folder; the
+script sums it once a minute into `combat_stats`, one row per cycle and creature kind, and
+prunes the recorder's hunts three days after (every six hours, since a login can run for days). Schema 11.
+
+**Why.** Telling a kill from an assist needs other players' attacks on the creature, which
+only the recorder's `combat.attack` stream carries; its ownership rules (`attacks.ours`,
+flare ownership, the window and last-hit kill credit) are checked against real logs
+upstream, so they are reused, not copied. The page loads the whole database, so the
+per-attack rows stay in the recorder's file, and the sums are per cycle rather than per
+creature: about a hundred rows a day per character, against five thousand. A cycle's
+start places it in a range, which is fine-grained enough, since a cycle is an hour or less.
+The recorder names creatures as the game shows them, so the page files each under the
+searched `kill_stats` name it ends with.
+
