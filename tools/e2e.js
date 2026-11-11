@@ -76,6 +76,10 @@ try {
   await page.click('#export');
   const saved = (await download).suggestedFilename();
   check(/^gs4-analytics-GS4_Bebop-(daily|weekly|monthly)-\d{8}-\d{4}\.png$/.test(saved), `export: the character view saves as a PNG (${saved})`);
+  const download4 = page.waitForEvent('download', { timeout: 20_000 });
+  await page.click('#detail .card [data-save-card]');
+  const saved4 = (await download4).suggestedFilename();
+  check(/^gs4-analytics-GS4_Bebop-(daily|weekly|monthly)-[a-z0-9-]+-\d{8}-\d{4}\.png$/.test(saved4), `export: a card on the page saves on its own, named for it (${saved4})`);
   await page.click('#navOverview');
   await page.waitForSelector('#overview:not([hidden]) .card[data-who]');
   check(await page.getAttribute('#navOverview', 'aria-current') === 'page' && (await page.evaluate(() => location.hash)) === '',
@@ -84,6 +88,14 @@ try {
   await page.click('#export');
   const saved2 = (await download2).suggestedFilename();
   check(/^gs4-analytics-everyone-.*\.png$/.test(saved2), `export: the overview saves as a PNG (${saved2})`);
+  // One card on its own: a character's card from its button (without opening the character)
+  const download3 = page.waitForEvent('download', { timeout: 20_000 });
+  await page.click('.card[data-who="GS3:Bebop"] [data-save-card]');
+  const saved3 = (await download3).suggestedFilename();
+  check(/^gs4-analytics-everyone-bebop-gs4-\d{8}-\d{4}\.png$/.test(saved3) && (await page.evaluate(() => location.hash)) === '',
+    `export: a character's card saves on its own, and stays on the overview (${saved3})`);
+  check(await page.getAttribute('.card[data-who="GS3:Bebop"] [data-save-card]', 'aria-label') === 'Save the Bebop (GS4) card as an image',
+    'export: the card button says what it saves');
   // Focus stays where it was through a refresh that changes the figures (#15): the
   // mock writes a deposit every 10 seconds, which rewrites the overview and the menu
   await page.click('#navOverview');

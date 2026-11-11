@@ -4,7 +4,7 @@ import { DOT, esc, css, hrefFor, num, short, dur, clock, stamp, plural, ago, now
          stat, reasonsHtml, bountyText, meter, LIGHT, STATE_COL } from './util.js';
 import { timeline, dayStrip, trendChart, stepBar } from './charts.js';
 import { icon } from './icons.js';
-import { scroll, nameHtml, kpi, head, statusTag, tile, unit } from './parts.js';
+import { scroll, nameHtml, kpi, head, statusTag, tile, unit, saveButton } from './parts.js';
 import { SECTION_NAMES, sectionIcon, incomeHtml, huntingHtml, bountiesHtml, progressHtml, historyHtml, compareHtml } from './sections.js';
 import { DETAIL_RANGES } from '../aggregate/details.js';
 
@@ -48,7 +48,7 @@ function card(c, ov, on, display) {
       '<span class="ch-actions no-export"><button class="pin' + (on ? ' on' : '') + '" type="button" data-pin="' + esc(c.id) + '" title="' + (on ? 'Unpin' : 'Pin to the top') +
       '" aria-label="' + (on ? 'Unpin ' : 'Pin ') + esc(shown(c.name)) + '" aria-pressed="' + on + '">' + icon('star') + '</button>' +
       '<button class="pin hide-btn" type="button" data-hide="' + esc(c.id) + '" title="Hide from the overview" aria-label="Hide ' + esc(shown(c.name)) + ' from the overview">' +
-      icon('eyeoff') + '</button></span></div>' +
+      icon('eyeoff') + '</button>' + saveButton(shown(c.name), 'pin') + '</span></div>' +
     dayStrip(c, ov.day_start, esc(c.id).replace(/\W/g, '_')) +
     (c.light.reasons.length ? reasonsHtml(c.light)
       : '<ul class="reasons"><li>' + status(level) + '<span>' + LIGHT[level][1] + '</span></li></ul>') +
@@ -152,12 +152,12 @@ export function settingsPageHtml(display, a, dismissed, defaults) {
           '<span>' + esc(options[k]) + '</span></label>';
       }).join('') + '</div></fieldset>';
   };
-  var displayCard = '<section class="card" id="set-display">' + head('Display', 'what the overview and the menu show') +
+  var displayCard = '<section class="card" id="set-display">' + head('Display', 'what the overview and the menu show', '', 2, { save: false }) +
     radios('card', 'Silver and experience on each character\'s card', 'On the overview. Either way, the arrow beside each says how today compares with your typical day.',
       { total: 'Total today', hour: 'Per hour today' }, display.card) +
     radios('nav', 'Beside each character in the menu', 'After what the character is doing, such as Hunting.', NAV_FIGURES, display.nav) +
     '<p class="small muted note-p">Per hour is per hour the script ran today, hunting, resting or idle, as the reports count it.</p></section>';
-  var rangesCard = '<section class="card" id="set-ranges">' + head('Date ranges', 'how each range tab is counted', '', 2) +
+  var rangesCard = '<section class="card" id="set-ranges">' + head('Date ranges', 'how each range tab is counted', '', 2, { save: false }) +
     radios('day', 'Today', 'On a character\'s Summary, Income, Hunting, Bounties and History, and on Compare.',
       { midnight: 'Since midnight', rolling: 'The last 24 hours' }, display.day) +
     radios('week', 'The week', 'Whole days start at midnight; the last 7 \u00d7 24 hours starts at this time of day a week ago.',
@@ -168,9 +168,9 @@ export function settingsPageHtml(display, a, dismissed, defaults) {
     radios('year', 'The year', 'On Income, Hunting, Bounties, History and Compare.', { calendar: 'Since January 1', rolling: 'The last 365 days' }, display.year) +
     '<p class="small muted note-p">The overview, its alerts and the menu always count today from midnight, since they compare each character with its typical day up to the same time. ' +
     'Kills are kept per day, so a range that starts partway through a day counts that day\'s kills if most of it is in the range. The script\'s text reports always count whole days.</p></section>';
-  var which = '<section class="card" id="set-alerts">' + head('Alerts', 'which show, on the overview and each character', '', 2) + groups +
+  var which = '<section class="card" id="set-alerts">' + head('Alerts', 'which show, on the overview and each character', '', 2, { save: false }) + groups +
     '<div class="as-foot"><button type="button" class="btn" data-alerts-reset>Back to the defaults</button></div></section>';
-  var gone = '<section class="card">' + head('Dismissed alerts', dismissed.length ? plural(dismissed.length, 'alert') + ', until midnight' : 'today') +
+  var gone = '<section class="card">' + head('Dismissed alerts', dismissed.length ? plural(dismissed.length, 'alert') + ', until midnight' : 'today', '', 2, { save: false }) +
     (dismissed.length ? '<ul class="as-dismissed">' + dismissed.map(function (d) {
       return '<li><span><b>' + esc(shown(d.name)) + '</b> ' + esc(label(d.kind)) + '</span><button type="button" class="link-btn" data-undismiss-one="' + esc(d.key) +
         '" aria-label="Show again: ' + esc(shown(d.name)) + ', ' + esc(label(d.kind)) + '">Show again</button></li>';

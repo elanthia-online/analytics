@@ -17,10 +17,14 @@ function saveBlob(blob, name) {
 
 // root: the element to save; title: what the image shows; name(ext): its file name
 export function exportImage(root, title, name, done) {
-  var width = root.offsetWidth, pad = 28, headH = 64;
+  // A table that scrolls sideways is saved whole: the image widens by what it hides
+  var scrolls = root.querySelectorAll('.scroll');
+  var hidden = Array.prototype.reduce.call(scrolls, function (a, el) { return Math.max(a, el.scrollWidth - el.clientWidth); }, 0);
+  var width = root.offsetWidth + hidden, pad = 28, headH = 64;
   try {
     var clone = root.cloneNode(true);
     inlineStyles(root, clone);
+    Array.prototype.forEach.call(clone.querySelectorAll('.scroll'), function (n) { n.style.overflow = 'visible'; n.style.maxWidth = 'none'; });
     Array.prototype.forEach.call(clone.querySelectorAll('.no-export'), function (n) { n.parentNode.removeChild(n); });
     // Sticky and blurred bars draw wrongly (or not at all) inside foreignObject
     Array.prototype.forEach.call(clone.querySelectorAll('*'), function (n) {
@@ -35,8 +39,8 @@ export function exportImage(root, title, name, done) {
     bar.setAttribute('style', 'display:flex;align-items:center;gap:12px;height:' + headH + 'px;font-family:' + body.fontFamily + ';color:' + v('--ink') +
       ';border-bottom:1px solid ' + v('--line') + ';margin-bottom:20px');
     bar.innerHTML = '<div style="width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,' + v('--k1') + ',' + v('--k7') + ')"></div>' +
-      '<div style="font-weight:700;font-size:15px">GS4 Analytics</div><div style="color:' + v('--muted') + ';font-size:14px">' + title.replace(/[&<>"]/g, '') + '</div>' +
-      '<div style="flex:1"></div><div style="color:' + v('--muted') + ';font-size:12px">Saved ' + new Date().toLocaleString() + '</div>';
+      '<div style="font-weight:700;font-size:15px;white-space:nowrap">GS4 Analytics</div><div style="color:' + v('--muted') + ';font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">' + title.replace(/[&<>"]/g, '') + '</div>' +
+      '<div style="flex:1"></div><div style="color:' + v('--muted') + ';font-size:12px;white-space:nowrap">Saved ' + new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</div>';
     var page = document.createElement('div');
     var height = root.scrollHeight + headH + 20 + pad * 2;
     page.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
