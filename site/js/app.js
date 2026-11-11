@@ -231,6 +231,8 @@ document.addEventListener('click', function (e) {
   var t = e.target;
   // A character link opened in a new tab or window is left to the browser
   if ((e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) && t.closest('a[href^="#"]')) return;
+  var save = t.closest('[data-save-card]');
+  if (save) { e.preventDefault(); e.stopPropagation(); saveCard(save); return; }
   var pin = t.closest('[data-pin]');
   if (pin) { e.stopPropagation(); togglePin(pin.getAttribute('data-pin')); return; }
   var hide = t.closest('[data-hide]');
@@ -585,11 +587,25 @@ function restore() {
 }
 
 // ---------------- save the current view as a PNG ----------------
-function exportName(ext) {
+// card: the saved card's name, for one card rather than the view
+function exportName(ext, card) {
   var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
   var when = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
-  if (page) return 'gs4-analytics-' + (page === 'settings' ? 'settings' : 'compare-' + range) + '-' + when + '.' + ext;
-  return 'gs4-analytics-' + (who ? shownId(who).replace(/[^\w-]+/g, '_') + (section !== 'summary' ? '-' + section : '') + (section !== 'progress' ? '-' + range : '') : 'everyone') + '-' + when + '.' + ext;
+  var what = card ? '-' + card.toLowerCase().replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') : '';
+  if (page) return 'gs4-analytics-' + (page === 'settings' ? 'settings' : 'compare-' + range) + what + '-' + when + '.' + ext;
+  return 'gs4-analytics-' + (who ? shownId(who).replace(/[^\w-]+/g, '_') + (section !== 'summary' ? '-' + section : '') + (section !== 'progress' ? '-' + range : '') : 'everyone') + what + '-' + when + '.' + ext;
+}
+// One card as an image: titled with the view and the card, so it still says
+// whose and when once it's shared on its own
+function saveCard(btn) {
+  var card = btn.closest('.card');
+  if (!card || btn.disabled) return;
+  var what = btn.getAttribute('data-save-card');
+  var title = who || page ? viewTitle() + ' ' + DOT + ' ' + what : what + ' ' + DOT + ' Today';
+  btn.disabled = true;
+  exportImage(card, title, function (ext) { return exportName(ext, what); }, function (msg) {
+    btn.disabled = false; announce(msg || what + ' saved as an image');
+  });
 }
 $('export').onclick = function () {
   var btn = $('export'), label = $('exportLabel');

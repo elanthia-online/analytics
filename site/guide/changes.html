@@ -47,6 +47,12 @@
     <!-- Newest first. One section per release, id="v<version>" (script releases) or
          id="d<yyyy-mm-dd>" (a dashboard-only change). Mark each item Script or Dashboard.
          Write for players: what changed, and what to do about it, if anything. -->
+    <section id="d2026-11-11" class="card">
+      <h3>November 11, 2026 &middot; dashboard</h3>
+      <ul>
+        <li><span class="chip">Dashboard</span> Save one card as an image: the arrow at the top right of each card (a character's card on the overview, or any table or chart on a page) saves just that card, titled with whose it is and the range. A wide table is saved whole, every column included. <b>Save image</b> in the menu still saves the whole view.</li>
+      </ul>
+    </section>
     <section id="d2026-11-08" class="card">
       <h3>November 8, 2026 &middot; dashboard</h3>
       <ul>
@@ -72,6 +78,7 @@
         <li>If you tested an earlier build, move its <code>analytics.db</code> aside: the script refuses a database from another build and starts a fresh one. Delete your character's old <code>analytics.yaml</code> too, to get the new blank one.</li>
         <li>Test builds before this one counted the silver of creatures that melt or crumble when searched twice, once as the corpse's silver and again as coins off the floor, and could lose fame and Death's Sting readings when <code>EXPERIENCE</code> and <code>RESOURCE</code> were typed together. A database from those builds keeps the extra floor silver, so start a fresh one for true silver figures.</li>
         <li>This build's database is schema 11 (it adds combat and the locksmith pool): one from an earlier test build is refused, so move it aside for a fresh one.</li>
+        <li>Test builds left a hunt open when the game connection dropped: the dashboard showed the character still hunting for two hours after it logged back in, and the hunt was later closed with the offline time counted as hunting. From this build, logging back in closes it when the login was last seen.</li>
         <li>Test builds also missed some towns' wording: Cold River's, Mist Harbor's and Kraken's Fall's notes and chits for big sales, Mist Harbor's bank, the Icemule and Cold River locksmiths and the Kraken's Fall and Icemule locksmith pools. Those sales and fees are recorded from this build on, not in an older database.</li>
       </ul>
     </section>

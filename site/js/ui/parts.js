@@ -12,10 +12,18 @@ export function kpi(ic, lab, val, sub) {
   return '<div class="kpi"><span class="kpi-ic">' + icon(ic) + '</span><div class="stat-lab">' + lab + '</div><div class="stat-val">' + val + '</div>' +
     (sub ? '<div class="stat-sub">' + sub + '</div>' : '') + '</div>';
 }
-// A card's heading: level 2 for a card on the page, 3 for one inside a card
-export function head(title, note, extra, level) {
-  var h = 'h' + (level || 2);
-  return '<div class="card-head"><' + h + '>' + title + '</' + h + '>' + (note ? '<span class="note">' + note + '</span>' : '') + (extra || '') + '</div>';
+// A card's heading: level 2 for a card on the page, 3 for one inside a card.
+// A card's own heading carries its save button, unless opts.save is false.
+export function head(title, note, extra, level, opts) {
+  var lv = level || 2, h = 'h' + lv;
+  var save = lv === 2 && !(opts && opts.save === false) ? saveButton(title) : '';
+  return '<div class="card-head"><' + h + '>' + title + '</' + h + '>' + (note ? '<span class="note">' + note + '</span>' : '') + (extra || '') + save + '</div>';
+}
+// Saves the card it sits in as an image (app.js handles the click); what it
+// shows is named for screen readers and in the image's title
+export function saveButton(what, cls) {
+  return '<button type="button" class="' + (cls || 'card-save') + ' no-export" data-save-card="' + esc(what) + '" title="Save this card as an image" ' +
+    'aria-label="Save the ' + esc(what) + ' card as an image">' + icon('download') + '</button>';
 }
 export function statusTag(s) {
   var cls = s === 'completed' ? 't-ok' : (s === 'active' || s === 'open') ? 't-live' : 't-off';

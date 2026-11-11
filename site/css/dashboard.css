@@ -380,6 +380,14 @@ section { margin-top: 24px; }
 .al-settings:hover { text-decoration: underline; }
 .al-settings .ic { width: 16px; height: 16px; }
 .card-head .al-settings { margin-left: auto; }
+/* Saves the card as an image: last in the heading, at its right. Muted, so it
+   stays out of the way, at full text contrast so it can still be seen. */
+.card-save { margin-left: auto; background: none; border: 0; cursor: pointer; color: var(--muted); padding: 5px; border-radius: 8px;
+  display: grid; place-items: center; margin-top: -4px; margin-bottom: -4px; margin-right: -6px; }
+.card-head .al-settings + .card-save { margin-left: 0; }
+.card-save .ic { width: 16px; height: 16px; }
+.card-save:hover { color: var(--ink); background: var(--sunken); }
+.card-save:disabled, .ch-actions [data-save-card]:disabled { cursor: progress; opacity: .6; }
 .health .al-settings { margin-top: 10px; }
 .as-dismissed { list-style: none; margin: 4px 0 14px; padding: 0; display: grid; gap: 6px; }
 .as-dismissed li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px;
