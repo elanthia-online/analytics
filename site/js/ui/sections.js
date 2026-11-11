@@ -102,7 +102,7 @@ export function shopCols(who) {
 
 // ---- hunting ------------------------------------------------------------------
 export function huntingHtml(d) {
-  var fight = combatHtml(d.combat);
+  var fight = combatHtml(d.combat) + poolHtml(d.pool);
   if (!d.creatures.length) {
     return fight || empty('target', 'No kills recorded ' + esc(d.label.toLowerCase()), 'Each creature searched shows up here, with its silver and boxes.');
   }
@@ -121,6 +121,28 @@ export function huntingHtml(d) {
       { h: 'Last kill', v: function (c) { return c.last_kill; }, c: function (c) { return c.last_kill ? stamp(c.last_kill) : '--'; } },
     ]), d.creatures, { col: 1, dir: 'desc' }) + '</section>';
   return kpis + bars + table + fight;
+}
+
+// ---- the locksmith pool --------------------------------------------------------
+function signed(n) { return n == null ? '--' : (n > 0 ? '+' : '') + num(n); }
+export function poolHtml(p) {
+  if (!p || (!p.now && !p.lists && !p.turned_away)) return '';
+  var kpis = '<div class="kpi-grid even">' +
+    kpi('bag', 'In the pool', p.now ? num(p.now.boxes) : '--', p.now ? (p.now.town ? esc(p.now.town) + ' ' + DOT + ' ' : '') + ago(p.now.at) : 'not listed yet') +
+    kpi('trend', 'Change', signed(p.change), p.lists ? 'from ' + num(p.first) + ' ' + DOT + ' ' + plural(p.lists, 'list') : 'no list in this range') +
+    kpi('layers', 'Peak', p.peak == null ? '--' : num(p.peak), esc(p.label)) +
+    kpi('x', 'Turned away', num(p.turned_away), p.turned_away ? 'the pool held all it would' : 'none') + '</div>';
+  var towns = p.towns.length > 1 || (p.towns.length && p.towns[0].turned_away)
+    ? sortTable('pool-towns', 'Locksmith pool by town', [
+      { h: 'Town', text: true, v: function (t) { return t.town; }, c: function (t) { return esc(t.town); } },
+      { h: 'Boxes', title: 'At its last list', v: function (t) { return t.last; }, c: function (t) { return t.last == null ? '--' : num(t.last); } },
+      { h: 'Change', v: function (t) { return t.change; }, c: function (t) { return signed(t.change); } },
+      { h: 'Peak', v: function (t) { return t.peak; }, c: function (t) { return t.peak == null ? '--' : num(t.peak); } },
+      { h: 'Turned away', v: function (t) { return t.turned_away; }, c: function (t) { return num(t.turned_away); } },
+      { h: 'Last list', v: function (t) { return t.last_at; }, c: function (t) { return t.last_at ? stamp(t.last_at) : '--'; } },
+    ], p.towns, { col: 5, dir: 'desc' }) : '';
+  return '<section class="card">' + head('Locksmith pool', esc(p.label)) + '<p class="small muted note-p">This character\'s boxes waiting at the locksmith pool, ' +
+    'counted each time the worker lists them (eloot asks on every visit). A full pool turns more away.</p>' + kpis + towns + '</section>';
 }
 
 // ---- combat (from Lich's combat tracker) ----------------------------------------
@@ -337,7 +359,7 @@ export function compareHtml(d, names, entry) {
       return '<a class="cell-ch" href="' + hrefFor(r.id, page) + '" data-who="' + esc(r.id) + '" data-sec="' + page + '">' + avatar(e, 'xs') + '<b>' + esc(shown(e.name)) + '</b></a>';
     } };
   };
-  if (!d.income.length && !d.creatures.length && !d.bounties.length && !d.shops.length && !d.combat.length) {
+  if (!d.income.length && !d.creatures.length && !d.bounties.length && !d.shops.length && !d.combat.length && !d.pool.length) {
     return empty('layers', 'Nothing to compare ' + esc(d.label.toLowerCase()), 'Pick a longer range, or play a little first.');
   }
   var sec = function (title, note, html) { return '<section class="card">' + head(title, note) + html + '</section>'; };
@@ -359,6 +381,14 @@ export function compareHtml(d, names, entry) {
     ], d.towns, { col: 5, dir: 'desc' })) : '') +
     sec('Creatures', esc(d.label), d.creatures.length
       ? sortTable('cmp-creatures', 'Creatures by character', creatureCols(who('hunting')), d.creatures, { col: 2, dir: 'desc' }) : none('No kills recorded in this range.')) +
+    (d.pool.length ? sec('Locksmith pool', esc(d.label) + ' ' + DOT + ' boxes waiting', sortTable('cmp-pool', 'Locksmith pool by character', [who('hunting'),
+      { h: 'Town', text: true, v: function (r) { return r.town || ''; }, c: function (r) { return esc(r.town || '--'); } },
+      { h: 'Boxes', title: 'At its last list', v: function (r) { return r.boxes; }, c: function (r) { return r.boxes == null ? '--' : num(r.boxes); } },
+      { h: 'Change', v: function (r) { return r.change; }, c: function (r) { return signed(r.change); } },
+      { h: 'Peak', v: function (r) { return r.peak; }, c: function (r) { return r.peak == null ? '--' : num(r.peak); } },
+      { h: 'Turned away', v: function (r) { return r.turned_away; }, c: function (r) { return num(r.turned_away); } },
+      { h: 'Last list', v: function (r) { return r.at; }, c: function (r) { return r.at ? stamp(r.at) : '--'; } },
+    ], d.pool, { col: 2, dir: 'desc' })) : '') +
     (d.combat.length ? sec('Combat', esc(d.label) + ' ' + DOT + ' each character\'s own hits', combatCompare(d, who)) : '') +
     sec('Bounties by type', esc(d.label), d.bounties.length
       ? sortTable('cmp-bounties', 'Bounty types by character', bountyCols(who('bounties')), d.bounties, { col: 2, dir: 'desc' }) : none('No bounties in this range.'));

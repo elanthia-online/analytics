@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
 import { Conn } from '../site/js/db.js';
 import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildOverview, buildCharacter } from '../site/js/aggregate/index.js';
-import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, buildCombat, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
+import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, buildCombat, buildPool, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
 import { rangeFromArg, offerLabel, windows, rangeLabels, rangeRules } from '../site/js/aggregate/report.js';
 import { windowDay, clockSeconds, dayOf, addDays, dayStr, midnight, dateOf, hourOf } from '../site/js/aggregate/time.js';
 
@@ -485,6 +485,37 @@ test('combat: each character\'s own damage, kills and assists per creature, tota
   try {
     const old = buildCombat(c9.conn, 'GS3:Rocksteady', 'daily', { now: c9.now });
     assert.deepEqual([old.recorded, old.fought, old.creatures], [false, 0, []]);
+  } finally {
+    c9.close();
+  }
+});
+
+test('locksmith pool: the latest count, and the window\'s change, peak and boxes turned away, by town', () => {
+  const c = party();
+  try {
+    const t0 = 1_800_000_000;
+    // [minutes in, full, town, boxes]: a list a rest in Icemule, the pool full at 100, then one in Kraken's Fall
+    for (const [min, full, town, boxes] of [[-3 * 1440, 0, 'Icemule Trace', 70], [10, 0, 'Icemule Trace', 96], [40, 0, 'Icemule Trace', 100],
+      [41, 1, 'Icemule Trace', null], [41.5, 1, 'Icemule Trace', null], [42, 0, 'Icemule Trace', 100], [90, 0, "Kraken's Fall", 12]]) {
+      c.conn.db.run('INSERT INTO pool_depth VALUES (?,?,?,?,?,?,?,?)', ['GS3', 'Donatello', t0 + Math.round(min * 60), full, town, 'the worker', boxes, boxes]);
+    }
+    const ranges = { day: 'rolling' };
+    const p = buildPool(c.conn, 'GS3:Donatello', 'daily', { now: c.now, ranges });
+    assert.deepEqual(p.now, { boxes: 12, waiting: 12, town: "Kraken's Fall", at: t0 + 5400 }, 'the latest list, wherever it was');
+    assert.deepEqual([p.lists, p.turned_away, p.first, p.last, p.peak, p.change], [4, 2, 96, 12, 100, -84]);
+    assert.deepEqual(p.towns.map((t) => [t.town, t.lists, t.first, t.last, t.peak, t.change, t.turned_away]),
+      [["Kraken's Fall", 1, 12, 12, 12, 0, 0], ['Icemule Trace', 3, 96, 100, 100, 4, 2]]);
+    const week = buildPool(c.conn, 'GS3:Donatello', 'weekly', { now: c.now, ranges: { week: 'rolling' } });
+    assert.equal(week.towns.find((t) => t.town === 'Icemule Trace').first, 70, 'a wider window takes the older list');
+    const cmp = buildCompare(c.conn, ['GS3:Donatello', 'GS3:Michelangelo'], 'daily', { now: c.now, ranges });
+    assert.deepEqual(cmp.pool.map((r) => [r.id, r.boxes, r.town, r.peak, r.turned_away]), [['GS3:Donatello', 12, "Kraken's Fall", 100, 2]],
+      'only a character with lists');
+  } finally {
+    c.close();
+  }
+  const c9 = capped();
+  try {
+    assert.equal(buildPool(c9.conn, 'GS3:Rocksteady', 'daily', { now: c9.now }).recorded, false, 'a database without the table');
   } finally {
     c9.close();
   }

@@ -9,7 +9,7 @@ export const TIME_COLUMNS = {
   rest_steps: ['rest_start'], logins: ['started_at', 'first_seen', 'last_seen'], bounty_offers: ['offered_at', 'ended_at'],
   kill_stats: ['last_kill_at'], silver_events: ['timestamp'],
   item_sales: ['timestamp'], vendor_visits: ['start_time', 'end_time'], progress: ['timestamp'], metadata: ['updated_at'],
-  combat_stats: ['start_time'],
+  combat_stats: ['start_time'], pool_depth: ['timestamp'],
 };
 const DATE_COLUMNS = [['kill_stats', 'date']];
 

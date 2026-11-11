@@ -63,6 +63,7 @@ empty section, never an error.
 | `item_sales` | `item_name`, `total_price`, `vendor_type`, `timestamp` | Income: best sellers |
 | `vendor_visits` | `vendor` (the room tag), `start_time`, `duration_seconds`, `silver`, and from schema 8 `spent`, `town` | Income: shops and stops, by town |
 | `kill_stats` | `creature`, `kill_count`, `total_silver`, `boxes`, `profile`, `last_kill_at`, `date` | Hunting; Income's coins on creatures |
+| `pool_depth` (schema 11) | `timestamp`, `full` (1: a box turned away, no count), `town`, `boxes`, `waiting` | Hunting's and Compare's Locksmith pool |
 | `combat_stats` (schema 11) | `creature`, `start_time` (the cycle's), `fought`, `kills`, `assists`, `damage`, `hits`, `kill_damage`; `kill_stats.creature` to file a recorder's name ("cadaverous tatterdemalion ghast") under the searched one it ends with | Hunting's Combat card; Compare's Combat |
 | `bounties` | `bp_reward` as well as the columns above | Bounties: points each and an hour |
 | `bank_snapshots` | `cycle_id`; and `snapshot_type`, `balance`, `delta_silver` on `'__total__'` rows that aren't `deposit` or `withdraw` | History: silver per cycle; Income's bank checks (a listing's `delta_silver` is how far it was from the tracked total) |

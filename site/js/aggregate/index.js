@@ -3,10 +3,10 @@
 // reads the clock, the DOM or the network, so Node tests run it as is.
 import { buildOverview } from './overview.js';
 import { buildCharacter, RANGES } from './character.js';
-import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildReconciliation, buildCompare, buildCombat, targetEta, SECTIONS, DETAIL_RANGES } from './details.js';
+import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildReconciliation, buildCompare, buildCombat, buildPool, targetEta, SECTIONS, DETAIL_RANGES } from './details.js';
 import { RANGE_DEFAULTS, RANGE_CHOICES, rangeRules, rangeLabels } from './report.js';
 
-export { buildOverview, buildCharacter, RANGES, buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildReconciliation, buildCompare, buildCombat, targetEta, SECTIONS, DETAIL_RANGES };
+export { buildOverview, buildCharacter, RANGES, buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildReconciliation, buildCompare, buildCombat, buildPool, targetEta, SECTIONS, DETAIL_RANGES };
 export { RANGE_DEFAULTS, RANGE_CHOICES, rangeRules, rangeLabels };
 
 // analytics.lic schema versions this build has been checked against
