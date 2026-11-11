@@ -56,6 +56,7 @@
         <li><a href="#settings">Settings</a></li>
         <li><a href="#alerts">Alerts and Discord</a></li>
         <li><a href="#data">What is recorded</a></li>
+        <li><a href="#combat">Combat</a></li>
         <li><a href="#accuracy">How the numbers work</a></li>
         <li><a href="#hooks">For script authors</a></li>
         <li><a href="#maintenance">Maintenance and backups</a></li>
@@ -174,8 +175,8 @@
         <ul>
           <li><b>Summary</b>: right now, performance and trends, rests, bounties and hunting grounds.</li>
           <li><b>Income</b>: silver by where it came from (coins on creatures, coins picked up off the floor, gems, skins, consignment, the pawnshop, boxes, bounty rewards), what was spent and on what, the best-selling items, and each shop, bank and locksmith stop with its time and silver a minute, by town too.
-            <b>Bank checks</b> list every <code>BANK ACCOUNT</code> listing that found your banks at a different total from the one tracked through the teller, and by how much: a deposit by another character, a note or a transfer moves the banks without a teller line being read. Silver per hour counts those differences like any other change, so they're shown rather than hidden.</li>
-          <li><b>Hunting</b>: every creature: kills, silver a kill, boxes per 100 kills, the profile and the last kill.</li>
+            <b>Bank checks</b> list every <code>BANK ACCOUNT</code> listing that found your banks at a different total from the one tracked through the teller, and by how much: a deposit by another character, a note or a transfer moves the banks without a teller line being read. Silver per hour counts those differences like any other change, so they're shown rather than hidden. Under <b>Locksmith pool</b>, how many of its boxes the pool holds, how that changed over the range, the peak, and how many boxes a full pool turned away, by town.</li>
+          <li><b>Hunting</b>: every creature: kills, silver a kill, boxes per 100 kills, the profile and the last kill. Under <b>Combat</b>, the damage the character dealt to each kind of creature, its credited kills and assists, damage per creature, per kill and per hit, and per hour hunting (see <a href="#combat">Combat</a>).</li>
           <li><b>Bounties</b>: by type: how many taken and done, success, average time, and silver, exp and bounty points each; and how task offers ended.</li>
           <li><b>Progress</b>: level (or training points past the cap) and ascension points with ETAs at your recent pace, experience by day split into regular and ascension, unspent training points, fame, deeds, Lumnis, Death's Sting with how long each lasted (from the death to the moment it faded), and your resources from <code>RESOURCE</code> (your profession's resource this week and in total, suffused, Voln favor, covert arts charges, shadow essence), each with when it was read.
             Set <b>your own target</b> there (a level, a number of training points past the cap, or ascension points) to see how much is left and when you'll get there; it's saved in this browser.</li>
@@ -247,6 +248,7 @@
           <tbody>
             <tr><td><code>parse_sales</code></td><td><code>true</code></td><td>Record vendor sales (including promissory notes, gem pouches and containers) and spending at the locksmith, the locksmith pool, the priestess, the warehouse, the town clerk and in shops, so your selling scripts need no changes.</td></tr>
             <tr><td><code>track_shops</code></td><td><code>true</code></td><td>Record each stop at a gem shop, pawnshop, furrier, alchemist, consignment, herbalist, general store, locksmith, locksmith pool, bank, chronomage or debt collector, from the map's room tags, with the time spent and the silver made and spent there. Turn it off if your selling script reports its own visits through the <a href="#hooks">hooks</a>.</td></tr>
+            <tr><td><code>combat</code></td><td><code>true</code></td><td>Record the damage the character deals and the kills it is credited with, per creature, from Lich's own combat tracker (see <a href="#combat">Combat</a>). It turns the tracker on for the character while the script runs, and off again when it stops if it was off before. <code>false</code> records none and leaves the tracker alone.</td></tr>
             <tr><td><code>parse_bank</code></td><td><code>true</code></td><td>Record <code>BANK ACCOUNT</code> listings, and move the tracked total by every deposit, withdrawal and note. With no total yet, one <code>BANK ACCOUNT</code> is sent quietly a few seconds after starting.</td></tr>
           </tbody>
         </table></div>
@@ -320,6 +322,8 @@ alerts:                                # in-game and Discord alerts
             <tr><td><code>progress</code></td><td>Where each character stands: level, regular and ascension exp, exp to the next level or training point, fame, deeds, long-term exp, Death's Sting, unspent PTPs, MTPs and ATPs, and whether Lumnis, RPA or Fash'lo'nae is on. Also your resources from <code>RESOURCE</code> output: your profession's resource (Essence, Devotion, Grit...) this week and in total, suffused, Voln favor, covert arts charges and shadow essence. A row when the level, Lumnis, RPA or Fash'lo'nae changes, for each <code>EXPERIENCE</code> or <code>RESOURCE</code> output seen (at the moment it was shown), when the Death's Sting wears off, and at least hourly. No command is sent: those readings come from the output when anything (you or a script) types the command, read straight from the text, so a row has them only when it's that reading's row; otherwise they're empty, never an old reading.</td></tr>
             <tr><td><code>rest_steps</code></td><td>Time per rest step.</td></tr>
             <tr><td><code>kill_stats</code></td><td>Kills, corpse silver and boxes, per character, day, profile and creature.</td></tr>
+            <tr><td><code>pool_depth</code></td><td>Each time the locksmith pool listed the character's boxes (<code>ASK</code> the worker <code>FOR RETURN</code>, which <code>eloot</code> does on every visit): how many it held, how many were still waiting, the worker and the town. And each box it turned away for already holding all it will for the character. The script asks nothing itself; without the list there's no count.</td></tr>
+            <tr><td><code>combat_stats</code></td><td>Per hunt and kind of creature: how many the character hit, its own damage and hits on them, its credited kills and assists, and its damage to the ones it killed. See <a href="#combat">Combat</a>.</td></tr>
             <tr><td><code>bounties</code></td><td>Bounties you worked: type, target, area, count done of required, outcome, rewards.</td></tr>
             <tr><td><code>bounty_offers</code></td><td>Every task offered, kept or not: what it was, how it ended, expedited or not.</td></tr>
             <tr><td><code>bank_snapshots</code></td><td>Bank listings and teller moves, with the tracked total.</td></tr>
@@ -329,8 +333,20 @@ alerts:                                # in-game and Discord alerts
             <tr><td><code>vendor_visits</code></td><td>Each stop at a shop, the bank or a locksmith: how long, the silver made and spent there, the room and the town. Recorded by itself from the map's room tags (the same tags <code>go2</code> and <code>eloot</code> travel by), so it works with any selling script. See <code>track_shops</code>.</td></tr>
           </tbody>
         </table></div>
-        <p>This is schema 10. The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
+        <p>This is schema 11. The schema is fixed for each build. Until the first release there are no migrations: a database from another build is refused with a message, and you move it aside and start a fresh one.
           You can open it with any SQLite tool for your own queries. Several Lich sessions can write to it at once: a write that finds it busy waits and retries. On <code>;kill</code>, whatever is still queued is written; if another session holds the database even then, the game window says how many writes were lost.</p>
+      </section>
+
+      <section id="combat" class="card">
+        <h3>Combat</h3>
+        <p>With <code>combat</code> on (the default), the script runs Lich's own combat tracker and recorder for the character. They read every attack in the game text: whose it was, which creature it hit, the damage of each hit and flare, and which attack killed the creature. Once a minute the script sums each hunt into <code>combat_stats</code>, by kind of creature. The dashboard shows it on each character's <b>Hunting</b> page and on <b>Compare</b>, for any range.</p>
+        <ul>
+          <li><b>Damage</b> is the character's own: its swings, spells and flares, and its shield's or armor's flares on a creature that struck it. Another player's attack on the same creature isn't counted, even though it shows in the room.</li>
+          <li>A <b>kill</b> is a creature whose killing blow was the character's own: a fatal critical, or the death that came with its attack, or its hit the last one on the creature. An <b>assist</b> is a creature the character hurt that died to someone else's attack. A creature that got away, or died out of sight, counts as fought, with its damage, but neither.</li>
+          <li>Characters hunting together each count their own, so on <b>Compare</b> their figures add up for the party without counting a hit twice.</li>
+          <li>Kills here can differ from the kills on the rest of the page, which are the corpses the character searched: a creature another character killed and this one looted counts there, not here.</li>
+          <li>The recorder keeps every attack in <code>analytics-combat.db</code>, in the character's folder in Lich's data (beside its <code>analytics.yaml</code>), for three days, trimming it as it goes: about 10 MB a day of steady hunting, so some 30 MB at most. Only the sums go into <code>analytics.db</code>.</li>
+        </ul>
       </section>
 
       <section id="accuracy" class="card">

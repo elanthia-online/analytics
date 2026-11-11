@@ -372,3 +372,23 @@ player requests. Still before the first release.
 The page: Progress shows the latest resources; Death's Sting stretches start at the dead
 cycle's start (a potion can cure the sting before the dead cycle ends); Income has
 "Coins off the floor" and Consignment as their own sources.
+
+## Schema 11 (2026-11-10)
+
+elanthia-online/scripts@29181ae2, from a player request: each character's damage and kills
+per creature, for characters hunting together, and the locksmith pool's depth. Still before the
+first release.
+
+- **combat_stats**: per cycle and creature kind, `fought`, `kills`, `assists`, `damage`,
+  `hits`, `kill_damage`, with the cycle's `start_time`. Summed from Lich's
+  `Combat::Recorder`, which the script runs with the combat tracker (setting `combat`, on
+  by default) and which keeps its own `analytics-combat.db` per character.
+- **pool_depth**: each time the locksmith pool lists the character's boxes (`ASK <worker> FOR
+  RETURN`, as eloot does), `boxes` and `waiting`, with the worker and town; a box turned away
+  for a full pool is a row with `full = 1` and no count. Only the character's own list (by
+  name) and refusal (straight after its own offer).
+- `SCHEMA_VERSION` 11; `KNOWN_SCHEMAS` is `['11']`. The fixtures are converted by
+  `tools/fixtures-schema11.js` (both tables added empty).
+
+The page: a Combat card on Hunting, a Locksmith pool card on Income, and both sections on Compare.
+

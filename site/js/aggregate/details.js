@@ -124,6 +124,7 @@ export function buildIncome(conn, id, range, { now, ranges }) {
     out.shops = [...byShop.values()].map(per).sort((a, b) => b.seconds - a.seconds);
     out.towns = [...byTown.values()].map(per).sort((a, b) => b.silver - a.silver);
   }
+  out.pool = buildPool(conn, id, range, { now, ranges });
   return out;
 }
 
@@ -132,7 +133,7 @@ export function buildIncome(conn, id, range, { now, ranges }) {
 export function buildHunting(conn, id, range, { now, ranges }) {
   const who = parseWho(id);
   const { label, from } = window(range, now, ranges);
-  if (!hasTable(conn, 'kill_stats')) return { label, from, creatures: [], kills: 0, boxes: 0, silver: 0 };
+  if (!hasTable(conn, 'kill_stats')) return { label, from, creatures: [], kills: 0, boxes: 0, silver: 0, combat: buildCombat(conn, id, range, { now, ranges }) };
   const boxes = hasColumn(conn, 'kill_stats', 'boxes') ? 'SUM(boxes)' : '0';
   const creature = hasColumn(conn, 'kill_stats', 'creature') ? 'creature' : "'creatures'";
   const rows = conn.all(`SELECT ${creature} AS creature, SUM(kill_count) AS kills, SUM(total_silver) AS silver, ${boxes} AS boxes, ` +
@@ -145,7 +146,95 @@ export function buildHunting(conn, id, range, { now, ranges }) {
       profiles: String(r.profiles || '').split(',').filter(Boolean).map((p) => shortProfile(p, who[1])) };
   });
   const sum = (k) => creatures.reduce((a, c) => a + c[k], 0);
-  return { label, from, creatures, kills: sum('kills'), silver: sum('silver'), boxes: sum('boxes') };
+  return { label, from, creatures, kills: sum('kills'), silver: sum('silver'), boxes: sum('boxes'), combat: buildCombat(conn, id, range, { now, ranges }) };
+}
+
+// ---- combat (schema 11) ----------------------------------------------------------
+
+// The recorder names a creature as the game shows it ("cadaverous tatterdemalion
+// ghast"); its searched kills say "tatterdemalion ghast". A name takes the
+// longest searched name it ends with, so both line up; any other stays as is.
+function searchedName(names) {
+  const sorted = [...names].sort((a, b) => b.length - a.length);
+  const seen = new Map();
+  return (name) => {
+    const full = String(name ?? '').toLowerCase();
+    if (!seen.has(full)) seen.set(full, sorted.find((k) => full === k || full.endsWith(' ' + k)) || full || 'unknown');
+    return seen.get(full);
+  };
+}
+
+// What one character did to the creatures it fought in the window, from
+// combat_stats (one row per cycle and creature kind): how many it hit, its own
+// damage and hits on them, its kills (the killing blow was its own) and
+// assists (it hit one someone else finished), and per hour of hunting. A
+// cycle counts in the window it started in.
+export function buildCombat(conn, id, range, { now, ranges }) {
+  const who = parseWho(id);
+  const { label, from } = window(range, now, ranges);
+  const out = { label, from, creatures: [], fought: 0, kills: 0, assists: 0, damage: 0, hits: 0, kill_damage: 0, hunt_s: 0 };
+  if (!hasTable(conn, 'combat_stats')) return { ...out, recorded: false };
+  const names = hasTable(conn, 'kill_stats')
+    ? conn.all('SELECT DISTINCT creature FROM kill_stats WHERE game = ? AND character = ?', ...who).map((r) => String(r.creature).toLowerCase())
+    : [];
+  const nameOf = searchedName(names);
+  const by = new Map();
+  for (const r of conn.all('SELECT creature, SUM(fought) AS fought, SUM(kills) AS kills, SUM(assists) AS assists, SUM(damage) AS damage, ' +
+    'SUM(hits) AS hits, SUM(kill_damage) AS kill_damage FROM combat_stats WHERE game = ? AND character = ? AND start_time >= ? AND start_time <= ? ' +
+    'GROUP BY creature', ...who, from, now)) {
+    const name = nameOf(r.creature);
+    if (!by.has(name)) by.set(name, { creature: name, fought: 0, kills: 0, assists: 0, damage: 0, hits: 0, kill_damage: 0 });
+    const c = by.get(name);
+    for (const k of ['fought', 'kills', 'assists', 'damage', 'hits', 'kill_damage']) c[k] += toI(r[k]);
+  }
+  const per = (a, b) => (b ? Math.round(a / b) : null);
+  out.creatures = [...by.values()].map((c) => ({ ...c, per_creature: per(c.damage, c.fought), per_kill: per(c.kill_damage, c.kills), per_hit: per(c.damage, c.hits) }))
+    .sort((a, b) => b.damage - a.damage || a.creature.localeCompare(b.creature));
+  for (const k of ['fought', 'kills', 'assists', 'damage', 'hits', 'kill_damage']) out[k] = out.creatures.reduce((a, c) => a + c[k], 0);
+  // The hunt still going counts to now (its combat is summed as it goes); one
+  // left open long ago by a crash doesn't
+  out.hunt_s = toI(conn.one("SELECT SUM(CASE WHEN end_time IS NOT NULL THEN duration_seconds WHEN ? - start_time < ? THEN ? - start_time ELSE 0 END) AS s " +
+    "FROM cycles WHERE game = ? AND character = ? AND cycle_type = 'hunt' AND start_time >= ? AND start_time <= ?", now, STALE_OPEN, now, ...who, from, now)?.s);
+  const hourly = (n) => (out.hunt_s >= 600 ? Math.round(n * 3600 / out.hunt_s) : null);
+  return { ...out, recorded: true, per_creature: per(out.damage, out.fought), per_kill: per(out.kill_damage, out.kills), per_hit: per(out.damage, out.hits),
+    kills_per_hour: hourly(out.kills), damage_per_hour: hourly(out.damage) };
+}
+
+// ---- the locksmith pool (schema 11) ----------------------------------------------
+
+// How many of one character's boxes the locksmith pool holds: the latest list
+// whenever it was, and over the window the first and last count, the peak,
+// how often it listed them and how many boxes it turned away for being full.
+// By town too, since each town's pool is its own.
+export function buildPool(conn, id, range, { now, ranges }) {
+  const who = parseWho(id);
+  const { label, from } = window(range, now, ranges);
+  const out = { label, from, recorded: false, now: null, towns: [], lists: 0, turned_away: 0, first: null, last: null, peak: null };
+  if (!hasTable(conn, 'pool_depth')) return out;
+  out.recorded = true;
+  const latest = conn.one('SELECT boxes, waiting, town, timestamp FROM pool_depth WHERE game = ? AND character = ? AND full = 0 AND boxes IS NOT NULL ' +
+    'AND timestamp <= ? ORDER BY timestamp DESC LIMIT 1', ...who, now);
+  if (latest) out.now = { boxes: toI(latest.boxes), waiting: toI(latest.waiting), town: latest.town ?? null, at: toI(latest.timestamp) };
+  const rows = conn.all('SELECT timestamp, full, town, boxes FROM pool_depth WHERE game = ? AND character = ? AND timestamp >= ? AND timestamp <= ? ' +
+    'ORDER BY timestamp, full', ...who, from, now);
+  const towns = new Map();
+  for (const r of rows) {
+    const town = r.town ?? 'unknown';
+    if (!towns.has(town)) towns.set(town, { town, lists: 0, turned_away: 0, first: null, last: null, peak: null, last_at: null });
+    const t = towns.get(town);
+    if (toI(r.full) === 1) { t.turned_away += 1; out.turned_away += 1; continue; }
+    if (r.boxes == null) continue;
+    const boxes = toI(r.boxes);
+    t.lists += 1; out.lists += 1;
+    if (t.first == null) t.first = boxes;
+    t.last = boxes; t.last_at = toI(r.timestamp); t.peak = Math.max(t.peak ?? boxes, boxes);
+    if (out.first == null) out.first = boxes;
+    out.last = boxes; out.peak = Math.max(out.peak ?? boxes, boxes);
+  }
+  out.towns = [...towns.values()].map((t) => ({ ...t, change: t.first == null ? null : t.last - t.first }))
+    .sort((a, b) => (b.last_at ?? 0) - (a.last_at ?? 0));
+  out.change = out.first == null ? null : out.last - out.first;
+  return out;
 }
 
 // ---- bounties -----------------------------------------------------------------
@@ -406,7 +495,7 @@ export function buildReconciliation(conn, id, range, { now, ranges }) {
 // Each list is flat (one row per character and thing) so tables can sort it.
 export function buildCompare(conn, ids, range, { now, ranges }) {
   const { label, from } = window(range, now, ranges);
-  const out = { label, from, characters: ids.length, shops: [], towns: [], creatures: [], bounties: [], income: [] };
+  const out = { label, from, characters: ids.length, shops: [], towns: [], creatures: [], bounties: [], income: [], combat: [], combat_creatures: [], pool: [] };
   for (const id of ids) {
     const inc = buildIncome(conn, id, range, { now, ranges });
     const hunt = buildHunting(conn, id, range, { now, ranges });
@@ -418,6 +507,17 @@ export function buildCompare(conn, ids, range, { now, ranges }) {
     for (const s of inc.shops) out.shops.push({ id, ...s });
     for (const t of inc.towns) out.towns.push({ id, ...t });
     for (const c of hunt.creatures) out.creatures.push({ id, ...c });
+    const pool = inc.pool;
+    if (pool.now || pool.lists || pool.turned_away) {
+      out.pool.push({ id, boxes: pool.now?.boxes ?? null, town: pool.now?.town ?? null, at: pool.now?.at ?? null, change: pool.change ?? null,
+        peak: pool.peak, lists: pool.lists, turned_away: pool.turned_away });
+    }
+    const fight = hunt.combat;
+    if (fight.fought) {
+      const { creatures, label: _l, from: _f, recorded: _r, ...totals } = fight;
+      out.combat.push({ id, ...totals });
+      for (const c of creatures) out.combat_creatures.push({ id, ...c });
+    }
     for (const t of b.types) out.bounties.push({ id, ...t });
   }
   return out;

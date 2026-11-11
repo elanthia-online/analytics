@@ -12,6 +12,8 @@
 //   Karai     a new character past the level cap (training points, ascension), hunting now
 //   Casey     a new character around level 38, with a death in the week
 //   Bebop and Leonardo get the week before the fixture's own days, ending where they start
+// and, for those days, schema 11's combat_stats (damage, kills and assists per hunt and creature) and
+// pool_depth (boxes waiting at the locksmith pool).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import initSqlJs from 'sql.js';
@@ -55,6 +57,9 @@ const REASONS = ['encumbered.', 'Too many items', 'Mind full', 'Low mana'];
 const GEMS = [['uncut ruby', 'ruby'], ['blue sapphire', 'sapphire'], ['star emerald', 'emerald'], ['pink pearl', 'pearl'], ['tigerfang crystal', 'crystal']];
 const LOOT = [['steel longsword', 'longsword'], ['reinforced leather', 'leather'], ['small wooden shield', 'shield']];
 const TYPES = ['cull', 'gem', 'skin', 'heirloom'];
+// The game's first word on a creature (as the recorder names it, before the searched name)
+const BOONS = ['grizzled', 'hulking'];
+const pick2 = (list, r) => list[Math.floor(r() * list.length)];
 
 export function buildSample(SQL, fixture, now) {
   const db = new SQL.Database(fixture);
@@ -66,6 +71,10 @@ export function buildSample(SQL, fixture, now) {
   const run = (sql, v) => db.run(sql, v);
   const one = (sql, v) => { const st = db.prepare(sql); st.bind(v); const r = st.step() ? st.getAsObject() : null; st.free(); return r; };
   const today = midnightOf(now);
+  // Schema 11's combat_stats, for the made-up characters only (the fixture's
+  // is empty). Its own sequence, so the other rows are the same without it.
+  const crand = prng(20261111);
+  const cbetween = (lo, hi) => Math.round(lo + crand() * (hi - lo));
 
   for (const who of PEOPLE) {
     const G = 'GS3', C = who.name;
@@ -85,8 +94,10 @@ export function buildSample(SQL, fixture, now) {
       endAt = now;
       exp = who.exp0; asc = who.asc0; fame = who.fame0; bank = who.bank0;
     }
-    const rows = { cycles: [], kills: new Map(), banks: [], events: [], sales: [], visits: [], steps: [], bounties: [], offers: [], progress: [], logins: [] };
+    const rows = { combat: new Map(), pool: [], cycles: [], kills: new Map(), banks: [], events: [], sales: [], visits: [], steps: [], bounties: [], offers: [], progress: [], logins: [] };
     let bounty = null, lastProgress = 0, sting = null;
+    // Boxes waiting at the locksmith pool: a box or two left each rest, the pool holding 100 at most
+    let pooled = who.name === 'Karai' ? 92 : cbetween(30, 70);
     // Rows as schema 9 and 10 write them: the EXPERIENCE readings (fame, deeds, long-term
     // exp, Death's Sting) only on a row a reading came before (fresh: typed at
     // login and after a death), the training points once, and a None row when
@@ -126,6 +137,13 @@ export function buildSample(SQL, fixture, now) {
           const row = rows.kills.get(key) || { date: localDate(at), creature, count: 0, silver: 0, boxes: 0, last: 0 };
           row.count += 1; row.silver += s; row.boxes += rand() < 0.08 ? 1 : 0; row.last = Math.max(row.last, at + Math.round((stop - at) * (k + 1) / kills));
           rows.kills.set(key, row); silver += s;
+          // How it went in the fight: most die to this character, a few to someone else, a few get away
+          const roll = crand(), hits = cbetween(2, 6), damage = hits * cbetween(25, who.name === 'Karai' ? 110 : 60);
+          const name = `${pick2(BOONS, crand)} ${creature}`, ckey = `${cid}|${name}`;
+          const fight = rows.combat.get(ckey) || { cid, start: at, creature: name, noun: creature.split(' ').at(-1), fought: 0, kills: 0, assists: 0, damage: 0, hits: 0, kill_damage: 0 };
+          fight.fought += 1; fight.damage += damage; fight.hits += hits;
+          if (roll < 0.86) { fight.kills += 1; fight.kill_damage += damage; } else if (roll < 0.95) fight.assists += 1;
+          rows.combat.set(ckey, fight);
         }
         if (bounty) bounty.done = Math.min(bounty.need, bounty.done + Math.round(kills / 3));
         if (open) break;
@@ -159,6 +177,11 @@ export function buildSample(SQL, fixture, now) {
         };
         shop('gemshop', 'jeweler', 'Ragnoz', GEMS, who.name === 'Karai' ? 2500 : 600, who.name === 'Karai' ? 9000 : 2600, between(1, 5));
         if (rand() < 0.5) shop('pawnshop', 'pawnbroker', 'Nilandia', LOOT, 200, 1400, between(1, 2));
+        for (let box = cbetween(0, 2); box > 0; box--) {
+          if (pooled >= 100) rows.pool.push({ at: t + box, full: 1, boxes: null });
+          else pooled += 1;
+        }
+        rows.pool.push({ at: t + 3, full: 0, boxes: pooled });
         if (bounty && bounty.done >= bounty.need) {
           const reward = between(800, 2600);
           rows.events.push({ cid: rid, at: t, cat: 'bounty', amount: reward, vt: null, vn: null, bt: bounty.type });
@@ -215,6 +238,12 @@ export function buildSample(SQL, fixture, now) {
     for (const k of rows.kills.values()) {
       run('INSERT INTO kill_stats (game, character, date, profile, creature, kill_count, total_silver, boxes, last_kill_at) VALUES (?,?,?,?,?,?,?,?,?)',
         [G, C, k.date, who.profile, k.creature, k.count, k.silver, k.boxes, k.last]);
+    }
+    for (const c of rows.combat.values()) {
+      run('INSERT INTO combat_stats VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', [G, C, c.cid, c.start, c.creature, c.noun, c.fought, c.kills, c.assists, c.damage, c.hits, c.kill_damage]);
+    }
+    for (const p of rows.pool) {
+      run('INSERT INTO pool_depth VALUES (?,?,?,?,?,?,?,?)', [G, C, p.at, p.full, who.town, 'Jahck', p.boxes, p.boxes]);
     }
     for (const b of rows.banks) {
       run('INSERT INTO bank_snapshots (snapshot_id, cycle_id, game, character, timestamp, bank_name, balance, delta_silver, snapshot_type) VALUES (?,?,?,?,?,?,?,?,?)',

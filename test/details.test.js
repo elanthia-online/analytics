@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
 import { Conn } from '../site/js/db.js';
 import { buildIncome, buildHunting, buildBounties, buildHistory, buildDaily, buildProgress, buildOverview, buildCharacter } from '../site/js/aggregate/index.js';
-import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
+import { CAP_EXP, EXP_FOR_LEVEL, levelOf, buildReconciliation, buildCompare, buildCombat, buildPool, targetEta, DETAIL_RANGES } from '../site/js/aggregate/details.js';
 import { rangeFromArg, offerLabel, windows, rangeLabels, rangeRules } from '../site/js/aggregate/report.js';
 import { windowDay, clockSeconds, dayOf, addDays, dayStr, midnight, dateOf, hourOf } from '../site/js/aggregate/time.js';
 
@@ -427,4 +427,96 @@ test('date ranges reach every ranged page, and the summary\'s trend follows the 
   assert.equal(week.trend.labels.at(-1), dateOf(now));
   const plain = buildCharacter(conn, ov, ID, 'monthly', { now });
   assert.equal(plain.trend.labels.length, 30, 'the default month is still 30 days');
+});
+
+// A small schema 11 database, built here: two characters fighting together.
+// combat_stats as analytics.lic writes it, one row per cycle and creature kind.
+function party() {
+  const d = new SQL.Database();
+  // the fixture's schema, empty (combat_stats with it), so Compare's other sections have their tables
+  for (const [sql] of db.exec("SELECT sql FROM sqlite_master WHERE type = 'table'")[0].values) d.run(sql);
+  const t0 = 1_800_000_000;
+  // Searched as "foot ninja": the recorder's longer name lines up with it
+  d.run("INSERT INTO kill_stats (game, character, date, profile, creature, kill_count, total_silver, boxes, last_kill_at) VALUES ('GS3', 'Donatello', '2027-01-15', 'sewers', 'foot ninja', 1, 100, 0, ?)", [t0]);
+  for (const [who, start, len] of [['Donatello', t0, 1800], ['Michelangelo', t0, 3600], ['Donatello', t0 - 3 * 86400, 1800]]) {
+    d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds) VALUES (?, 'GS3', ?, 'hunt', ?, ?, ?)",
+      [`${who}${start}`, who, start, start + len, len]);
+  }
+  // Donatello hunting again for the last half hour (counted to now), and a hunt a crash left open a day ago (not)
+  d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time) VALUES ('open', 'GS3', 'Donatello', 'hunt', ?), ('crashed', 'GS3', 'Donatello', 'hunt', ?)",
+    [t0 + 5400, t0 - 20 * 3600]);
+  // [character, cycle start, name, fought, kills, assists, damage, hits, damage to its kills]
+  const rows = [['Donatello', t0, 'battle-scarred foot ninja', 1, 1, 0, 120, 3, 120], ['Donatello', t0, 'foot ninja', 2, 1, 1, 100, 3, 60],
+    ['Donatello', t0, 'mutated rat', 1, 0, 0, 15, 1, 0], ['Michelangelo', t0, 'foot ninja', 1, 1, 0, 90, 2, 90],
+    ['Michelangelo', t0, 'foot soldier', 1, 1, 0, 200, 4, 200],
+    ['Donatello', t0 - 3 * 86400, 'foot ninja', 1, 1, 0, 999, 9, 999]]; // three days back: outside today
+  for (const [who, start, name, ...n] of rows) {
+    d.run('INSERT INTO combat_stats VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', ['GS3', who, `${who}${start}`, start, name, name.split(' ').at(-1), ...n]);
+  }
+  return { conn: new Conn(d), now: t0 + 2 * 3600, close: () => d.close() };
+}
+
+test('combat: each character\'s own damage, kills and assists per creature, totals, averages and per hour', () => {
+  const c = party();
+  try {
+    const ranges = { day: 'rolling' };
+    const don = buildCombat(c.conn, 'GS3:Donatello', 'daily', { now: c.now, ranges });
+    assert.equal(don.recorded, true);
+    assert.deepEqual(don.creatures.map((r) => [r.creature, r.fought, r.kills, r.assists, r.damage, r.per_creature, r.per_kill, r.per_hit]),
+      [['foot ninja', 3, 2, 1, 220, 73, 90, 37], ['mutated rat', 1, 0, 0, 15, 15, null, 15]], 'the longer name is filed under the searched one');
+    assert.deepEqual([don.fought, don.kills, don.assists, don.damage, don.hits, don.kill_damage, don.hunt_s], [4, 2, 1, 235, 7, 180, 3600]);
+    assert.deepEqual([don.per_kill, don.kills_per_hour, don.damage_per_hour], [90, 2, 235]);
+    const week = buildCombat(c.conn, 'GS3:Donatello', 'weekly', { now: c.now, ranges: { week: 'rolling' } });
+    assert.deepEqual([week.fought, week.damage, week.hunt_s], [5, 1234, 5400], 'a wider window takes the older hunt');
+
+    const cmp = buildCompare(c.conn, ['GS3:Donatello', 'GS3:Michelangelo'], 'daily', { now: c.now, ranges });
+    assert.deepEqual(cmp.combat.map((r) => [r.id, r.kills, r.damage, r.damage_per_hour]),
+      [['GS3:Donatello', 2, 235, 235], ['GS3:Michelangelo', 2, 290, 290]]);
+    assert.deepEqual(cmp.combat_creatures.map((r) => [r.id, r.creature, r.damage]),
+      [['GS3:Donatello', 'foot ninja', 220], ['GS3:Donatello', 'mutated rat', 15], ['GS3:Michelangelo', 'foot soldier', 200], ['GS3:Michelangelo', 'foot ninja', 90]]);
+  } finally {
+    c.close();
+  }
+  // The fixture's play predates combat: an empty table shows nothing
+  const none = buildCombat(conn, ID, 'daily', { now });
+  assert.deepEqual([none.recorded, none.fought, none.creatures], [true, 0, []]);
+  // and a database from before schema 11, without the table, gives no error
+  const c9 = capped();
+  try {
+    const old = buildCombat(c9.conn, 'GS3:Rocksteady', 'daily', { now: c9.now });
+    assert.deepEqual([old.recorded, old.fought, old.creatures], [false, 0, []]);
+  } finally {
+    c9.close();
+  }
+});
+
+test('locksmith pool: the latest count, and the window\'s change, peak and boxes turned away, by town', () => {
+  const c = party();
+  try {
+    const t0 = 1_800_000_000;
+    // [minutes in, full, town, boxes]: a list a rest in Icemule, the pool full at 100, then one in Kraken's Fall
+    for (const [min, full, town, boxes] of [[-3 * 1440, 0, 'Icemule Trace', 70], [10, 0, 'Icemule Trace', 96], [40, 0, 'Icemule Trace', 100],
+      [41, 1, 'Icemule Trace', null], [41.5, 1, 'Icemule Trace', null], [42, 0, 'Icemule Trace', 100], [90, 0, "Kraken's Fall", 12]]) {
+      c.conn.db.run('INSERT INTO pool_depth VALUES (?,?,?,?,?,?,?,?)', ['GS3', 'Donatello', t0 + Math.round(min * 60), full, town, 'the worker', boxes, boxes]);
+    }
+    const ranges = { day: 'rolling' };
+    const p = buildPool(c.conn, 'GS3:Donatello', 'daily', { now: c.now, ranges });
+    assert.deepEqual(p.now, { boxes: 12, waiting: 12, town: "Kraken's Fall", at: t0 + 5400 }, 'the latest list, wherever it was');
+    assert.deepEqual([p.lists, p.turned_away, p.first, p.last, p.peak, p.change], [4, 2, 96, 12, 100, -84]);
+    assert.deepEqual(p.towns.map((t) => [t.town, t.lists, t.first, t.last, t.peak, t.change, t.turned_away]),
+      [["Kraken's Fall", 1, 12, 12, 12, 0, 0], ['Icemule Trace', 3, 96, 100, 100, 4, 2]]);
+    const week = buildPool(c.conn, 'GS3:Donatello', 'weekly', { now: c.now, ranges: { week: 'rolling' } });
+    assert.equal(week.towns.find((t) => t.town === 'Icemule Trace').first, 70, 'a wider window takes the older list');
+    const cmp = buildCompare(c.conn, ['GS3:Donatello', 'GS3:Michelangelo'], 'daily', { now: c.now, ranges });
+    assert.deepEqual(cmp.pool.map((r) => [r.id, r.boxes, r.town, r.peak, r.turned_away]), [['GS3:Donatello', 12, "Kraken's Fall", 100, 2]],
+      'only a character with lists');
+  } finally {
+    c.close();
+  }
+  const c9 = capped();
+  try {
+    assert.equal(buildPool(c9.conn, 'GS3:Rocksteady', 'daily', { now: c9.now }).recorded, false, 'a database without the table');
+  } finally {
+    c9.close();
+  }
 });

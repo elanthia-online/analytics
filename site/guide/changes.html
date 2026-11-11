@@ -63,12 +63,15 @@
         <li><span class="chip">Script</span> Settings in two files: one for every character with the defaults, and one per character for overrides. See <a href="./#settings">Settings</a>.</li>
         <li><span class="chip">Dashboard</span> This site: an overview of every character, a page per character (Summary, Income, Hunting, Bounties, Progress, History) and Compare, reading your database in your browser.</li>
         <li><span class="chip">Dashboard</span> Alerts you can dismiss for the day, and choose which show and when. See <a href="./#dashboard-alerts">Alerts on the dashboard</a>.</li>
+        <li><span class="chip">Script</span> <span class="chip">Dashboard</span> Combat: the damage each character deals and the kills it is credited with, per kind of creature, read by Lich's own combat tracker. Kills, assists, damage per creature, per kill and per hit, and per hour hunting, on each character's Hunting page, and every character side by side, with the party's total, on Compare. Turn it off with the <code>combat</code> setting. See <a href="./#combat">Combat</a>.</li>
+        <li><span class="chip">Script</span> <span class="chip">Dashboard</span> The locksmith pool: how many of each character's boxes it holds, from the list the worker gives when <code>eloot</code> asks for returns, and each box a full pool turns away. On each character's Income page, and side by side on Compare.</li>
       </ul>
       <h4>What to do</h4>
       <ul>
         <li>Have your rest script type <code>EXPERIENCE</code> and <code>RESOURCE</code> once a rest, so fame, Death's Sting, training points and your resources are recorded. See <a href="./#first-run">First run</a>.</li>
         <li>If you tested an earlier build, move its <code>analytics.db</code> aside: the script refuses a database from another build and starts a fresh one. Delete your character's old <code>analytics.yaml</code> too, to get the new blank one.</li>
         <li>Test builds before this one counted the silver of creatures that melt or crumble when searched twice, once as the corpse's silver and again as coins off the floor, and could lose fame and Death's Sting readings when <code>EXPERIENCE</code> and <code>RESOURCE</code> were typed together. A database from those builds keeps the extra floor silver, so start a fresh one for true silver figures.</li>
+        <li>This build's database is schema 11 (it adds combat and the locksmith pool): one from an earlier test build is refused, so move it aside for a fresh one.</li>
         <li>Test builds also missed some towns' wording: Cold River's, Mist Harbor's and Kraken's Fall's notes and chits for big sales, Mist Harbor's bank, the Icemule and Cold River locksmiths and the Kraken's Fall and Icemule locksmith pools. Those sales and fees are recorded from this build on, not in an older database.</li>
       </ul>
     </section>
