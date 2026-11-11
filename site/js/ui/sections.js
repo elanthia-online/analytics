@@ -30,8 +30,9 @@ function shopName(v) {
 
 // ---- income -------------------------------------------------------------------
 export function incomeHtml(d) {
+  var pool = poolHtml(d.pool);
   if (!d.total_in && !d.total_out && !d.shops.length) {
-    return empty('coins', 'No silver recorded ' + esc(d.label.toLowerCase()), 'Sales, box coins and bounty rewards show up here as analytics.lic reads them from the game.');
+    return pool || empty('coins', 'No silver recorded ' + esc(d.label.toLowerCase()), 'Sales, box coins and bounty rewards show up here as analytics.lic reads them from the game.');
   }
   var shopTime = d.shops.reduce(function (a, s) { return a + s.seconds; }, 0);
   var kpis = '<div class="kpi-grid even">' +
@@ -64,7 +65,7 @@ export function incomeHtml(d) {
       return { label: t.town, value: t.silver, sub: plural(t.visits, 'stop') + ' ' + DOT + ' ' + dur(t.seconds) };
     }), short, '--k1') : '') + '</section>'
     : '<section class="card">' + head('Shops and stops') + '<p class="small muted">Stops at shops, the bank and the locksmith are recorded by analytics.lic with <code>track_shops</code> on (the default, from schema 8).</p></section>';
-  return kpis + '<div class="grid g-2">' + sources + (items || '<span></span>') + '</div>' + shops + bankChecks(d.reconciliation);
+  return kpis + '<div class="grid g-2">' + sources + (items || '<span></span>') + '</div>' + shops + pool + bankChecks(d.reconciliation);
 }
 
 // Bank listings against the total tracked through deposits and withdrawals
@@ -102,7 +103,7 @@ export function shopCols(who) {
 
 // ---- hunting ------------------------------------------------------------------
 export function huntingHtml(d) {
-  var fight = combatHtml(d.combat) + poolHtml(d.pool);
+  var fight = combatHtml(d.combat);
   if (!d.creatures.length) {
     return fight || empty('target', 'No kills recorded ' + esc(d.label.toLowerCase()), 'Each creature searched shows up here, with its silver and boxes.');
   }
@@ -379,9 +380,7 @@ export function compareHtml(d, names, entry) {
       { h: 'Silver', v: function (t) { return t.silver; }, c: function (t) { return short(t.silver); } },
       { h: 'Silver / min', v: function (t) { return t.silver ? t.per_minute : null; }, c: function (t) { return t.silver && t.per_minute != null ? short(t.per_minute) : '--'; } },
     ], d.towns, { col: 5, dir: 'desc' })) : '') +
-    sec('Creatures', esc(d.label), d.creatures.length
-      ? sortTable('cmp-creatures', 'Creatures by character', creatureCols(who('hunting')), d.creatures, { col: 2, dir: 'desc' }) : none('No kills recorded in this range.')) +
-    (d.pool.length ? sec('Locksmith pool', esc(d.label) + ' ' + DOT + ' boxes waiting', sortTable('cmp-pool', 'Locksmith pool by character', [who('hunting'),
+    (d.pool.length ? sec('Locksmith pool', esc(d.label) + ' ' + DOT + ' boxes waiting', sortTable('cmp-pool', 'Locksmith pool by character', [who('income'),
       { h: 'Town', text: true, v: function (r) { return r.town || ''; }, c: function (r) { return esc(r.town || '--'); } },
       { h: 'Boxes', title: 'At its last list', v: function (r) { return r.boxes; }, c: function (r) { return r.boxes == null ? '--' : num(r.boxes); } },
       { h: 'Change', v: function (r) { return r.change; }, c: function (r) { return signed(r.change); } },
@@ -389,6 +388,8 @@ export function compareHtml(d, names, entry) {
       { h: 'Turned away', v: function (r) { return r.turned_away; }, c: function (r) { return num(r.turned_away); } },
       { h: 'Last list', v: function (r) { return r.at; }, c: function (r) { return r.at ? stamp(r.at) : '--'; } },
     ], d.pool, { col: 2, dir: 'desc' })) : '') +
+    sec('Creatures', esc(d.label), d.creatures.length
+      ? sortTable('cmp-creatures', 'Creatures by character', creatureCols(who('hunting')), d.creatures, { col: 2, dir: 'desc' }) : none('No kills recorded in this range.')) +
     (d.combat.length ? sec('Combat', esc(d.label) + ' ' + DOT + ' each character\'s own hits', combatCompare(d, who)) : '') +
     sec('Bounties by type', esc(d.label), d.bounties.length
       ? sortTable('cmp-bounties', 'Bounty types by character', bountyCols(who('bounties')), d.bounties, { col: 2, dir: 'desc' }) : none('No bounties in this range.'));

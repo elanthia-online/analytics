@@ -390,5 +390,5 @@ first release.
 - `SCHEMA_VERSION` 11; `KNOWN_SCHEMAS` is `['11']`. The fixtures are converted by
   `tools/fixtures-schema11.js` (both tables added empty).
 
-The page: Combat and Locksmith pool cards on Hunting, and both sections on Compare.
+The page: a Combat card on Hunting, a Locksmith pool card on Income, and both sections on Compare.
 

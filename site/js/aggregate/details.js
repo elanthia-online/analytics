@@ -124,6 +124,7 @@ export function buildIncome(conn, id, range, { now, ranges }) {
     out.shops = [...byShop.values()].map(per).sort((a, b) => b.seconds - a.seconds);
     out.towns = [...byTown.values()].map(per).sort((a, b) => b.silver - a.silver);
   }
+  out.pool = buildPool(conn, id, range, { now, ranges });
   return out;
 }
 
@@ -132,7 +133,7 @@ export function buildIncome(conn, id, range, { now, ranges }) {
 export function buildHunting(conn, id, range, { now, ranges }) {
   const who = parseWho(id);
   const { label, from } = window(range, now, ranges);
-  if (!hasTable(conn, 'kill_stats')) return { label, from, creatures: [], kills: 0, boxes: 0, silver: 0, combat: buildCombat(conn, id, range, { now, ranges }), pool: buildPool(conn, id, range, { now, ranges }) };
+  if (!hasTable(conn, 'kill_stats')) return { label, from, creatures: [], kills: 0, boxes: 0, silver: 0, combat: buildCombat(conn, id, range, { now, ranges }) };
   const boxes = hasColumn(conn, 'kill_stats', 'boxes') ? 'SUM(boxes)' : '0';
   const creature = hasColumn(conn, 'kill_stats', 'creature') ? 'creature' : "'creatures'";
   const rows = conn.all(`SELECT ${creature} AS creature, SUM(kill_count) AS kills, SUM(total_silver) AS silver, ${boxes} AS boxes, ` +
@@ -145,7 +146,7 @@ export function buildHunting(conn, id, range, { now, ranges }) {
       profiles: String(r.profiles || '').split(',').filter(Boolean).map((p) => shortProfile(p, who[1])) };
   });
   const sum = (k) => creatures.reduce((a, c) => a + c[k], 0);
-  return { label, from, creatures, kills: sum('kills'), silver: sum('silver'), boxes: sum('boxes'), combat: buildCombat(conn, id, range, { now, ranges }), pool: buildPool(conn, id, range, { now, ranges }) };
+  return { label, from, creatures, kills: sum('kills'), silver: sum('silver'), boxes: sum('boxes'), combat: buildCombat(conn, id, range, { now, ranges }) };
 }
 
 // ---- combat (schema 11) ----------------------------------------------------------
@@ -506,7 +507,7 @@ export function buildCompare(conn, ids, range, { now, ranges }) {
     for (const s of inc.shops) out.shops.push({ id, ...s });
     for (const t of inc.towns) out.towns.push({ id, ...t });
     for (const c of hunt.creatures) out.creatures.push({ id, ...c });
-    const pool = hunt.pool;
+    const pool = inc.pool;
     if (pool.now || pool.lists || pool.turned_away) {
       out.pool.push({ id, boxes: pool.now?.boxes ?? null, town: pool.now?.town ?? null, at: pool.now?.at ?? null, change: pool.change ?? null,
         peak: pool.peak, lists: pool.lists, turned_away: pool.turned_away });
