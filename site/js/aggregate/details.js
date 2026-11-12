@@ -228,12 +228,18 @@ export function buildPool(conn, id, range, { now, ranges }) {
     t.lists += 1; out.lists += 1;
     if (t.first == null) t.first = boxes;
     t.last = boxes; t.last_at = toI(r.timestamp); t.peak = Math.max(t.peak ?? boxes, boxes);
-    if (out.first == null) out.first = boxes;
-    out.last = boxes; out.peak = Math.max(out.peak ?? boxes, boxes);
+    out.last = boxes;
   }
   out.towns = [...towns.values()].map((t) => ({ ...t, change: t.first == null ? null : t.last - t.first }))
     .sort((a, b) => (b.last_at ?? 0) - (a.last_at ?? 0));
-  out.change = out.first == null ? null : out.last - out.first;
+  // Each town's pool is its own, so the window's change is each town's own
+  // change added up (never one town's count less another's), its peak the
+  // highest any one pool held, and its first count is one town's only
+  const listed = out.towns.filter((t) => t.first != null);
+  out.change = listed.length ? listed.reduce((a, t) => a + t.change, 0) : null;
+  out.peak = listed.length ? Math.max(...listed.map((t) => t.peak)) : null;
+  out.first = listed.length === 1 ? listed[0].first : null;
+  out.listed_towns = listed.length;
   return out;
 }
 
@@ -509,8 +515,11 @@ export function buildCompare(conn, ids, range, { now, ranges }) {
     for (const c of hunt.creatures) out.creatures.push({ id, ...c });
     const pool = inc.pool;
     if (pool.now || pool.lists || pool.turned_away) {
-      out.pool.push({ id, boxes: pool.now?.boxes ?? null, town: pool.now?.town ?? null, at: pool.now?.at ?? null, change: pool.change ?? null,
-        peak: pool.peak, lists: pool.lists, turned_away: pool.turned_away });
+      // One row per character, in the town of its latest list: the change,
+      // peak and turn-aways are that town's, not other pools' mixed in
+      const here = pool.towns.find((t) => t.town === (pool.now?.town ?? 'unknown'));
+      out.pool.push({ id, boxes: pool.now?.boxes ?? null, town: pool.now?.town ?? null, at: pool.now?.at ?? null, change: here ? here.change : null,
+        peak: here ? here.peak : null, lists: here ? here.lists : 0, turned_away: here ? here.turned_away : 0 });
     }
     const fight = hunt.combat;
     if (fight.fought) {

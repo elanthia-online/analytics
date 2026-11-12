@@ -526,14 +526,17 @@ test('locksmith pool: the latest count, and the window\'s change, peak and boxes
     const ranges = { day: 'rolling' };
     const p = buildPool(c.conn, 'GS3:Donatello', 'daily', { now: c.now, ranges });
     assert.deepEqual(p.now, { boxes: 12, waiting: 12, town: "Kraken's Fall", at: t0 + 5400 }, 'the latest list, wherever it was');
-    assert.deepEqual([p.lists, p.turned_away, p.first, p.last, p.peak, p.change], [4, 2, 96, 12, 100, -84]);
+    // two pools: the change is Icemule's +4 and Kraken's Fall's 0, never 12 - 96 (S9)
+    assert.deepEqual([p.lists, p.turned_away, p.first, p.last, p.peak, p.change], [4, 2, null, 12, 100, 4]);
     assert.deepEqual(p.towns.map((t) => [t.town, t.lists, t.first, t.last, t.peak, t.change, t.turned_away]),
       [["Kraken's Fall", 1, 12, 12, 12, 0, 0], ['Icemule Trace', 3, 96, 100, 100, 4, 2]]);
     const week = buildPool(c.conn, 'GS3:Donatello', 'weekly', { now: c.now, ranges: { week: 'rolling' } });
     assert.equal(week.towns.find((t) => t.town === 'Icemule Trace').first, 70, 'a wider window takes the older list');
     const cmp = buildCompare(c.conn, ['GS3:Donatello', 'GS3:Michelangelo'], 'daily', { now: c.now, ranges });
-    assert.deepEqual(cmp.pool.map((r) => [r.id, r.boxes, r.town, r.peak, r.turned_away]), [['GS3:Donatello', 12, "Kraken's Fall", 100, 2]],
-      'only a character with lists');
+    assert.deepEqual(cmp.pool.map((r) => [r.id, r.boxes, r.town, r.change, r.peak, r.turned_away]), [['GS3:Donatello', 12, "Kraken's Fall", 0, 12, 0]],
+      'only a character with lists, and the figures of its row\'s town');
+    const ice = buildPool(c.conn, 'GS3:Donatello', 'daily', { now: c.now - 3000, ranges });
+    assert.deepEqual([ice.first, ice.change, ice.peak], [96, 4, 100], 'one town: its own first count');
   } finally {
     c.close();
   }

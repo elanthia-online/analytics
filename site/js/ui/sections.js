@@ -130,8 +130,8 @@ export function poolHtml(p) {
   if (!p || (!p.now && !p.lists && !p.turned_away)) return '';
   var kpis = '<div class="kpi-grid even">' +
     kpi('bag', 'In the pool', p.now ? num(p.now.boxes) : '--', p.now ? (p.now.town ? esc(p.now.town) + ' ' + DOT + ' ' : '') + ago(p.now.at) : 'not listed yet') +
-    kpi('trend', 'Change', signed(p.change), p.lists ? 'from ' + num(p.first) + ' ' + DOT + ' ' + plural(p.lists, 'list') : 'no list in this range') +
-    kpi('layers', 'Peak', p.peak == null ? '--' : num(p.peak), esc(p.label)) +
+    kpi('trend', 'Change', signed(p.change), !p.lists ? 'no list in this range' : (p.first != null ? 'from ' + num(p.first) : 'each town\'s own, added up') + ' ' + DOT + ' ' + plural(p.lists, 'list')) +
+    kpi('layers', 'Peak', p.peak == null ? '--' : num(p.peak), p.listed_towns > 1 ? 'in any one town' : esc(p.label)) +
     kpi('x', 'Turned away', num(p.turned_away), p.turned_away ? 'the pool held all it would' : 'none') + '</div>';
   var towns = p.towns.length > 1 || (p.towns.length && p.towns[0].turned_away)
     ? sortTable('pool-towns', 'Locksmith pool by town', [
@@ -380,7 +380,7 @@ export function compareHtml(d, names, entry) {
       { h: 'Silver', v: function (t) { return t.silver; }, c: function (t) { return short(t.silver); } },
       { h: 'Silver / min', v: function (t) { return t.silver ? t.per_minute : null; }, c: function (t) { return t.silver && t.per_minute != null ? short(t.per_minute) : '--'; } },
     ], d.towns, { col: 5, dir: 'desc' })) : '') +
-    (d.pool.length ? sec('Locksmith pool', esc(d.label) + ' ' + DOT + ' boxes waiting', sortTable('cmp-pool', 'Locksmith pool by character', [who('income'),
+    (d.pool.length ? sec('Locksmith pool', esc(d.label) + ' ' + DOT + ' boxes waiting, in the town of the latest list', sortTable('cmp-pool', 'Locksmith pool by character', [who('income'),
       { h: 'Town', text: true, v: function (r) { return r.town || ''; }, c: function (r) { return esc(r.town || '--'); } },
       { h: 'Boxes', title: 'At its last list', v: function (r) { return r.boxes; }, c: function (r) { return r.boxes == null ? '--' : num(r.boxes); } },
       { h: 'Change', v: function (r) { return r.change; }, c: function (r) { return signed(r.change); } },
