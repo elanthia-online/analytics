@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
-import { Dashboard } from '../site/js/data.js';
+import { Dashboard, LiveSource } from '../site/js/data.js';
+import http from 'node:http';
 
 const real = await initSqlJs();
 const fixture = new Uint8Array(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
@@ -125,4 +126,32 @@ test('a load that fails after the source changed is thrown away too, not reporte
   dash.setSource(failing);
   await assert.rejects(dash.refresh(), /connection refused/);
   dash.close();
+});
+
+test('a live image that didn\'t open is asked for again, though its token is unchanged (#37)', async () => {
+  const marked = (() => { const d = new real.Database(fixture); d.run("UPDATE cycles SET character = 'Krang' WHERE character = 'April'"); const b = d.export(); d.close(); return Buffer.from(b); })();
+  let token = 'T1', downloads = 0, corrupt = false;
+  const server = http.createServer((req, res) => {
+    const path = new URL(req.url, 'http://x').pathname;
+    if (path === '/api/meta') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ app: 'analytics', api: 1, token, now: 1 })); }
+    downloads++;
+    res.writeHead(200, { 'X-Analytics-Token': token });
+    if (token === 'T1') return res.end(Buffer.from(fixture));
+    if (corrupt) { corrupt = false; return res.end(Buffer.alloc(4096, 7)); }
+    return res.end(marked);
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const dash = new Dashboard(real);
+  try {
+    dash.setSource(new LiveSource(server.address().port));
+    await dash.refresh();
+    token = 'T2'; corrupt = true;
+    await assert.rejects(dash.refresh(), /isn't an SQLite database/);
+    await dash.refresh();
+    assert.equal(downloads, 3, 'the image after the bad one is downloaded again');
+    assert.ok(dash.conn.one("SELECT COUNT(*) AS n FROM cycles WHERE character = 'Krang'").n > 0, 'and shown');
+  } finally {
+    dash.close();
+    server.close();
+  }
 });

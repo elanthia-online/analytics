@@ -90,8 +90,16 @@ try {
   check(/^gs4-analytics-everyone-.*\.png$/.test(saved2), `export: the overview saves as a PNG (${saved2})`);
   // One card on its own: a character's card from its button (without opening the character)
   const download3 = page.waitForEvent('download', { timeout: 20_000 });
+  const cardBox = await page.$eval('.card[data-who="GS3:Bebop"]', (el) => { const r = el.getBoundingClientRect(); return { w: r.width, h: r.height }; });
   await page.click('.card[data-who="GS3:Bebop"] [data-save-card]');
   const saved3 = (await download3).suggestedFilename();
+  // The image is the card, not the view (a PNG's size is in its IHDR): the card's width
+  // plus a 28px margin each side, at a scale of 1 to 2, and its height plus the title bar
+  const png = readFileSync(await (await download3).path());
+  const [pw, ph] = [png.readUInt32BE(16), png.readUInt32BE(20)];
+  const scale = pw / (cardBox.w + 56), extra = ph / scale - cardBox.h;
+  check(png.toString('latin1', 1, 4) === 'PNG' && scale >= 0.99 && scale <= 2.01 && extra >= 30 && extra <= 160,
+    `export: the card's image is that card alone (${pw}x${ph} for a ${Math.round(cardBox.w)}x${Math.round(cardBox.h)} card)`);
   check(/^gs4-analytics-everyone-bebop-gs4-\d{8}-\d{4}\.png$/.test(saved3) && (await page.evaluate(() => location.hash)) === '',
     `export: a character's card saves on its own, and stays on the overview (${saved3})`);
   check(await page.getAttribute('.card[data-who="GS3:Bebop"] [data-save-card]', 'aria-label') === 'Save the Bebop (GS4) card as an image',
@@ -138,6 +146,21 @@ try {
     await sp.waitForTimeout(1500);
     const ovq = await rewritesOf(sp, ['#overview', '#navChars'], 16_000);
     check(ovq.rewrites <= 2 || ovq.newDay, `live: refreshes with nothing new leave the overview and menu alone (${ovq.rewrites} rewrites in three refreshes)`);
+    // Compare redraws on Show by itself (#28): this source never changes, so no refresh can do it
+    await sp.evaluate(() => localStorage.setItem('gs4a-hidden', JSON.stringify(['GS3:Raphael'])));
+    await sp.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 2}#compare`);
+    await sp.reload();                                  // a new hash alone doesn't load the page
+    await sp.waitForSelector('#compare .cmp-hidden [data-unhide="GS3:Raphael"]');
+    await sp.click('#cmpTabs button[data-r="total"]');
+    await sp.waitForFunction(() => document.querySelector('#cmpTabs button.on')?.getAttribute('data-r') === 'total');
+    await sp.click('#compare [data-unhide="GS3:Raphael"]');
+    check(await sp.waitForFunction(() => !!document.querySelector('#compare a[data-who="GS3:Raphael"]'), null, { timeout: 2000 }).then(() => true, () => false),
+      'compare: Show redraws it at once, with nothing new from the source');
+    // A link cut off inside a percent escape opens the overview, not a blank page (#20)
+    await sp.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 2}#GS4%3ABebop%E0%A4%A`);
+    await sp.reload();
+    check(await sp.waitForSelector('#overview:not([hidden]) .card[data-who]', { timeout: 10_000 }).then(() => true, () => false),
+      'links: a hash cut off inside a percent escape opens the overview');
     await sp.close();
   } finally {
     still.kill();

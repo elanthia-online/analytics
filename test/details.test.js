@@ -344,6 +344,31 @@ test('DST: on the fall-back day the last 24 hours plot the repeated hour once (S
   d.close();
 });
 
+test('DST: after spring-forward each page counts 7 and 30 days of kills, the Summary too (#32)', async (t) => {
+  // a day just after this zone's spring-forward, found rather than assumed
+  let day = null;
+  for (let d = new Date(2027, 0, 1); d.getFullYear() === 2027 && !day; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    if (new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1) - d < 24 * 3600e3) day = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 3);
+  }
+  if (!day) return t.skip('no clock change in this zone');
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  for (const [name] of d.exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'metadata'")[0].values) d.run(`DELETE FROM "${name}"`);
+  for (let k = 0; k < 40; k++) {
+    const noon = Math.floor(new Date(day.getFullYear(), day.getMonth(), day.getDate() - k, 12).getTime() / 1000);
+    d.run("INSERT INTO kill_stats (game, character, date, profile, creature, kill_count, total_silver, last_kill_at) VALUES ('GS3', 'Shredder', ?, 'p', 'rat', 1, 100, ?)", [dayStr(dayOf(noon)), noon]);
+  }
+  const at = Math.floor(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 15).getTime() / 1000);
+  d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds) VALUES ('h', 'GS3', 'Shredder', 'hunt', ?, ?, 600)", [at - 3600, at - 3000]);
+  const c = new Conn(d);
+  const ov = buildOverview(c, { now: at });
+  for (const [range, days] of [['weekly', 7], ['monthly', 30]]) {
+    assert.equal(buildHunting(c, 'GS3:Shredder', range, { now: at }).kills, days, `Hunting, ${range}`);
+    assert.equal(buildIncome(c, 'GS3:Shredder', range, { now: at }).sources.find((x) => x.key === 'creatures').amount, days * 100, `Income, ${range}`);
+    assert.equal(buildCharacter(c, ov, 'GS3:Shredder', range, { now: at }).range_stats.kills, days, `Summary, ${range}`);
+  }
+  d.close();
+});
+
 test('history: an open cycle past the stale cap ended at an unknown time (#31)', () => {
   const d = new SQL.Database();
   d.run('CREATE TABLE cycles (cycle_id TEXT, game TEXT, character TEXT, cycle_type TEXT, start_time INTEGER, end_time INTEGER, duration_seconds INTEGER, rest_reason TEXT, profile TEXT, exp_total_start INTEGER, exp_total_end INTEGER, fame_start INTEGER, fame_end INTEGER)');
