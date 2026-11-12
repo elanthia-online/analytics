@@ -245,7 +245,7 @@
           <li><code>&lt;Lich data&gt;/&lt;game&gt;/&lt;character&gt;/analytics.yaml</code>: this character's own, written with every setting present and <b>blank</b>. A blank one uses the global file's value; fill one in to override it for this character only.
             Within <code>alerts</code> and <code>dashboard</code> each line counts on its own, so you can change one alert and keep the rest. To turn off for one character something the global file turns on (a <code>rest_script</code>, say), write <code>false</code>.</li>
         </ul>
-        <p>Restart the script after editing. Indent with spaces, never tabs. A mistake in a file is reported once in the game window, and that file is ignored until it's fixed.
+        <p>Restart the script after editing. Indent with spaces, never tabs. A mistake in a file is reported once in the game window: a file that can't be read is ignored until it's fixed, and a single value of the wrong kind (<code>8m</code> where a number of minutes goes, or a word where <code>true</code> or <code>false</code> goes) is left out, so the global file's value or the default is used. A number in quotes (<code>'30'</code>) is read as the number.
           A character file from an earlier version has every value filled in, so all of them override the global file; delete it to get a blank one.</p>
 
         <h3>The cycle: hunting, resting, dead</h3>
@@ -279,7 +279,7 @@
             <tr><td><code>idle_warn_minutes</code></td><td><code>8</code></td><td>Alert after this long with none of your scripts running.</td></tr>
             <tr><td><code>idle_recover_minutes</code></td><td>off</td><td>After this long idle, walk to the room in <code>profile_room_map</code> and start <code>rest_script</code>. Needs a rest_script.</td></tr>
             <tr><td><code>profile_room_map</code></td><td>empty</td><td>Where idle recovery walks to, by bigshot profile name (with or without the leading <code>&lt;character&gt;_</code>):<br><code>profile_room_map: { crags: 1234, splinter_cliffs: 5678 }</code></td></tr>
-            <tr><td><code>weapon_loadout</code></td><td>off</td><td>A re-arm check while hunting. If your hands don't match, hunting pauses while it tries: it stows what shouldn't be there, then sends your <code>get_right</code> and <code>get_left</code> lines (and <code>GIRD</code>). After several failures you get an alert and a rest.<br><code>{ right: scepter, left: shield, gird: true, get_right: get my scepter, get_left: get my shield }</code></td></tr>
+            <tr><td><code>weapon_loadout</code></td><td>off</td><td>A re-arm check while hunting. If your hands don't match, hunting pauses while it tries: it stows what shouldn't be there, then sends your <code>get_right</code> and <code>get_left</code> lines (and <code>GIRD</code>). Nothing is ever dropped, and a hand you don't set is left alone. After several failures you get an alert and a rest.<br><code>{ right: scepter, left: shield, gird: true, get_right: get my scepter, get_left: get my shield }</code></td></tr>
           </tbody>
         </table></div>
 

@@ -13,7 +13,7 @@ The page runs entirely in your browser. It opens your `analytics.db` with
 every figure locally. Your data is never uploaded anywhere.
 
 > **Status:** analytics.lic serves this page its database as of
-> elanthia-online/scripts@0b41f063, schema 11 as of fcbb3c49 (combat) and 29181ae2 (the locksmith pool), latest at 431b0e94 (PR
+> elanthia-online/scripts@0b41f063, schema 11 as of fcbb3c49 (combat) and 29181ae2 (the locksmith pool), latest at a78d68ec (PR
 > elanthia-online/scripts#2556, not merged yet). The
 > script no longer has a dashboard of its own. What changed is in
 > [docs/script-changes.md](docs/script-changes.md).

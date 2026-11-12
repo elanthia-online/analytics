@@ -54,3 +54,16 @@ Things that need a decision or a check this repo can't do on its own. Move an it
     - use the newest timestamp inside the database instead
     - let the player pick the moment
     - have the script write the snapshot time into `metadata` when it makes a backup
+12. **Left from the 2026-11-12 audit of the script.** Found, judged too small or too broad
+    to change before the release; each needs a yes or no:
+    - A request with no `Origin` and `Sec-Fetch-Site: cross-site` still gets `/api/db`
+      (another site's `<img>` or `<script>` can't read it, but refusing it would be
+      tighter). Refuse that combination?
+    - One thread per connection, with no cap. Only this computer can connect.
+    - `Dashboard.stop` can race a request waiting on its lock, which reopens the API's
+      connection after it was closed.
+    - Unanchored patterns (`SEARCH_RE`, `DEPOSIT_RE` and others) still match text after
+      something else on a line; the speech filter covers what players can type, but `\A`
+      anchors would be tighter, if the logs show no line that needs the looseness.
+    - A rest across midnight is one row a day, each with its reason, so an item-limit rest
+      over midnight counts once on each day.
