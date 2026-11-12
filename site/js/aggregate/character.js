@@ -206,7 +206,9 @@ function trendsFor(conn, who, range, now, from, rules) {
   let current;
   let baseKeys;
   if (hourly) {
-    labels = rules.day === 'rolling' ? Array.from({ length: 24 }, (_, i) => hourOf(now - (23 - i) * 3600)) : hours(today);
+    // The 24 real hours up to now, by clock label: on a fall-back day two of them
+    // share one (as the buckets do), and it's plotted once, not counted twice
+    labels = rules.day === 'rolling' ? [...new Set(Array.from({ length: 24 }, (_, i) => hourOf(now - (23 - i) * 3600)))] : hours(today);
     current = hourOf(now);
     baseKeys = Array.from({ length: baseDays }, (_, d) => hours(addDays(today, -(baseDays - 1 - d)))).flat();
   } else {

@@ -321,6 +321,29 @@ test('DST: on the fall-back day, pace compares the same wall-clock hours', async
   d.close();
 });
 
+test('DST: on the fall-back day the last 24 hours plot the repeated hour once (S10)', () => {
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  for (const [name] of d.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values) d.run(`DELETE FROM "${name}"`);
+  const at = Math.floor(new Date(2026, 10, 1, 15, 30).getTime() / 1000);   // Nov 1, the 25-hour day in New York
+  let exp = 0;
+  for (let t = at - 24 * 3600; t < at - 1800; t += 3600) {                 // a 20-minute hunt in each real hour, 1,000 exp each
+    d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, exp_total_start, exp_total_end) VALUES (?, 'GS3', 'April', 'hunt', ?, ?, 1200, ?, ?)",
+      [`c${t}`, t + 600, t + 1800, exp, exp += 1000]);
+  }
+  const c = new Conn(d);
+  const day = buildCharacter(c, buildOverview(c, { now: at }), 'GS3:April', 'daily', { now: at, ranges: { day: 'rolling' } });
+  const labels = day.trend.labels;
+  assert.equal(new Set(labels).size, labels.length, 'no hour label twice');
+  assert.equal(labels.filter((l) => l === '2026-11-01 01').length, 1);
+  const values = day.trends.exp.values;
+  assert.equal(values[labels.indexOf('2026-11-01 01')], 2000, 'both real 01:00 hours, in their one bucket');
+  // the hunts from the first label's hour up to the last full hour, each counted once
+  const first = Math.floor(new Date(labels[0].replace(' ', 'T') + ':00').getTime() / 1000);
+  const hunts = d.exec('SELECT COUNT(*) FROM cycles WHERE start_time >= ? AND start_time < ?', [first, at - at % 3600])[0].values[0][0];
+  assert.equal(values.reduce((a, v) => a + (v ?? 0), 0), hunts * 1000);
+  d.close();
+});
+
 test('history: an open cycle past the stale cap ended at an unknown time (#31)', () => {
   const d = new SQL.Database();
   d.run('CREATE TABLE cycles (cycle_id TEXT, game TEXT, character TEXT, cycle_type TEXT, start_time INTEGER, end_time INTEGER, duration_seconds INTEGER, rest_reason TEXT, profile TEXT, exp_total_start INTEGER, exp_total_end INTEGER, fame_start INTEGER, fame_end INTEGER)');
