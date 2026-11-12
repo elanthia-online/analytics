@@ -7,7 +7,18 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="How to install, run and configure analytics.lic, the Lich5 hunting analytics script for GemStone IV, and how to use its web dashboard.">
-<title>analytics.lic guide</title>
+<title>Guide · GS4 Analytics</title>
+<link rel="canonical" href="https://analytics.elanthia.online/guide/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GS4 Analytics">
+<meta property="og:title" content="Guide: GS4 Analytics">
+<meta property="og:description" content="How to install, run and configure analytics.lic for GemStone IV, and how to use its dashboard.">
+<meta property="og:url" content="https://analytics.elanthia.online/guide/">
+<meta property="og:image" content="https://analytics.elanthia.online/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The GS4 Analytics dashboard showing five sample characters">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
@@ -21,7 +32,7 @@
   <header class="top">
     <a class="brand" href="../" title="Open the dashboard">
       <span class="logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="9" width="3" height="7" rx="1.2" fill="#fff" opacity=".75"/><rect x="7.5" y="5" width="3" height="11" rx="1.2" fill="#fff" opacity=".9"/><rect x="13" y="2" width="3" height="14" rx="1.2" fill="#fff"/></svg></span>
-      <span><h1>GS4 Analytics</h1><small>Guide to analytics.lic</small></span>
+      <span><b class="brand-name">GS4 Analytics</b><small>Guide to analytics.lic</small></span>
     </a>
     <span class="spacer"></span>
     <nav class="controls" aria-label="Site">
@@ -40,7 +51,7 @@
   </header>
 
   <main>
-  <div class="page-head"><div><h2>analytics.lic guide</h2>
+  <div class="page-head"><div><h1>analytics.lic guide</h1>
     <p>Hunting analytics for GemStone IV in Lich5: what it records, how to run it, every setting, and the dashboard.</p></div></div>
 
   <div class="guide">
@@ -68,7 +79,7 @@
 
     <div class="doc">
       <section id="what" class="card">
-        <h3>What it does</h3>
+        <h2>What it does</h2>
         <p><code>analytics.lic</code> runs alongside your hunting scripts and records, for every character you run it on:</p>
         <ul>
           <li><b>Cycles</b>: each stretch of hunting, resting, being dead or sitting idle, with why the hunt ended, and how long each step of a rest took (travel, looting, the bounty turn-in, healing...).</li>
@@ -83,24 +94,24 @@
       </section>
 
       <section id="install" class="card">
-        <h3>Install</h3>
-        <h4>You need</h4>
+        <h2>Install</h2>
+        <h3>You need</h3>
         <ul>
           <li><b>Lich 5.23.0 or newer.</b> The <code>sequel</code> and <code>sqlite3</code> gems it needs ship with Lich.</li>
           <li><b>bigshot</b> for hunting, or your own script (see <code>hunt_script</code> in <a href="#settings">Settings</a>). Rests are detected from bigshot's own status.</li>
           <li>Optional: <b>discordhook</b>, for alerts on Discord.</li>
         </ul>
-        <h4>Get the script</h4>
+        <h3>Get the script</h3>
         <pre tabindex="0"><code>;repository download analytics.lic</code></pre>
         <p>or copy <code>analytics.lic</code> from <a href="https://github.com/elanthia-online/scripts">elanthia-online/scripts</a> into your Lich <code>scripts</code> folder.</p>
-        <h4>Start it on every login</h4>
+        <h3>Start it on every login</h3>
         <p>Run it on each character you want tracked. To have it start by itself:</p>
         <pre tabindex="0"><code>;autostart add analytics</code></pre>
         <p>Add <code>--dashboard</code> on one character (<code>;autostart add analytics --dashboard</code>) if you want the dashboard to update live; one per computer is enough.</p>
       </section>
 
       <section id="first-run" class="card">
-        <h3>First run</h3>
+        <h2>First run</h2>
         <ol>
           <li>Type <code>;analytics</code>. It prints where the database is, which scripts it watches, and <i>Ready</i>.</li>
           <li>A few seconds later it sends one quiet <code>BANK ACCOUNT</code>, so silver can be tracked from the start. That happens once per character, not every login.</li>
@@ -112,7 +123,7 @@
       </section>
 
       <section id="commands" class="card">
-        <h3>Commands</h3>
+        <h2>Commands</h2>
         <div class="scroll" tabindex="0" role="region" aria-label="Commands"><table class="ref">
           <thead><tr><th>Command</th><th>What it does</th></tr></thead>
           <tbody>
@@ -129,7 +140,7 @@
       </section>
 
       <section id="reports" class="card">
-        <h3>Text reports</h3>
+        <h2>Text reports</h2>
         <p><code>;analytics report &lt;name&gt; [range]</code>. Ranges are <code>daily</code> (the default), <code>weekly</code>, <code>monthly</code>, <code>ytd</code> and <code>total</code>.</p>
         <div class="scroll" tabindex="0" role="region" aria-label="Text reports"><table class="ref">
           <thead><tr><th>Report</th><th>Shows</th></tr></thead>
@@ -146,12 +157,12 @@
       </section>
 
       <section id="dashboard" class="card">
-        <h3>The dashboard</h3>
+        <h2>The dashboard</h2>
         <p>The dashboard is this website: <a href="../">https://analytics.elanthia.online/</a>. It runs in your browser and reads your own database; it never uploads it.
           It has an overview of every character (today's totals, each character's state and pace, the day's activity, alerts) and a page per character
           (performance and trends by day, week or month; rests; mind and load; hunting grounds; bounties and task offers).</p>
 
-        <h4 id="connect">Live from analytics.lic</h4>
+        <h3 id="connect">Live from analytics.lic</h3>
         <ol>
           <li>Start the script with <code>;analytics --dashboard</code> (or type <code>;analytics serve</code> while it runs).</li>
           <li>It prints a link like <code>https://analytics.elanthia.online/?live=8080</code>. Open it, or open the site and choose <i>Connect</i>.</li>
@@ -159,18 +170,18 @@
         </ol>
         <p>The page then updates every five seconds. The script answers only this computer, and only this site (or pages served from your own computer) may read it.</p>
 
-        <h4>Other ways to open your data</h4>
+        <h3>Other ways to open your data</h3>
         <ul>
           <li><b>Database folder</b> (Chrome and Edge): pick Lich's data folder, the one with <code>analytics.db</code>. It stays live with no server running.</li>
           <li><b>A file</b> (any browser): pick a copy or a backup of <code>analytics.db</code>. Shown as of when it was saved.</li>
         </ul>
 
-        <h4 id="sample">Sample data</h4>
+        <h3 id="sample">Sample data</h3>
         <p>To look around before installing anything, choose <i>Explore sample data</i> on the first page, or open
           <a href="../?demo">https://analytics.elanthia.online/?demo</a>. The characters are made up, and their day is moved to today.
           A banner says it's sample data, and the page doesn't remember it: next time you open the site, it asks for your own data again.</p>
 
-        <h4>A character's pages</h4>
+        <h3>A character's pages</h3>
         <p>Open a character and the tabs under its name go deeper. Each has its own address, so you can bookmark or share one. The range tabs apply to every page but Progress: Today, This Week and This Month everywhere, and This Year and All Time on the pages after Summary (the Summary shows the month for those). Choose a column heading in any of their tables to sort by it; choose it again to flip the order.</p>
         <ul>
           <li><b>Summary</b>: right now, performance and trends, rests, bounties and hunting grounds.</li>
@@ -183,17 +194,17 @@
           <li><b>History</b>: every hunt, rest, death and idle stretch, newest first, with a filter and a search.</li>
         </ul>
 
-        <h4>Comparing characters</h4>
+        <h3>Comparing characters</h3>
         <p><b>Compare</b> in the menu puts every character (not only today's; hidden ones are left out) side by side for a range: income, each shop stop and town with its silver a minute, every creature, and every bounty type. Sort any table by a column to see, say, who makes the most silver a minute at the gem shop or which creature pays best. Each name opens that character's own page.</p>
 
-        <h4 id="dashboard-settings">Settings</h4>
+        <h3 id="dashboard-settings">Settings</h3>
         <p><b>Settings</b>, near the bottom of the menu, holds the dashboard's own choices. They're saved in this browser, like starred and hidden characters:</p>
         <ul>
           <li><b>Display</b>: whether each character's card on the overview shows silver and experience as today's <b>total</b> or <b>per hour</b>, and which figure the menu shows beside each character: silver today, silver per hour, experience today or experience per hour. Per hour is per hour the script ran today (hunting, resting or idle).</li>
           <li><b>Date ranges</b>: how each range tab is counted (see <a href="#ranges">Date ranges</a>). <b>Today</b> can be since midnight or the last 24 hours. <b>The week</b> can be the last 7 whole days, the last 7 &times; 24 hours, or since the week began, on a Monday or a Sunday. <b>The month</b> can be the last 30 whole days, the last 30 &times; 24 hours, or since the 1st. <b>The year</b> can be since January 1 or the last 365 days. The tabs are named for what you chose: Last 24 Hours, Since Monday, Since the 1st.</li>
           <li><b>Alerts</b>: which of the dashboard's alerts show, and when (see <a href="#dashboard-alerts">Alerts on the dashboard</a>), and what you've dismissed today.</li>
         </ul>
-        <h4>Finding your way around</h4>
+        <h3>Finding your way around</h3>
         <ul>
           <li><b>Hide</b> a character you don't want on the overview (an alt you've parked) with the crossed-out eye on its card. Its figures leave the overview's totals; it stays in the sidebar under <i>Hidden</i>, where the eye brings it back.</li>
           <li>The <b>sidebar</b> lists your characters, with what each is doing, its silver today (or the figure you chose in <a href="#dashboard-settings">Settings</a>), and a red or amber mark when something needs a look.
@@ -209,18 +220,18 @@
           <li><b>Data source</b> switches to another source without reloading.</li>
         </ul>
 
-        <h4 id="lan">Other computers on your network</h4>
+        <h3 id="lan">Other computers on your network</h3>
         <p>Older versions could open the dashboard to your whole network (<code>lan</code>). That is gone: the dashboard is now an https page, which browsers
           won't let talk to another computer over plain http, and serving the database to your network would hand all of it to anyone there. To view
           another computer's data, copy its <code>analytics.db</code> (or a <a href="#maintenance">backup</a>) and open it as a file.</p>
 
-        <h4>A fork, or your own copy of the site</h4>
+        <h3>A fork, or your own copy of the site</h3>
         <p>Pages served from your own computer (<code>http://localhost:...</code>) can always connect. For a copy hosted somewhere else, add its origin to
           <code>dashboard.allowed_origins</code> and point <code>dashboard.site_url</code> at it (see <a href="#settings">Settings</a>).</p>
       </section>
 
       <section id="settings" class="card">
-        <h3>Settings</h3>
+        <h2>Settings</h2>
         <p>There are two files, both written the first time the collector runs, with each setting on its own line and what it does beside it:</p>
         <ul>
           <li><code>&lt;Lich data&gt;/analytics.yaml</code>: the settings for <b>every character</b>, written with the defaults. Change a setting here to change it everywhere.</li>
@@ -230,7 +241,7 @@
         <p>Restart the script after editing. Indent with spaces, never tabs. A mistake in a file is reported once in the game window, and that file is ignored until it's fixed.
           A character file from an earlier version has every value filled in, so all of them override the global file; delete it to get a blank one.</p>
 
-        <h4>The cycle: hunting, resting, dead</h4>
+        <h3>The cycle: hunting, resting, dead</h3>
         <div class="scroll" tabindex="0" role="region" aria-label="The cycle: hunting, resting, dead"><table class="ref">
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
@@ -242,7 +253,7 @@
           </tbody>
         </table></div>
 
-        <h4>What is read from the game text</h4>
+        <h3>What is read from the game text</h3>
         <div class="scroll" tabindex="0" role="region" aria-label="What is read from the game text"><table class="ref">
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
@@ -253,7 +264,7 @@
           </tbody>
         </table></div>
 
-        <h4>Hunt limits and recovery (off unless set)</h4>
+        <h3>Hunt limits and recovery (off unless set)</h3>
         <div class="scroll" tabindex="0" role="region" aria-label="Hunt limits and recovery (off unless set)"><table class="ref">
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
@@ -265,7 +276,7 @@
           </tbody>
         </table></div>
 
-        <h4>Alerts, Discord and the dashboard</h4>
+        <h3>Alerts, Discord and the dashboard</h3>
         <div class="scroll" tabindex="0" role="region" aria-label="Alerts, Discord and the dashboard"><table class="ref">
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
@@ -283,7 +294,7 @@
           </tbody>
         </table></div>
         <p class="note"><code>dashboard.lan</code> is no longer used; see <a href="#lan">why</a>.</p>
-        <h4>Example: a character's file, with three lines filled in</h4>
+        <h3>Example: a character's file, with three lines filled in</h3>
 <pre tabindex="0"><code>hunt_script: [bigshot, my_hunter]      # script (or [list] of scripts) whose running means hunting
 rest_script: false                     # your rest script; ... (false: none for this one, whatever the global file says)
 death_script:                          # blank: the global file's
@@ -293,7 +304,7 @@ alerts:                                # in-game and Discord alerts
       </section>
 
       <section id="alerts" class="card">
-        <h3>Alerts and Discord</h3>
+        <h2>Alerts and Discord</h2>
         <p>Alerts show in the game window, and on Discord when <code>discord</code> is on and <b>discordhook</b> is running: start <code>;discordhook</code>
           (with its webhook set up as that script describes) before <code>;analytics</code>. With discordhook not running, alerts appear in the game only.</p>
         <ul>
@@ -305,7 +316,7 @@ alerts:                                # in-game and Discord alerts
           <li><b>Item limit</b>: a rest because bigshot hit its item limit.</li>
           <li>The <b>daily digest</b>: yesterday's hunting time and uptime, exp, kills, deaths, bounties and bank change.</li>
         </ul>
-        <h4 id="dashboard-alerts">Alerts on the dashboard</h4>
+        <h3 id="dashboard-alerts">Alerts on the dashboard</h3>
         <p>The overview's Alerts card has its own alerts, worked out from the database. Each one has a <b>dismiss</b> button (&times;) that hides it for the rest of the day; "Show them again" brings back what you dismissed.
           Its <b>Alerts</b> section on the <a href="#dashboard-settings">Settings</a> page turns each kind on or off and sets when it shows: minutes idle, minutes without a kill, how far behind your typical pace is amber or red, and the encumbrance and mind thresholds. It also lists what you've dismissed today, to show any of it again.
           The <b>Alert settings</b> link at the top of the Alerts card, and the one under a character's alerts on its page, open it there.
@@ -313,7 +324,7 @@ alerts:                                # in-game and Discord alerts
       </section>
 
       <section id="data" class="card">
-        <h3>What is recorded</h3>
+        <h2>What is recorded</h2>
         <p>One SQLite database, <code>analytics.db</code> in Lich's data folder. Every row carries its game and character, so the same name in GS4 and Shattered stays separate.</p>
         <div class="scroll" tabindex="0" role="region" aria-label="What is recorded"><table class="ref">
           <thead><tr><th>Table</th><th>Holds</th></tr></thead>
@@ -338,7 +349,7 @@ alerts:                                # in-game and Discord alerts
       </section>
 
       <section id="combat" class="card">
-        <h3>Combat</h3>
+        <h2>Combat</h2>
         <p>With <code>combat</code> on (the default), the script runs Lich's own combat tracker and recorder for the character. They read every attack in the game text: whose it was, which creature it hit, the damage of each hit and flare, and which attack killed the creature. Once a minute the script sums each hunt into <code>combat_stats</code>, by kind of creature. The dashboard shows it on each character's <b>Hunting</b> page and on <b>Compare</b>, for any range.</p>
         <ul>
           <li><b>Damage</b> is the character's own: its swings, spells and flares, and its shield's or armor's flares on a creature that struck it. Another player's attack on the same creature isn't counted, even though it shows in the room.</li>
@@ -350,7 +361,7 @@ alerts:                                # in-game and Discord alerts
       </section>
 
       <section id="accuracy" class="card">
-        <h3>How the numbers work</h3>
+        <h2>How the numbers work</h2>
         <ul>
           <li id="ranges"><b>Date ranges</b> are whole days unless you choose otherwise. <b>Today</b> runs from midnight to now and starts over at midnight. <b>This Week</b> and <b>This Month</b> roll: they're the last 7 and the last 30 days, today included, each starting at midnight and moving forward a day every midnight, so neither is a calendar week or month. <b>This Year</b> starts on January 1. At 3 PM on November 8, This Week starts at midnight on November 2 and This Month at midnight on October 10.
             <br>In <a href="#dashboard-settings">Settings</a>, under <b>Date ranges</b>, each can be counted another way instead:
@@ -372,7 +383,7 @@ alerts:                                # in-game and Discord alerts
       </section>
 
       <section id="hooks" class="card">
-        <h3>For script authors</h3>
+        <h2>For script authors</h2>
         <p>Sales and bank balances are read from the game text, so selling and resting scripts need no changes. These hooks exist for anything the text doesn't cover.
           The module exists only once <code>;analytics</code> has started in that Lich session, so guard the calls:</p>
 <pre tabindex="0"><code>if defined?(GS4Analytics::SilverManager)
@@ -384,7 +395,7 @@ end</code></pre>
       </section>
 
       <section id="maintenance" class="card">
-        <h3>Maintenance and backups</h3>
+        <h2>Maintenance and backups</h2>
         <div class="scroll" tabindex="0" role="region" aria-label="Maintenance and backups"><table class="ref">
           <thead><tr><th>Command</th><th>What it does</th></tr></thead>
           <tbody>
@@ -397,7 +408,7 @@ end</code></pre>
       </section>
 
       <section id="troubleshooting" class="card">
-        <h3>Troubleshooting</h3>
+        <h2>Troubleshooting</h2>
         <dl class="qa">
           <dt>The dashboard says it could not reach analytics.lic</dt>
           <dd>Check the script is running with <code>--dashboard</code> or <code>dashboard.autostart: true</code> (<code>;analytics status</code> shows the link), and that the port matches. In Chrome or Edge, check the site's <i>Local network access</i> permission is Allow (the icon left of the address).</dd>
@@ -415,7 +426,7 @@ end</code></pre>
       </section>
 
       <section id="faq" class="card">
-        <h3>FAQ</h3>
+        <h2>FAQ</h2>
         <dl class="qa">
           <dt>Is my data sent anywhere?</dt>
           <dd>No. The database stays on your computer. The dashboard page is downloaded from this site, but it reads your data inside your browser.</dd>

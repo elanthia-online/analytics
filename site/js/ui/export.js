@@ -26,6 +26,11 @@ export function exportImage(root, title, name, done) {
     inlineStyles(root, clone);
     Array.prototype.forEach.call(clone.querySelectorAll('.scroll'), function (n) { n.style.overflow = 'visible'; n.style.maxWidth = 'none'; });
     Array.prototype.forEach.call(clone.querySelectorAll('.no-export'), function (n) { n.parentNode.removeChild(n); });
+    // The phone's fade at a strip's edge is for scrolling, which an image can't
+    [clone].concat(Array.prototype.slice.call(clone.querySelectorAll('[data-more]'))).forEach(function (n) {
+      if (!n.hasAttribute('data-more')) return;
+      n.removeAttribute('data-more'); n.style.maskImage = 'none'; n.style.webkitMaskImage = 'none';
+    });
     // Sticky and blurred bars draw wrongly (or not at all) inside foreignObject
     Array.prototype.forEach.call(clone.querySelectorAll('*'), function (n) {
       if (n.style.position === 'sticky' || n.style.position === 'fixed') n.style.position = 'static';

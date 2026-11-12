@@ -14,7 +14,7 @@ const PORT = Number(at >= 0 ? args[at + 1] : 8000);
 const ROOT = fileURLToPath(new URL('../site/', import.meta.url));
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '': 'text/plain',
+  '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.xml': 'application/xml', '.txt': 'text/plain; charset=utf-8', '': 'text/plain',
 };
 
 export function startDevServer(port = PORT) {
@@ -30,8 +30,10 @@ export function startDevServer(port = PORT) {
       res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
       res.end(body);
     } catch {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not found');
+      // As Pages does: the site's own 404 page, with a 404 status
+      const page = await readFile(join(ROOT, '404.html')).catch(() => 'Not found');
+      res.writeHead(404, { 'Content-Type': typeof page === 'string' ? 'text/plain' : TYPES['.html'], 'Cache-Control': 'no-cache' });
+      res.end(page);
     }
   });
   return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve(server)));

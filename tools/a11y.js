@@ -81,6 +81,7 @@ const VIEWS = [
   ['unreachable source', '/?live=1', '#sourceError:not([hidden])'],
   ['guide', '/guide/', 'main section[id]'],
   ['what\'s changed', '/guide/changes.html', '.changes section[id]'],
+  ['page not found', '/guide/nope', '.notfound h1'],
 ];
 const PHONE_VIEWS = [
   ['phone overview', live, '.card[data-who]'],

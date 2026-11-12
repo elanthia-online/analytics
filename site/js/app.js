@@ -3,7 +3,7 @@
 // data.js opens the database and the aggregation layer computes the figures.
 // See docs/architecture.md.
 import { Dashboard, LiveSource, FolderSource, FileSource, DemoSource, rememberSource, rememberedSource, savedFolder } from './data.js';
-import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, setHtml, plural } from './ui/util.js';
+import { DOT, $, esc, dur, ago, stamp, clockState, nowSrv, shownId, storedId, shown, nameFromId, setHtml, plural } from './ui/util.js';
 import { overviewHtml, detailHtml, navHtml, comparePageHtml, settingsPageHtml, DISPLAY_DEFAULTS, NAV_FIGURES, setRangeNames } from './ui/views.js';
 import { sortState } from './ui/parts.js';
 import { SECTION_NAMES, historyRows } from './ui/sections.js';
@@ -13,6 +13,7 @@ import { icon } from './ui/icons.js';
 import { nowMarkers, openTables } from './ui/charts.js';
 import './display.js'; // the theme and contrast controls (and the icons in the static HTML)
 import { exportImage } from './ui/export.js';
+import { watchEdges } from './ui/edges.js';
 
 
 // ---------------- the drawer (phones and narrow windows) ----------------
@@ -219,7 +220,7 @@ function viewTitle() {
   var label = sdata && sdata.label ? sdata.label : det ? det.label : '';
   if (page === 'settings') return 'Settings';
   if (page) return 'Compare characters ' + DOT + ' ' + (rangeLabels(display)[range] || '');
-  return who ? shown(det ? det.name : shownId(who)) + (section !== 'summary' ? ' ' + DOT + ' ' + SECTION_NAMES[section] : '') + (label && section !== 'progress' ? ' ' + DOT + ' ' + label : '')
+  return who ? (det ? shown(det.name) : nameFromId(who)) + (section !== 'summary' ? ' ' + DOT + ' ' + SECTION_NAMES[section] : '') + (label && section !== 'progress' ? ' ' + DOT + ' ' + label : '')
     : 'Everyone ' + DOT + ' Today';
 }
 
@@ -422,7 +423,7 @@ window.addEventListener('popstate', followUrl);
 window.addEventListener('hashchange', followUrl);
 function setTitle() {
   if (page) { document.title = (page === 'settings' ? 'Settings' : 'Compare') + ' ' + DOT + ' GS4 Analytics'; return; }
-  document.title = (who ? shown(det ? det.name : shownId(who)) + ' ' + DOT + ' ' + (section !== 'summary' ? SECTION_NAMES[section] + ' ' + DOT + ' ' : '') : ov && !sourceOpen ? 'Overview ' + DOT + ' ' : '') + 'GS4 Analytics';
+  document.title = (who ? (det ? shown(det.name) : nameFromId(who)) + ' ' + DOT + ' ' + (section !== 'summary' ? SECTION_NAMES[section] + ' ' + DOT + ' ' : '') : ov && !sourceOpen ? 'Overview ' + DOT + ' ' : '') + 'GS4 Analytics';
 }
 function show() {
   var connected = !!ov;
@@ -498,8 +499,8 @@ function loadOverview() {
 }
 function loadDetail() {
   if (!who || !dash || !dash.conn || !ov) return;
-  var d = null, failed = false;
-  try { d = dash.character(who, summaryRange()); } catch (e) { d = null; failed = true; }
+  var d = null, failed = false, why = '';
+  try { d = dash.character(who, summaryRange()); } catch (e) { d = null; failed = true; why = e && e.message ? e.message : String(e); }
   if (d) {
     det = d;
     try { sdata = section !== 'summary' ? dash.details(who, section, range) : null; } catch (e) { sdata = null; }
@@ -509,8 +510,12 @@ function loadDetail() {
   // last image's figures would be wrong, so they go. A failed build keeps them.
   if (!failed) { det = null; sdata = null; }
   if (!det) {
-    setHtml($('detail'), '<div class="card empty big">' + icon('pulse', 'empty-ic') + '<h3>No data for ' + esc(shownId(who)) + '</h3>' +
-      '<p class="muted">This database has nothing recorded for that character.</p><button class="btn" id="back" type="button">' + icon('back') + 'Back to everyone</button></div>');
+    // The page's own heading, so it is the one heading a screen reader lands on
+    setHtml($('detail'), '<div class="card empty big">' + icon('pulse', 'empty-ic') +
+      (failed ? '<h1 tabindex="-1">Could not read ' + esc(nameFromId(who)) + '</h1><p class="muted">Something in this database stopped the page from reading that character' +
+        (why ? ' (' + esc(why) + ')' : '') + '. It tries again with the next update.</p>'
+        : '<h1 tabindex="-1">No data for ' + esc(nameFromId(who)) + '</h1><p class="muted">This database has nothing recorded for that character. Check the name in the link, or pick a character from the menu.</p>') +
+      '<button class="btn" id="back" type="button">' + icon('back') + 'Back to everyone</button></div>');
   }
 }
 // Live sources are polled; a snapshot is read once
@@ -618,6 +623,7 @@ $('export').onclick = function () {
 };
 
 // ---------------- start ----------------
+watchEdges($('content'));
 if (booting) setHtml($('overview'), skeleton(who ? 'detail' : 'overview'));
 show(); tick();
 window.initSqlJs({ locateFile: function (file) { return 'vendor/sql.js/' + file; } }).then(function (SQL) {

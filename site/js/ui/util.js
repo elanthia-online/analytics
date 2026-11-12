@@ -85,6 +85,11 @@ export function shown(name) {
 export function shownId(id) {
   return String(id == null ? '' : id).replace(/^(\w+):/, function (m, g) { return (SHOWN_GAME[g] || g) + ':'; });
 }
+// "GS3:Name" -> "Name (GS4)": a character's name when only its id is known
+export function nameFromId(id) {
+  var m = /^(\w+):(.*)$/.exec(String(id == null ? '' : id));
+  return m ? shown(m[2] + ' (' + m[1] + ')') : String(id == null ? '' : id);
+}
 // A shown id (from the URL) back to the database's
 export function storedId(id) {
   return String(id == null ? '' : id).replace(/^(\w+):/, function (m, g) { return (STORED_GAME[g.toUpperCase()] || g) + ':'; });

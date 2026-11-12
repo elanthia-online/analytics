@@ -7,7 +7,18 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="What changed in analytics.lic and its dashboard, release by release, and anything you need to do.">
-<title>What's changed</title>
+<title>What's changed · GS4 Analytics</title>
+<link rel="canonical" href="https://analytics.elanthia.online/guide/changes.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GS4 Analytics">
+<meta property="og:title" content="What's changed: GS4 Analytics">
+<meta property="og:description" content="What changed in analytics.lic and its dashboard, release by release, and anything you need to do.">
+<meta property="og:url" content="https://analytics.elanthia.online/guide/changes.html">
+<meta property="og:image" content="https://analytics.elanthia.online/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The GS4 Analytics dashboard showing five sample characters">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
@@ -21,7 +32,7 @@
   <header class="top">
     <a class="brand" href="../" title="Open the dashboard">
       <span class="logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="9" width="3" height="7" rx="1.2" fill="#fff" opacity=".75"/><rect x="7.5" y="5" width="3" height="11" rx="1.2" fill="#fff" opacity=".9"/><rect x="13" y="2" width="3" height="14" rx="1.2" fill="#fff"/></svg></span>
-      <span><h1>GS4 Analytics</h1><small>What's changed</small></span>
+      <span><b class="brand-name">GS4 Analytics</b><small>What's changed</small></span>
     </a>
     <span class="spacer"></span>
     <nav class="controls" aria-label="Site">
@@ -40,7 +51,7 @@
   </header>
 
   <main>
-  <div class="page-head"><div><h2>What's changed</h2>
+  <div class="page-head"><div><h1>What's changed</h1>
     <p>Changes to analytics.lic and its dashboard, newest first. Each says whether it's the <b>script</b> (update the script to get it) or the <b>dashboard</b> (live on this site as soon as it's out), and anything you need to do.</p></div></div>
 
   <div class="doc changes">
@@ -48,7 +59,7 @@
          id="d<yyyy-mm-dd>" (a dashboard-only change). Mark each item Script or Dashboard.
          Write for players: what changed, and what to do about it, if anything. -->
     <section id="d2026-11-11" class="card">
-      <h3>November 11, 2026 &middot; dashboard</h3>
+      <h2>November 11, 2026 &middot; dashboard</h2>
       <ul>
         <li><span class="chip">Dashboard</span> Combat, on each character's <b>Hunting</b> page: the damage it dealt to each kind of creature, its credited kills and assists, damage per creature, per kill and per hit, and damage and kills per hour hunting. On <b>Compare</b>, every character side by side, with the party's total. See <a href="./#combat">Combat</a>.</li>
         <li><span class="chip">Dashboard</span> The locksmith pool, on each character's <b>Income</b> page: how many of its boxes the pool holds, how that changed over the range, the peak, and how many boxes a full pool turned away, by town. On <b>Compare</b>, every character side by side.</li>
@@ -57,13 +68,13 @@
       </ul>
     </section>
     <section id="d2026-11-08" class="card">
-      <h3>November 8, 2026 &middot; dashboard</h3>
+      <h2>November 8, 2026 &middot; dashboard</h2>
       <ul>
         <li><span class="chip">Dashboard</span> Choose how the range tabs count: today since midnight or the last 24 hours, the week and month as whole days, rolling to the minute or since they began (the week on a Monday or a Sunday), and the year since January 1 or the last 365 days. In <b>Settings</b>, under <b>Date ranges</b>. Nothing changes unless you pick something. See <a href="./#ranges">Date ranges</a>.</li>
       </ul>
     </section>
     <section id="v1.0.0" class="card">
-      <h3>1.0.0 &middot; the first release</h3>
+      <h2>1.0.0 &middot; the first release</h2>
       <p class="note">Not released yet: this entry is the draft for the day it ships.</p>
       <ul>
         <li><span class="chip">Script</span> analytics.lic records each character's hunts, rests, deaths and idle time, kills, silver (bank balances, sales, boxes, coins off the floor, bounty rewards, and what you spend, shop purchases included),
@@ -75,7 +86,7 @@
         <li><span class="chip">Script</span> <span class="chip">Dashboard</span> Combat: the damage each character deals and the kills it is credited with, per kind of creature, read by Lich's own combat tracker. Kills, assists, damage per creature, per kill and per hit, and per hour hunting, on each character's Hunting page, and every character side by side, with the party's total, on Compare. Turn it off with the <code>combat</code> setting. See <a href="./#combat">Combat</a>.</li>
         <li><span class="chip">Script</span> <span class="chip">Dashboard</span> The locksmith pool: how many of each character's boxes it holds, from the list the worker gives when <code>eloot</code> asks for returns, and each box a full pool turns away. On each character's Income page, and side by side on Compare.</li>
       </ul>
-      <h4>What to do</h4>
+      <h3>What to do</h3>
       <ul>
         <li>Have your rest script type <code>EXPERIENCE</code> and <code>RESOURCE</code> once a rest, so fame, Death's Sting, training points and your resources are recorded. See <a href="./#first-run">First run</a>.</li>
         <li>If you tested an earlier build, move its <code>analytics.db</code> aside: the script refuses a database from another build and starts a fresh one. Delete your character's old <code>analytics.yaml</code> too, to get the new blank one.</li>
