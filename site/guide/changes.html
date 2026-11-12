@@ -58,6 +58,19 @@
     <!-- Newest first. One section per release, id="v<version>" (script releases) or
          id="d<yyyy-mm-dd>" (a dashboard-only change). Mark each item Script or Dashboard.
          Write for players: what changed, and what to do about it, if anything. -->
+    <section id="d2026-11-13" class="card">
+      <h2>November 13, 2026 &middot; dashboard</h2>
+      <ul>
+        <li><span class="chip">Dashboard</span> <b>Silver and experience per hour</b> on a character's Summary now divide by the hours the script ran in the range (hunting, resting and idle), as the overview's cards always did and the guide says. They divided by every hour since the range began, logged out or not, so Today on a character's page could be an eighth of the figure on its card. Both now count a hunt or rest still going up to now, and show <code>--</code> under ten minutes of play.</li>
+        <li><span class="chip">Dashboard</span> <b>Crashes today</b> counts a hunt, rest or idle stretch that Lich or the connection cut off, which the script marks when it next starts (from this update of the script). It had only counted idle recoveries since hand stops stopped counting as crashes.</li>
+        <li><span class="chip">Dashboard</span> The <b>locksmith pool</b>'s change never takes one town's count from another's: with lists from two towns it's each town's own change added up, and the peak is the most one pool held. On Compare, a character's row is for the town it names.</li>
+        <li><span class="chip">Dashboard</span> The overview no longer redraws several times a minute with nothing new: the "Idle for", "No kills for" and "Bounty running" minutes all turn over on the minute, so a hover or the keyboard's place isn't lost between them.</li>
+        <li><span class="chip">Dashboard</span> <b>Show</b> and <b>Show all</b>, for hidden characters, leave the keyboard on the character shown again instead of at the top of the page.</li>
+        <li><span class="chip">Dashboard</span> On the day clocks go back, <b>Last 24 Hours</b> no longer draws the repeated hour twice.</li>
+        <li><span class="chip">Dashboard</span> The warning for a database from another time zone says kills can land a whole day off, not just near midnight. A copy from the script that won't open says so, rather than calling it the wrong file, and the mind-capacity note shows only when it's missing.</li>
+        <li><span class="chip">Dashboard</span> A database opened as a file can no longer put markup of its own into the Resources tiles.</li>
+      </ul>
+    </section>
     <section id="d2026-11-12" class="card">
       <h2>November 12, 2026 &middot; dashboard</h2>
       <ul>
@@ -114,6 +127,8 @@
         <li>Test builds read what other players said or whispered as if it were your own game text: anyone saying a line like a box's coins or a bank deposit had it recorded as your silver, and the same for kills, bounty rewards and task offers. This build skips speech and whispers, and ESP as the game is known to mark it (no tester's log had ESP in it yet, so if a thought on ESP ever shows up in your figures, tell us). If a test build's figures ever jumped for no reason, start a fresh <code>analytics.db</code>.</li>
         <li>Also fixed in this build, from test builds: a death that went past midnight counted as two, and a rest's item-limit alert was sent again at midnight; a setting of the wrong kind (<code>8m</code> where minutes go) stopped hunts and rests being tracked, and is now reported and left out; <code>max_hunt_minutes</code> could ask for a rest again at once after a rest of a few seconds; and the <code>weapon_loadout</code> check could drop an item that wouldn't stow, which it never does now.</li>
         <li>Test builds also missed some towns' wording: Cold River's, Mist Harbor's and Kraken's Fall's notes and chits for big sales, Mist Harbor's bank, the Icemule and Cold River locksmiths and the Kraken's Fall and Icemule locksmith pools. Those sales and fees are recorded from this build on, not in an older database.</li>
+        <li>Test builds read the Order of Voln's channel as your own game text, as they did speech before: a Symbol of Thought from any member saying a deposit or a box's coins had it recorded for every Voln member listening. This build skips it. It also no longer stops when a settings group is given one value (<code>alerts: false</code>): that's reported and left out, and each setting under it turns off on its own line. Two characters starting at once on a new database both open it, a session that finds the dashboard's port taken by another character's says the dashboard is already fed, and a shop's town comes from the map's fixed paths, so Sablecross's bank is in Sablecross whatever guides are about, and an outpost such as Khazar's Hold is named for itself.</li>
+        <li>From this build, a hunt, rest or idle stretch that Lich or the connection cut off is marked "crashed" when the script next starts, and when it ends where the next one began it keeps the experience it gained. Test builds left it unmarked, so the dashboard didn't count it as a crash, and its experience counted on the Summary but not on the overview.</li>
       </ul>
     </section>
   </div>
