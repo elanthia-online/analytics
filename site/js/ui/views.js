@@ -374,7 +374,7 @@ export function detailHtml(c, range, width, section, data, filter, ui) {
       tile('brain', 'Mind at hunt end', mind.end_avg == null ? '--' : Math.round(mind.end_avg) + '%', plural(mind.samples, 'hunt')) +
       tile('rest', 'Absorbed per rest', mind.absorbed_per_rest == null ? '--' : num(mind.absorbed_per_rest), mind.absorbed_per_min == null ? 'field exp' : mind.absorbed_per_min + ' per minute of rest') +
       tile('bag', 'Encumbrance at start', enc.today == null ? '--' : Math.round(enc.today) + '%', enc.typical == null ? 'no baseline yet' : 'typical ' + Math.round(enc.typical) + '%') +
-    '</div><p class="small muted note-p">Mind percentages need mind capacity, recorded from this update on.</p></div></section>';
+    '</div>' + (mind.start_avg == null && mind.end_avg == null && c.today.hunt_s > 0 ? '<p class="small muted note-p">Mind percentages need mind capacity, which older hunts didn\'t record.</p>' : '') + '</div></section>';
 
   var grounds = c.grounds.length ? scroll('Hunting grounds') + '<table><thead><tr><th>Profile</th><th>Hours</th><th>Exp / hunt hr</th><th>Kills / hunt hr</th><th title="Silver from creatures per hour of hunting">Silver / hr</th><th>Deaths</th></tr></thead><tbody>' +
     c.grounds.map(function (g) {

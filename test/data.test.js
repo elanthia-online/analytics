@@ -33,6 +33,10 @@ test('a file that is not SQLite is refused plainly, and its database freed every
   }
   assert.equal(open(), 0, 'no database left open');
   assert.equal(junk.forgotten, 3, 'the source forgets an image that did not open');
+  // from the script's API it's not "that file": it says the script sent it and tries again
+  dash.setSource({ ...junk, live: true, kind: 'live' });
+  await assert.rejects(dash.refresh(), (e) => /analytics\.lic sent a copy .* isn't an SQLite database/.test(e.message) && !/That file/.test(e.message));
+  assert.equal(open(), 0);
   dash.setSource(source(fixture));
   await dash.refresh();
   assert.equal(open(), 1);
@@ -106,4 +110,19 @@ test('a database written in another zone is flagged; the same zone, or no zone r
   } finally {
     db.close();
   }
+});
+
+test('a load that fails after the source changed is thrown away too, not reported against the new one (#18)', async () => {
+  const { SQL } = counting();
+  const dash = new Dashboard(SQL);
+  const failing = { label: 'gone', live: true, kind: 'live', load: () => new Promise((_, reject) => setTimeout(() => reject(new Error('connection refused')), 40)) };
+  dash.setSource(failing);
+  const first = dash.refresh();
+  dash.setSource(source(fixture));
+  await assert.rejects(first, (e) => e.superseded === true, 'superseded, not "connection refused"');
+  await dash.refresh();
+  // and with no switch, the failure is the source's own
+  dash.setSource(failing);
+  await assert.rejects(dash.refresh(), /connection refused/);
+  dash.close();
 });

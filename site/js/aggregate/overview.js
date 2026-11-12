@@ -30,7 +30,8 @@ export function alertSettings(saved) {
   for (const [key, value] of Object.entries(saved && typeof saved === 'object' ? saved : {})) {
     if (!Object.hasOwn(ALERT_DEFAULTS, key)) continue;
     if (typeof ALERT_DEFAULTS[key] === 'boolean' && typeof value === 'boolean') out[key] = value;
-    else if (typeof ALERT_DEFAULTS[key] === 'number' && Number.isFinite(value) && value >= 0) out[key] = value;
+    // whole numbers from 1 up, as Settings takes them (storage can be edited by hand)
+    else if (typeof ALERT_DEFAULTS[key] === 'number' && Number.isInteger(value) && value >= 1) out[key] = value;
   }
   return out;
 }

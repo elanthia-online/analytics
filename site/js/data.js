@@ -268,7 +268,9 @@ export class Dashboard {
         if (db && db !== this.db) db.close();
         source.forget?.();
         if (/not a database|file is encrypted|malformed/i.test(error.message)) {
-          throw new Error("That file isn't an analytics.lic database (it isn't an SQLite database at all).");
+          throw new Error(source.live
+            ? "analytics.lic sent a copy of its database that isn't readable (it isn't an SQLite database). It's tried again at the next refresh; if it keeps happening, restart the script."
+            : "That file isn't an analytics.lic database (it isn't an SQLite database at all).");
         }
         throw error;
       }

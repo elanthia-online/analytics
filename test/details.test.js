@@ -401,6 +401,7 @@ test('alerts: without settings the Ruby shape; with them each has a kind, can be
   assert.ok(!buildOverview(conn, { now, alerts: { idle_minutes: mins + 1 } }).alerts.some((a) => a.kind === 'idle' && a.id === idle.id));
   // only known keys of the right type are taken
   assert.deepEqual(alertSettings({ idle: 'no', idle_minutes: -3, bogus: true, mind_pct: 80 }), { ...ALERT_DEFAULTS, mind_pct: 80 });
+  assert.deepEqual(alertSettings({ idle_minutes: 0, no_kill_minutes: 2.5, mind_pct: 1 }), { ...ALERT_DEFAULTS, mind_pct: 1 }, 'whole numbers from 1, as Settings takes them');
 });
 
 test('offer labels: the taskmaster\'s words until the guard names the target, and an escort always by its destination', () => {
