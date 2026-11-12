@@ -2,6 +2,19 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-12: The locksmith pool is one pool, so its change crosses towns
+
+**Decision.** The pool's change, peak and first count are taken over every list in the
+range, whichever town it was listed in, and Compare's row is the character's whole pool.
+
+**Why.** The second audit (S9) read 96 in Icemule then 12 in Kraken's Fall as two pools and
+called the change of −84 a mix of towns. The pool is shared game-wide: a list in any town
+shows the same boxes, so −84 is what happened. The town on each list is only where it was
+read.
+
+**Rejected.** Adding up each town's own change (+4 and 0), which would count one pool as
+two.
+
 ## 2026-11-12: A Summary's per hour is per hour the script ran, as on the cards
 
 **Decision.** A Summary's silver and experience per hour divide by the hours the script ran

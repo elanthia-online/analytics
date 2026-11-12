@@ -205,7 +205,8 @@ export function buildCombat(conn, id, range, { now, ranges }) {
 // How many of one character's boxes the locksmith pool holds: the latest list
 // whenever it was, and over the window the first and last count, the peak,
 // how often it listed them and how many boxes it turned away for being full.
-// By town too, since each town's pool is its own.
+// By town too: the pool is one, game-wide (a list in any town shows every box),
+// so the town is only where each list was taken.
 export function buildPool(conn, id, range, { now, ranges }) {
   const who = parseWho(id);
   const { label, from } = window(range, now, ranges);
