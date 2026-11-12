@@ -398,6 +398,14 @@ test('a hunt stopped by hand is not a crash; the old unhandled exit still is (#2
     assert.equal(crashes('hunt stopped'), 0);
     assert.equal(crashes('unhandled exit'), 1);
     assert.equal(crashes('crashed'), 1, 'a cycle the script closed at its next start (R11-4)');
+    // on rests, each is a crash
+    d.run('DELETE FROM cycles');
+    for (let i = 0; i < 4; i++) {
+      d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, rest_reason) VALUES (?, 'GS3', 'April', 'rest', ?, ?, 60, 'crashed')",
+        [`r${i}`, now - 3600 + i * 600, now - 3540 + i * 600]);
+    }
+    const april = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April');
+    assert.equal(april.crashes.length, 4);
   } finally {
     d.close();
   }

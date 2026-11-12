@@ -370,7 +370,8 @@ function lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, b
   if (crashes.length) add(ambers, 'crashes', `${crashes.length} crash / idle recovery today`);
   if (bounty && bounty.stuck) add(ambers, 'bounty', `Bounty running ${idiv(bounty.age - lag, 60)} min (typical ${idiv(bounty.typical, 60)} min)`);
   for (const row of reasonRows) {
-    if (row.reason === '(none)' || row.typical == null) continue;
+    // a crash has its own alert (crashes), however often it happens
+    if (row.reason === '(none)' || row.reason === 'crashed' || row.typical == null) continue;
     if (row.today >= 3 && row.today >= row.typical * 2 + 1) {
       add(ambers, 'rest_reasons', `${row.reason}: ${row.today} rests today (typical ${floatStr(row.typical)} by now)`);
     }

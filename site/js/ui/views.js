@@ -103,7 +103,7 @@ export var ALERT_GROUPS = [
   { title: 'Today so far', items: [
     { kind: 'deaths', label: 'Deaths', level: 'amber', hint: 'Any death today.' },
     { kind: 'item_rests', label: 'Rests for the item limit', level: 'amber', hint: 'Any rest today because the item limit was reached.' },
-    { kind: 'crashes', label: 'Crashes and idle recoveries', level: 'amber', hint: 'A hunt or rest cut off by Lich or the connection going down (found when the script next starts), or a rest started by idle recovery, today.' },
+    { kind: 'crashes', label: 'Crashes and idle recoveries', level: 'amber', hint: 'A hunt, rest or idle stretch cut off by Lich or the connection going down (found when the script next starts), or a rest started by idle recovery, today.' },
     { kind: 'bounty', label: 'A slow bounty', level: 'amber', hint: 'The bounty in hand has run more than twice as long as that kind usually takes.' },
     { kind: 'rest_reasons', label: 'Many rests for one reason', level: 'amber', hint: 'Three or more rests today for one reason, and more than twice the usual by now.' }] },
   { title: 'Starting hunts', note: 'From the average of today\'s hunts, once there are three.', items: [
