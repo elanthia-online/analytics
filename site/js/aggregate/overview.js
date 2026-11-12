@@ -339,12 +339,15 @@ function lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, b
   const reds = [];
   const ambers = [];
   const add = (list, kind, text) => { if (a[kind]) list.push({ kind, text }); };
-  const since = state.since != null ? now - state.since : 0;
+  // Counted to the wall-clock minute, like the hero figure, so every counter
+  // here turns over at once and a refresh within the minute changes nothing
+  const lag = now % 60;
+  const since = state.since != null ? now - lag - state.since : 0;
   const idleWarn = a.idle_minutes * 60, noKill = a.no_kill_minutes * 60;
   if (state.type === 'dead') add(reds, 'dead', `Dead for ${idiv(since, 60)} min`);
   if (state.type === 'idle' && since > idleWarn) add(since > idleWarn * 2 ? reds : ambers, 'idle', `Idle for ${idiv(since, 60)} min`);
-  if (state.type === 'hunt' && since > noKill && lastKill != null && now - lastKill > noKill) {
-    add(reds, 'no_kills', `No kills for ${idiv(now - lastKill, 60)} min while hunting`);
+  if (state.type === 'hunt' && since > noKill && lastKill != null && now - lag - lastKill > noKill) {
+    add(reds, 'no_kills', `No kills for ${idiv(now - lag - lastKill, 60)} min while hunting`);
   }
   if (huntS >= 3600) {
     for (const [metric, label] of [['silver', 'Silver'], ['exp', 'Exp']]) {
@@ -357,7 +360,7 @@ function lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, b
   if (deaths > 0) add(ambers, 'deaths', `${deaths} death${deaths === 1 ? '' : 's'} today`);
   if (itemRests > 0) add(ambers, 'item_rests', `${itemRests} item limit rest${itemRests === 1 ? '' : 's'} today`);
   if (crashes.length) add(ambers, 'crashes', `${crashes.length} crash / idle recovery today`);
-  if (bounty && bounty.stuck) add(ambers, 'bounty', `Bounty running ${idiv(bounty.age, 60)} min (typical ${idiv(bounty.typical, 60)} min)`);
+  if (bounty && bounty.stuck) add(ambers, 'bounty', `Bounty running ${idiv(bounty.age - lag, 60)} min (typical ${idiv(bounty.typical, 60)} min)`);
   for (const row of reasonRows) {
     if (row.reason === '(none)' || row.typical == null) continue;
     if (row.today >= 3 && row.today >= row.typical * 2 + 1) {
