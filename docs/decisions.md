@@ -2,6 +2,23 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-13: Per hour is per hour the script ran, everywhere
+
+**Decision.** A Summary's silver and experience per hour divide by the hours the script ran
+in the range (hunting, resting and idle, with the stretch still going counted up to now, to
+the minute), as the overview's cards do, and show `--` under ten minutes of that. The cards
+now count the stretch still going too.
+
+**Why.** The audit (S3) found the Summary dividing by the hours since the range began, so
+Today's figure on a character's page could be an eighth of the one on its card, and the
+guide's worked example matched only the card. The guide has always said time logged out
+doesn't count against you.
+
+**Rejected.** Relabelling the Summary's figure as per hour of the range: it would keep two
+"per hour" figures, and one that falls while you're logged out isn't a rate of play. The
+Ruby dashboard's figures are the parity baseline, so the change is listed in
+`test/fixtures/departures.json` rather than written into the golden files.
+
 ## 2026-11-12: Site basics: a 404 page, canonical URLs, share previews, phone strips that scroll
 
 **Decision.** `site/404.html`, which Pages serves for any missing path (so its links and

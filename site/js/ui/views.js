@@ -26,10 +26,14 @@ function paceKpi(lab, m, shownValue) {
   return stat(lab, shownValue != null ? shownValue : short(m.so_far), sub);
 }
 
-// Per hour the script ran today (hunting, resting or idle), as the reports
-// count it; null under ten minutes of that, too little to divide by
-export function perHourToday(c, value) {
-  var ran = c.today.hunt_s + c.today.rest_s + c.today.idle_s;
+// Per hour the script ran today (hunting, resting or idle, the stretch still
+// going counted up to now, to the minute), the same as a Summary's per hour;
+// null under ten minutes of that, too little to divide by
+export function perHourToday(c, value, now) {
+  var at = Math.floor((now != null ? now : nowSrv()) / 60) * 60, st = c.state || {};
+  var midnight = new Date(at * 1000).setHours(0, 0, 0, 0) / 1000;
+  var open = st.since != null && (st.type === 'hunt' || st.type === 'rest' || st.type === 'idle') ? Math.max(0, at - Math.max(st.since, midnight)) : 0;
+  var ran = c.today.hunt_s + c.today.rest_s + c.today.idle_s + open;
   return ran >= 600 ? value * 3600 / ran : null;
 }
 var hourly = function (c, value) { var v = perHourToday(c, value); return v == null ? '--' : short(v); };

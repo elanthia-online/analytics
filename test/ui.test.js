@@ -53,3 +53,20 @@ test('DST: the timeline spans the real day, so a stretch sits on its clock hour 
   assert.ok(Math.abs(Number(tick) - Number(seg)) < 0.1, `18:00 tick at ${tick}, the stretch at ${seg}`);
   assert.equal(Number(svg.match(/data-t1="(\d+)"/)[1]), t0 + length, 'the now marker spans the same day');
 });
+
+test('per hour today divides by the time the script ran, the stretch still going included (S4)', async () => {
+  const { perHourToday } = await import('../site/js/ui/views.js');
+  const now = Math.floor(new Date(2026, 10, 8, 15, 0, 30).getTime() / 1000);
+  const off = { type: 'offline', since: now - 60 };
+  const c = (hunt, rest, idle, state = off) => ({ today: { hunt_s: hunt, rest_s: rest, idle_s: idle }, state });
+  // the guide's example: hunt 2 hours, rest 1 hour, bank 300,000
+  assert.equal(perHourToday(c(7200, 3600, 0), 300000, now), 100000);
+  assert.equal(perHourToday(c(300, 0, 299), 1000, now), null, 'under ten minutes: too little to divide by');
+  assert.equal(perHourToday(c(300, 0, 300), 1000, now), 6000, 'ten minutes is enough');
+  // a hunt still going counts up to now, to the minute: 30 minutes, not 30.5
+  assert.equal(perHourToday(c(1800, 0, 0, { type: 'hunt', since: now - 30 - 1800 }), 50000, now), 50000);
+  // and only from midnight, for a stretch that began before it
+  const midnight = Math.floor(new Date(2026, 10, 8).getTime() / 1000);
+  assert.equal(perHourToday(c(0, 0, 0, { type: 'rest', since: midnight - 3600 }), 15 * 3600, now), 3600);
+  assert.equal(perHourToday(c(3600, 0, 0, { type: 'dead', since: now - 600 }), 7200, now), 7200, 'time dead isn\'t time run');
+});
