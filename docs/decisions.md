@@ -2,7 +2,7 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
-## 2026-11-13: Per hour is per hour the script ran, everywhere
+## 2026-11-12: A Summary's per hour is per hour the script ran, as on the cards
 
 **Decision.** A Summary's silver and experience per hour divide by the hours the script ran
 in the range (hunting, resting and idle, with the stretch still going counted up to now, to
@@ -17,7 +17,9 @@ doesn't count against you.
 **Rejected.** Relabelling the Summary's figure as per hour of the range: it would keep two
 "per hour" figures, and one that falls while you're logged out isn't a rate of play. The
 Ruby dashboard's figures are the parity baseline, so the change is listed in
-`test/fixtures/departures.json` rather than written into the golden files.
+`test/fixtures/departures.json` rather than written into the golden files. The "this login"
+line keeps Ruby's count (every cycle since the login, time dead included), and the overview's
+headline figure is per hour since midnight, as it says.
 
 ## 2026-11-12: Site basics: a 404 page, canonical URLs, share previews, phone strips that scroll
 

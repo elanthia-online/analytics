@@ -1,6 +1,6 @@
 {
  "why": "Deliberate departures from the Ruby dashboard's figures, each [Ruby, now]. See docs/porting-notes.md.",
- "summary_per_hour": "silver_hr and exp_hr divide by the hours the script ran in the range (hunting, resting, idle, the stretch still going), not the hours since the range began (2026-11-13, audit S3)",
+ "summary_per_hour": "silver_hr and exp_hr divide by the hours the script ran in the range (hunting, resting, idle, the stretch still going), not the hours since the range began (2026-11-12, audit S3)",
  "afternoon": {
   "GS3:April.daily.range_stats.silver_hr": [
    3069,

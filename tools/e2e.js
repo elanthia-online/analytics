@@ -116,7 +116,14 @@ try {
   }
   // A refresh that brings nothing new must leave the view alone (a rewrite resets
   // hover, focus and selection). The boxes a view is written into are watched (#29).
-  const rewritesOf = (p, boxes, ms) => p.evaluate(([ids, wait]) => new Promise((resolve) => {
+  // Waits for the boxes to go 2 seconds without a change (the first load's redraws done)
+  const settled = (p, boxes) => p.evaluate((ids) => new Promise((resolve) => {
+    let timer = setTimeout(done, 2000);
+    const watch = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(done, 2000); });
+    function done() { watch.disconnect(); resolve(); }
+    for (const id of ids) { const el = document.querySelector(id); if (el) watch.observe(el, { childList: true }); }
+  }), boxes);
+  const rewritesOf = async (p, boxes, ms) => { await settled(p, boxes); return p.evaluate(([ids, wait]) => new Promise((resolve) => {
     let n = 0;
     const hour = new Date().getHours();
     const watch = new MutationObserver((list) => { n += list.length; });
@@ -125,7 +132,7 @@ try {
     // second (a stretch still going, the time hunted, per hour over a few minutes): each
     // refresh changes it, so a quiet page can't be told from one that redraws for nothing
     setTimeout(() => { watch.disconnect(); resolve({ rewrites: n, newHour: new Date().getHours() !== hour, newDay: hour === 0 || new Date().getHours() === 0 }); }, wait);
-  }), [boxes, ms]);
+  }), [boxes, ms]); };
   await page.click('.nav-ch[data-who="GSF:Splinter"]');
   await page.waitForFunction(() => document.querySelector('.sb-name')?.textContent.includes('GSF'));
   await page.waitForTimeout(1200);
