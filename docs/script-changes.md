@@ -392,3 +392,12 @@ first release.
 
 The page: a Combat card on Hunting, a Locksmith pool card on Income, and both sections on Compare.
 
+Fixed since, with no schema change (elanthia-online/scripts@431b0e94), from the 2026-11-11 logs:
+- The worker's list puts a blank line, and a mono-font tag, before each box, which ended the
+  list before its first box: every `pool_depth` count read 0. Blank lines no longer end it. A
+  database from `29181ae2` keeps its zero counts.
+- A cycle too short to keep (under 10 seconds) between two of the same kind, most often
+  bigshot starting and at once going back to rest, split one rest into two rows. The cycle
+  before it now goes on, with its rest steps; a hunt cut by a flap of rest goes on without
+  the reason it had stopped for.
+
