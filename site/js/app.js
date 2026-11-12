@@ -115,6 +115,15 @@ function setHidden(list) {
   if (page === 'compare') renderCompare();
   if (page === 'settings') renderSettings();
 }
+// After Show or Show all the button is gone: focus the character shown again
+// (sel picks it, or the first) where it now is: in the menu when Show was
+// there, else on this page, else in the menu
+function focusShown(sel, inMenu) {
+  var where = inMenu ? null : page === 'compare' ? '#compare a' : !who && !page ? '#overview .card' : null;
+  var el = where && document.querySelector(where + sel);
+  if (el && !el.matches('a')) el = el.querySelector('.ch-link');
+  (el || document.querySelector('#navChars a.nav-ch' + sel) || $('content')).focus({ preventScroll: true });
+}
 var hiddenOpen = false;
 var histFilter = { type: 'all', q: '' };
 function togglePin(id) {
@@ -246,8 +255,14 @@ document.addEventListener('click', function (e) {
     return;
   }
   var unhide = t.closest('[data-unhide]');
-  if (unhide) { var uid = unhide.getAttribute('data-unhide'); setHidden(hidden.filter(function (h) { return h !== uid; })); announce('Shown on the overview again'); return; }
-  if (t.closest('[data-unhide-all]')) { setHidden([]); announce('Every character is shown again'); return; }
+  if (unhide) {
+    var uid = unhide.getAttribute('data-unhide'), inMenu = !!unhide.closest('#navChars');
+    setHidden(hidden.filter(function (h) { return h !== uid; }));
+    announce('Shown on the overview again');
+    focusShown('[data-who="' + CSS.escape(uid) + '"]', inMenu);
+    return;
+  }
+  if (t.closest('[data-unhide-all]')) { setHidden([]); announce('Every character is shown again'); focusShown('[data-who]'); return; }
   var dis = t.closest('[data-dismiss]');
   if (dis) {
     var key = dis.getAttribute('data-dismiss'), keys = todaysDismissed();

@@ -299,6 +299,8 @@ try {
   await pg.waitForFunction(() => !!document.querySelector('#compare a[data-who="GS3:Raphael"]'));
   check(!(await pg.$('#compare .cmp-hidden')) && (await pg.evaluate(() => localStorage.getItem('gs4a-hidden'))) === null,
     'compare: Show brings it back at once, with no range tab clicked');
+  check(await pg.evaluate(() => document.activeElement?.matches('#compare a[data-who="GS3:Raphael"]')),
+    `compare: Show moves focus to the character shown again (${await pg.evaluate(() => document.activeElement?.outerHTML.slice(0, 60))})`);
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
   await pg.waitForSelector('.card[data-who]');
   await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');
@@ -307,9 +309,17 @@ try {
   await pg.reload();
   await pg.waitForSelector('.card[data-who]');
   check(!(await pg.$('.card[data-who="GS3:Bebop"]')), 'hide: remembered after a reload');
+  await pg.click('.nav-hidden summary, .nav-hidden button[aria-expanded]').catch(() => {});
+  await pg.click('#navChars [data-unhide="GS3:Bebop"]');
+  await pg.waitForSelector('.card[data-who="GS3:Bebop"]');
+  check(await pg.evaluate(() => document.activeElement?.matches('#navChars > a.nav-ch[data-who="GS3:Bebop"]')),
+    `hide: Show in the menu moves focus to the character, now back in the menu's list (${await pg.evaluate(() => document.activeElement?.outerHTML.slice(0, 60))})`);
+  await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');
+  await pg.waitForFunction(() => !document.querySelector('.card[data-who="GS3:Bebop"]'));
   await pg.click('[data-unhide-all]');
   await pg.waitForSelector('.card[data-who="GS3:Bebop"]');
   check(await pg.evaluate(() => localStorage.getItem('gs4a-hidden')) === null, 'hide: Show them brings everyone back');
+  check(await pg.evaluate(() => document.activeElement?.matches('#overview .card .ch-link')), 'hide: Show them moves focus to the first card');
   // The side-by-side table: per-hour figures beside the totals, no crashes or item rests
   const allHeads = await pg.$$eval('#overview table thead th', (ths) => ths.map((th) => th.textContent.trim()));
   const sideHeads = allHeads.slice(allHeads.indexOf('Character'));
