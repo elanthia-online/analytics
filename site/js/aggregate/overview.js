@@ -39,8 +39,15 @@ export const MIN_SAMPLES = 5;
 // The cycle each crash reason is recorded on. Up to schema 8 the script wrote
 // 'unhandled exit' on any hunt that went idle without a rest, a stop by hand
 // included; from schema 9 that is 'hunt stopped', which isn't a crash and
-// isn't listed. 'unhandled exit' stays for the golden figures.
+// isn't listed. 'unhandled exit' stays for the golden figures. From the
+// script's 2026-11-13 fixes, a cycle it finds still open at its next start
+// (Lich or the connection went down mid-cycle) is closed as 'crashed', on
+// whatever kind of cycle it was.
 const CRASH_REASONS = { 'unhandled exit': 'hunt', 'idle recovery': 'rest' };
+const isCrash = (row) => {
+  const reason = String(row.rest_reason ?? '').trim().toLowerCase();
+  return reason === 'crashed' || CRASH_REASONS[reason] === row.cycle_type;
+};
 
 // ---- SQL fragments ---------------------------------------------------------
 export const local = (col) => `${col}, 'unixepoch', 'localtime'`;
@@ -227,7 +234,7 @@ function buildStatus(id, label, ctx, data) {
   const idleS = started.filter((row) => row.cycle_type === 'idle').reduce((a, row) => a + toI(row.duration_seconds), 0);
   const deaths = started.filter((row) => row.cycle_type === 'dead').length;
   const crashes = started
-    .filter((row) => CRASH_REASONS[String(row.rest_reason ?? '').trim().toLowerCase()] === row.cycle_type)
+    .filter(isCrash)
     .map((row) => ({ at: toI(row.start_time), reason: String(row.rest_reason ?? '') }));
   const itemRests = rests.filter((row) => /\bitems?\b/i.test(String(row.rest_reason ?? ''))).length;
 

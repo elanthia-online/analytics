@@ -372,6 +372,7 @@ test('a hunt stopped by hand is not a crash; the old unhandled exit still is (#2
   try {
     assert.equal(crashes('hunt stopped'), 0);
     assert.equal(crashes('unhandled exit'), 1);
+    assert.equal(crashes('crashed'), 1, 'a cycle the script closed at its next start (R11-4)');
   } finally {
     d.close();
   }
