@@ -59,7 +59,9 @@ try {
   await shot('overview', {});
   await shot('character', { hash: '#GS4%3ASplinter', range: 'weekly' });
   await shot('character-dark', { hash: '#GS4%3ASplinter', scheme: 'dark' });
-  await shot('income', { hash: '#GS4%3ASplinter/income', range: 'weekly' });
+  // Karai: the sample's combat and locksmith pool rows are Bebop's, Casey's, Karai's and Leonardo's
+  await shot('income', { hash: '#GS4%3AKarai/income', range: 'weekly' });
+  await shot('hunting', { hash: '#GS4%3AKarai/hunting', range: 'weekly' });
   await shot('progress', { hash: '#GS4%3ASplinter/progress', scheme: 'dark' });
   await shot('compare', { hash: '#compare', range: 'weekly' });
   await shot('settings', { hash: '#settings' });

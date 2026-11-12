@@ -7,7 +7,7 @@ The figures were ported from `GS4Analytics::Dashboard` in analytics.lic
 ## The parity harness
 
 - `tools/gen-fixtures.rb` loads the real analytics.lic, with the clock frozen and a fixed
-  `TZ`, and seeds a synthetic database through the script's own schema code (schema 6; the fixtures were later converted to schema 7, see `test/fixtures/source.json`). It
+  `TZ`, and seeds a synthetic database through the script's own schema code (schema 6; the fixtures have been converted forward since, to schema 11 now, by `tools/fixtures-schema*.js`; see `test/fixtures/source.json`). It
   then writes what the Ruby dashboard returned to `test/fixtures/<scenario>.json`, next to
   `<scenario>.db`.
 - `test/parity.test.js` opens each `.db` with sql.js and runs the JS at the same `now`.
@@ -25,7 +25,7 @@ The figures were ported from `GS4Analytics::Dashboard` in analytics.lic
     old data
 - **Never** build fixtures from a real database. They're committed to a public repo.
 
-Regenerate (needs a scripts checkout with its bundle):
+How they were generated (historical: the script no longer computes the figures, so this can't be run again):
 
 ```bash
 TZ=America/New_York BUNDLE_GEMFILE=~/scripts/Gemfile \
@@ -34,8 +34,8 @@ npm test
 ```
 
 `test/fixtures/source.json` records the SHA-256 of the `analytics.lic` the fixtures came
-from. Once the script stops computing figures (see [script-changes.md](script-changes.md)),
-the generator can't run any more. The fixtures are then the frozen baseline, and changes to
+from. The script stopped computing figures (see [script-changes.md](script-changes.md)), so
+the generator can't run any more. The fixtures are the frozen baseline, and changes to
 figures are deliberate: update the golden JSON in the same commit and say why.
 
 The harness was mutation-checked. Changing the rounding of absorbed-per-rest, the baseline

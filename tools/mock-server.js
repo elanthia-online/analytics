@@ -66,13 +66,15 @@ function corsHeaders(origin) {
 
 const BASE_HEADERS = {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'cross-origin',
-  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'", Connection: 'close',
 };
+const API_VERSION = 1; // data.js and docs/api.md say the same
 
 const server = http.createServer((req, res) => {
   const origin = req.headers.origin;
+  // A refused request (400, 403) gets no CORS headers, as from the script
   const reply = (code, type, body, extra = {}) => {
-    res.writeHead(code, { ...BASE_HEADERS, ...corsHeaders(origin), 'Content-Type': type, 'Content-Length': Buffer.byteLength(body), ...extra });
+    res.writeHead(code, { ...BASE_HEADERS, ...(code === 400 || code === 403 ? {} : corsHeaders(origin)), 'Content-Type': type, 'Content-Length': Buffer.byteLength(body), ...extra });
     res.end(body);
   };
   const host = String(req.headers.host || '').toLowerCase().replace(/:\d+$/, '');
@@ -89,7 +91,7 @@ const server = http.createServer((req, res) => {
   if (req.method !== 'GET') return reply(405, 'text/plain', 'Method not allowed');
 
   if (REFUSE && url.pathname.startsWith('/api/')) {
-    return reply(503, 'text/plain', `${DB_PATH} was made by another build of analytics.lic (schema 7, this one uses 9). ` +
+    return reply(503, 'text/plain', `${DB_PATH} was made by another build of analytics.lic (schema 7, this one uses 11). ` +
       'Rename or move it, then start ;analytics again for a fresh one.');
   }
   const token = `${bootId}.${version}`;
@@ -99,7 +101,7 @@ const server = http.createServer((req, res) => {
       return reply(302, 'text/plain', '', { Location: `https://analytics.elanthia.online/?live=${PORT}` });
     case '/api/meta':
       return reply(200, 'application/json', JSON.stringify({
-        app: 'analytics', api: 1, script_version: 'mock', schema_version: '10', token,
+        app: 'analytics', api: API_VERSION, script_version: 'mock', schema_version: '11', token,
         now: Math.floor(Date.now() / 1000), db_bytes: image.byteLength,
       }));
     case '/api/db':

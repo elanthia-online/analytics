@@ -254,7 +254,7 @@ export function overviewHtml(ov, chars, pinned, width, opts) {
         (hidden.length === 1 ? 'it' : 'them') + '</button></span>' : '') + '</div>' +
       (chars.length ? '<div class="grid g-cards">' + chars.map(function (c) { return card(c, ov, pinned(c.id), opts.display); }).join('') + '</div>'
         : '<div class="card empty">Every character is hidden. <button type="button" class="link-btn" data-unhide-all>Show them</button></div>') + '</section>' +
-    (chars.length ? '<section class="card">' + head('Activity today', 'Hover a stretch for its times') + timeline(chars, ov.day_start, 'ov', width) + '</section>' : '') +
+    (chars.length ? '<section class="card">' + head('Activity today', 'Hover or tap a stretch for its times') + timeline(chars, ov.day_start, 'ov', width) + '</section>' : '') +
     (opts.daily ? '<section class="card">' + head('Experience by day', 'last ' + opts.daily.labels.length + ' days' + (hidden.length ? ', shown characters' : ', every character')) +
       barChart('ov-daily', opts.daily.labels, [{ name: 'Experience', color: '--k1', values: opts.daily.labels.map(function (_, i) {
         return chars.reduce(function (a, c) { var s = opts.daily.series[c.id]; return a + (s ? s.exp[i] : 0); }, 0); }) }], short, width, 'Experience by day, all shown characters') + '</section>' : '') +

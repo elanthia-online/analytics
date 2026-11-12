@@ -375,7 +375,7 @@ cycle's start (a potion can cure the sting before the dead cycle ends); Income h
 
 ## Schema 11 (2026-11-10)
 
-elanthia-online/scripts@29181ae2, from a player request: each character's damage and kills
+elanthia-online/scripts@fcbb3c49 (combat, which bumped the schema) and @29181ae2 (the pool), from a player request: each character's damage and kills
 per creature, for characters hunting together, and the locksmith pool's depth. Still before the
 first release.
 
@@ -392,7 +392,7 @@ first release.
 
 The page: a Combat card on Hunting, a Locksmith pool card on Income, and both sections on Compare.
 
-Fixed since, with no schema change (elanthia-online/scripts@431b0e94), from the 2026-11-11 logs:
+Fixed since, with no schema change (elanthia-online/scripts@fc9defdd for the pool's list, @431b0e94 for the split rests), from the 2026-11-11 logs:
 - The worker's list puts a blank line, and a mono-font tag, before each box, which ended the
   list before its first box: every `pool_depth` count read 0. Blank lines no longer end it. A
   database from `29181ae2` keeps its zero counts; `DELETE FROM pool_depth WHERE full = 0`, with
@@ -401,4 +401,24 @@ Fixed since, with no schema change (elanthia-online/scripts@431b0e94), from the 
   bigshot starting and at once going back to rest, split one rest into two rows. The cycle
   before it now goes on, with its rest steps; a hunt cut by a flap of rest goes on without
   the reason it had stopped for.
+
+Fixed since, from the 2026-11-12 audit (elanthia-online/scripts@01a9f4dc, @a78d68ec, @c2d40f37),
+with no schema change:
+- Other players' speech, whispers and thoughts were read as the character's own game text,
+  so a spoken "You gather the remaining N coins from inside your box" was box silver (and so
+  for kills, bank totals, sales, the pool, bounty rewards and task offers). Each hook skips a
+  line with a speech, whisper or thought preset, and the speech, thoughts or familiar streams
+  (`Overheard`), and thoughts written as plain text (`[General]-GSIV:Name: "`). Over the
+  2026-11 logs no line any pattern reads is skipped. The logs have no ESP at all, so its
+  markup (a `thoughts` stream, a `thought` preset, or plain text) is assumed, not seen yet.
+- A line with bytes that aren't UTF-8 made every pattern raise, and with the filter ahead of
+  the hooks' rescue Lich would have dropped the hook; it is read without them, and every hook
+  hands the line on whatever happens. `maintenance stats` counts `combat_stats` and `pool_depth`.
+- Settings are checked as each file is read: a value of the wrong kind is reported and left
+  out. The checks a setting turns on run apart from the cycle state update.
+- A death goes on across midnight (it was split, counting two); a rest carried over midnight
+  keeps its reason and sends no alert again; a timed-out hunt resumed after a short rest
+  counts from then; idle recovery walks on its own thread.
+- The weapon check never drops an item and leaves an unset hand alone; the recorder's file
+  is opened with Lich's busy handler; a failed start is stopped cleanly.
 

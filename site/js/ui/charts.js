@@ -31,11 +31,11 @@ export function timeline(chars, dayStart, idp, width) {
   var multi = chars.length > 1;
   var longest = Math.max.apply(null, chars.map(function (c) { return shown(c.name).length; }).concat([0]));
   var W = Math.round(Math.min(1400, Math.max(300, width || 1000)));
-  var rowH = 34, barH = 18, L = multi ? Math.min(Math.round(W * 0.3), Math.max(70, Math.round(longest * 7.5 + 20))) : 0, R = 4, top = 6, n = chars.length, H = top + n * rowH + 22;
+  var rowH = 34, barH = 18, L = multi ? Math.min(Math.round(W * (W < 560 ? 0.4 : 0.3)), Math.max(70, Math.round(longest * 7.5 + 20))) : 0, R = 4, top = 6, n = chars.length, H = top + n * rowH + 22;
   var span = dayEnd(dayStart) - dayStart;
   function x(t) { return L + (W - L - R) * Math.min(Math.max((t - dayStart) / span, 0), 1); }
   var svg = '';
-  var every = W < 560 ? 6 : 3;
+  var every = W - L - R < 240 ? 12 : W < 560 ? 6 : 3;
   for (var h = 0; h <= 24; h += every) {
     var hx = x(h === 24 ? dayStart + span : hourStart(dayStart, h));
     svg += '<line x1="' + hx + '" x2="' + hx + '" y1="' + top + '" y2="' + (top + n * rowH) + '" stroke="var(--line)"/>' +
@@ -44,7 +44,14 @@ export function timeline(chars, dayStart, idp, width) {
   var id = 'tl-' + (idp || 'x');
   chars.forEach(function (c, i) {
     var y = top + i * rowH + (rowH - barH) / 2, clip = id + '-' + i;
-    if (multi) svg += '<text class="tl-name" x="0" y="' + (y + 13) + '">' + esc(shown(c.name)) + '</text>';
+    if (multi) {
+      // A name too long for the label column (a narrow screen) is cut with an ellipsis, not by the bar
+      var full = shown(c.name), room = Math.max(4, Math.floor((L - 10) / 7.5));
+      // keeping the game, which tells two characters of one name apart
+      var game = / \(\w+\)$/.exec(full), tail = game && room - game[0].length >= 4 ? game[0] : '';
+      var label = full.length > room ? full.slice(0, room - tail.length - 1).replace(/\s+$/, '') + '\u2026' + tail : full;
+      svg += '<text class="tl-name" x="0" y="' + (y + 13) + '">' + (label !== full ? '<title>' + esc(full) + '</title>' : '') + esc(label) + '</text>';
+    }
     svg += '<clipPath id="' + clip + '"><rect x="' + L + '" y="' + y + '" width="' + (W - L - R) + '" height="' + barH + '" rx="6"/></clipPath>' +
            '<rect x="' + L + '" y="' + y + '" width="' + (W - L - R) + '" height="' + barH + '" rx="6" fill="var(--st-none)"/><g clip-path="url(#' + clip + ')">';
     c.timeline.map(seg).forEach(function (s) {

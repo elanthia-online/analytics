@@ -23,8 +23,9 @@ Things that need a decision or a check this repo can't do on its own. Move an it
    reads. Not yet tried on a real Windows install.
 4. **`serialize` on every Lich platform.** Verified with sqlite3 gem 2.10.2 on Linux.
    Check that the Windows and macOS Lich installers ship a gem with
-   `SQLite3::Database#serialize`. If not, the fallback is `VACUUM INTO`
-   ([script-changes.md](script-changes.md) §1).
+   `SQLite3::Database#serialize`. Without it the script
+   already falls back to `VACUUM INTO` a temporary file (`image_of`), so this only decides
+   which path a platform takes ([script-changes.md](script-changes.md) §1).
 
 ## Needs a decision
 
@@ -53,3 +54,16 @@ Things that need a decision or a check this repo can't do on its own. Move an it
     - use the newest timestamp inside the database instead
     - let the player pick the moment
     - have the script write the snapshot time into `metadata` when it makes a backup
+12. **Left from the 2026-11-12 audit of the script.** Found, judged too small or too broad
+    to change before the release; each needs a yes or no:
+    - A request with no `Origin` and `Sec-Fetch-Site: cross-site` still gets `/api/db`
+      (another site's `<img>` or `<script>` can't read it, but refusing it would be
+      tighter). Refuse that combination?
+    - One thread per connection, with no cap. Only this computer can connect.
+    - `Dashboard.stop` can race a request waiting on its lock, which reopens the API's
+      connection after it was closed.
+    - Unanchored patterns (`SEARCH_RE`, `DEPOSIT_RE` and others) still match text after
+      something else on a line; the speech filter covers what players can type, but `\A`
+      anchors would be tighter, if the logs show no line that needs the looseness.
+    - A rest across midnight is one row a day, each with its reason, so an item-limit rest
+      over midnight counts once on each day.

@@ -567,6 +567,30 @@ try {
   for (const id of intoGuide) if (!(await guide.$(`[id="${id}"]`))) gone.push(id);
   check(intoGuide.length > 0 && gone.length === 0, `changes: linked from the guide, and every link into the guide has a target${gone.length ? ` (missing ${gone.join(', ')})` : ''}`);
   check(guideProblems.length === 0, `changes: no console errors or CSP violations${guideProblems.length ? `: ${guideProblems.join(' | ')}` : ''}`);
+  // Every page names itself, has one h1, a canonical URL and a share preview
+  for (const path of ['/', '/guide/', '/guide/changes.html']) {
+    await guide.goto(`http://localhost:${SITE_PORT}${path}`);
+    const head = await guide.evaluate(() => ({
+      title: document.title, h1: [...document.querySelectorAll('h1')].filter((h) => h.getClientRects().length).length,
+      canonical: document.querySelector('link[rel="canonical"]')?.href, og: document.querySelector('meta[property="og:image"]')?.content,
+      desc: document.querySelector('meta[name="description"]')?.content,
+    }));
+    check(/GS4 Analytics/.test(head.title) && head.h1 === 1 && /^https:\/\/analytics\.elanthia\.online\//.test(head.canonical || '') && head.og && head.desc,
+      `head: ${path} has a titled page, one h1, a canonical URL, a share image and a description (${JSON.stringify(head)})`);
+  }
+  // A missing path anywhere gets the site's own 404 page, which works from any depth
+  const lost = await guide.goto(`http://localhost:${SITE_PORT}/guide/deep/nope.html`);
+  await guide.waitForSelector('.notfound h1');
+  const lostLinks = await guide.$$eval('a[href^="/"]', (els) => els.map((a) => a.href));
+  const lostOk = await Promise.all(lostLinks.map((href) => guide.request.get(href).then((r) => r.ok())));
+  check(lost.status() === 404 && /not found/i.test(await guide.title()) && lostOk.every(Boolean) &&
+    (await guide.evaluate(() => getComputedStyle(document.querySelector('.card')).borderRadius !== '0px')),
+    `404: the site's page, styled, every link serving (${lostOk.filter(Boolean).length}/${lostOk.length})`);
+  const [robots, sitemap] = await Promise.all([guide.request.get(`http://localhost:${SITE_PORT}/robots.txt`), guide.request.get(`http://localhost:${SITE_PORT}/sitemap.xml`)]);
+  const locs = [...(await sitemap.text()).matchAll(/<loc>https:\/\/analytics\.elanthia\.online(\/[^<]*)<\/loc>/g)].map((m) => m[1]);
+  const locOk = await Promise.all(locs.map((l) => guide.request.get(`http://localhost:${SITE_PORT}${l}`).then((r) => r.ok())));
+  check(robots.ok() && /Sitemap: https:\/\/analytics\.elanthia\.online\/sitemap\.xml/.test(await robots.text()) && locs.length === 3 && locOk.every(Boolean),
+    `sitemap: robots.txt names it, and its ${locs.length} pages are served`);
   await guideContext.close();
 } finally {
   await browser.close();
