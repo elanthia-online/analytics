@@ -1,7 +1,8 @@
 // A database written by analytics.lic itself, not seeded: two characters over
-// four days, played through the script's own managers by the 2026-11-13
-// audit's seam probe (its make_real_db2.rb, run on analytics.lic 6088896c in
-// TZ=America/New_York; run it again after a change to what the script writes). It carries the values the script writes today,
+// four days, played through the script's own managers by
+// tools/script-written-db.rb (from the 2026-11-13 audit), run on analytics.lic
+// 6088896c in TZ=America/New_York; run it again, as its header says, after a
+// change to what the script writes. It carries the values the script writes today,
 // which the parity fixtures predate: offers open, removed, completed and
 // expired, 'hunt stopped' and 'crashed', coins off the floor, shop types from
 // the map's room tags, combat and locksmith pool rows. Each page is checked
