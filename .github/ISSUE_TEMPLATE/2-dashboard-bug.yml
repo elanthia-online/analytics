@@ -1,0 +1,85 @@
+name: Dashboard bug (the website)
+description: The website won't connect, errors, looks broken, or a button or page doesn't work.
+title: "[dashboard] "
+labels: [bug, dashboard]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is for **the website**, https://analytics.elanthia.online. If a number looks wrong rather than the page itself, use **Wrong or missing figures**. If the problem is in the game window, use **Script bug**.
+
+        A screenshot helps a lot: the arrow at the top right of a card saves just that card. Screenshots and anything you paste are public, so leave out your account name and other players' names you don't want shared.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead. Paste or drag a screenshot here.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      placeholder: |
+        1. Open a character, then Income
+        2. Choose This Month
+        3. The Bank checks card is empty
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: The address from the browser, or which page and tab.
+      placeholder: "https://analytics.elanthia.online/?live=8080#GS4%3ASplinter/income"
+  - type: dropdown
+    id: source
+    attributes:
+      label: Data source
+      description: Shown at the bottom of the menu.
+      options:
+        - Live from analytics.lic
+        - A folder (Chrome or Edge)
+        - A file I picked
+        - The sample data
+        - It won't connect at all
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Chrome 131 on Windows 11 / Safari on an iPhone 15
+    validations:
+      required: true
+  - type: dropdown
+    id: theme
+    attributes:
+      label: Theme
+      description: Only if it looks wrong rather than works wrong.
+      options:
+        - Not relevant
+        - Light
+        - Dark
+        - High contrast
+  - type: textarea
+    id: error
+    attributes:
+      label: Error shown
+      description: Any message on the page. If you know how, the browser console's red lines too (F12, then Console).
+      render: text
+  - type: input
+    id: script_version
+    attributes:
+      label: analytics.lic version, if you're connected live
+      description: The `version:` line near the top of analytics.lic.
+      placeholder: "1.0.0"
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I reloaded the page and it still happens.
+          required: true
+        - label: I looked at [What's changed](https://analytics.elanthia.online/guide/changes.html) and the guide's [Troubleshooting](https://analytics.elanthia.online/guide/#troubleshooting).
+          required: true

@@ -1,0 +1,12 @@
+# Every issue starts from a form, so it arrives with what's needed to act on it
+blank_issues_enabled: false
+contact_links:
+  - name: Guide and troubleshooting
+    url: https://analytics.elanthia.online/guide/#troubleshooting
+    about: Setup, connecting the dashboard, and the answers to common problems.
+  - name: What's changed
+    url: https://analytics.elanthia.online/guide/changes.html
+    about: Check whether it's already fixed, or changed on purpose, before you report it.
+  - name: Roadmap
+    url: https://github.com/elanthia-online/analytics/blob/main/docs/roadmap.md
+    about: Ideas already planned, so a feature request can add to one instead.

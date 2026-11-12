@@ -1,0 +1,101 @@
+name: Script bug (analytics.lic)
+description: analytics.lic in Lich errors, stops recording, misreads the game or does something it shouldn't.
+title: "[script] "
+labels: [bug, script]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. This form is for **analytics.lic itself**, the script running in Lich. If the script is fine but a figure on the website looks wrong, use **Wrong or missing figures**; for the website's own layout or buttons, use **Dashboard bug**.
+
+        **Before you paste anything:** remove your **account name**, your **real name** (it's in Windows paths like `C:\Users\<you>\...`), and other players' names you don't want shared. Your own character's name is fine. Issues are public.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+      placeholder: After a rest, ;analytics status still says hunting, and the dashboard shows the hunt going on for two hours.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: What you were doing and running at the time (hunting script, rest script, eloot, a town or hunting ground).
+      placeholder: |
+        1. ;analytics --dashboard
+        2. ;bigshot, hunting in the Rift
+        3. bigshot rests for encumbrance
+    validations:
+      required: true
+  - type: dropdown
+    id: game
+    attributes:
+      label: Game
+      options:
+        - GemStone IV (Prime)
+        - GemStone IV Platinum
+        - GemStone IV Shattered
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: script_version
+    attributes:
+      label: analytics.lic version
+      description: The `version:` line near the top of analytics.lic (in Lich's scripts folder).
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: lich_version
+    attributes:
+      label: Lich version
+      description: "Shown when Lich starts, or type `;e echo LICH_VERSION` in the game."
+      placeholder: "5.23.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Computer
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: frontend
+    attributes:
+      label: Frontend
+      placeholder: Wrayth, Profanity, Avalon, Genie, Warlock...
+  - type: textarea
+    id: game_window
+    attributes:
+      label: What the game window showed
+      description: Any `[analytics]` lines (an `ERROR (...)` line especially), and the game text around the moment it went wrong, if you have it. A few lines is plenty.
+      render: text
+  - type: textarea
+    id: lich_log
+    attributes:
+      label: Lich's log
+      description: |
+        If Lich itself reported an error: the newest `debug-*.log` in Lich's `temp` folder, or just the lines from around that time. **It contains your account name and, on Windows, your user name in its paths: take them out first.**
+      render: text
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings you've changed
+      description: Anything you set in `analytics.yaml` (the global file or your character's). Leave blank if you haven't touched them.
+      render: yaml
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I looked at [What's changed](https://analytics.elanthia.online/guide/changes.html) and the guide's [Troubleshooting](https://analytics.elanthia.online/guide/#troubleshooting).
+          required: true
+        - label: I took my account name, real name and anything else private out of what I pasted.
+          required: true

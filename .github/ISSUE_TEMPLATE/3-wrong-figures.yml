@@ -1,0 +1,84 @@
+name: Wrong or missing figures
+description: Silver, experience, kills, bounties, rests, combat or another number doesn't match what happened in the game.
+title: "[figures] "
+labels: [bug, figures]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A wrong number can come from the script (what it recorded) or the dashboard (how it adds it up), so this form asks for a bit of both. The guide's [How the numbers work](https://analytics.elanthia.online/guide/#accuracy) explains what each figure counts: worth a look first, since some differences are on purpose (silver per hour comes from bank balances, for one).
+
+        The most useful thing you can send is **the game text** for the moment it went wrong: a log from your frontend or Lich, trimmed to a few minutes. It's public once posted, so take out your account name and anyone you don't want named.
+  - type: dropdown
+    id: figure
+    attributes:
+      label: Which figure
+      options:
+        - Silver (income, spending, sales, bank)
+        - Experience, level, training points or ascension
+        - Kills, boxes or creatures
+        - Combat (damage, kills, assists)
+        - Bounties or task offers
+        - Hunts, rests, idle or deaths
+        - Locksmith pool
+        - Shop stops
+        - Alerts
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where you saw it
+      multiple: true
+      options:
+        - Dashboard overview
+        - A character's page
+        - Compare
+        - A text report in the game (;analytics report)
+        - An alert or the daily digest
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What it showed, and what it should be
+      description: The figure, the range (Today, This Week...), and how you know the right value.
+      placeholder: Income > Gems shows 24,800 today, but I sold 31,200 worth at the gem dealer this morning.
+    validations:
+      required: true
+  - type: textarea
+    id: game_text
+    attributes:
+      label: The game text from then
+      description: The lines from your log around the moment (a sale, a search, a bounty turn-in). Trim it to what matters.
+      render: text
+  - type: input
+    id: when
+    attributes:
+      label: Roughly when
+      placeholder: Nov 12, around 2:30 PM my time
+  - type: input
+    id: script_version
+    attributes:
+      label: analytics.lic version
+      description: The `version:` line near the top of analytics.lic.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: game
+    attributes:
+      label: Game
+      options:
+        - GemStone IV (Prime)
+        - GemStone IV Platinum
+        - GemStone IV Shattered
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Scripts running (bigshot, eloot, ebounty...), playing with other characters in a group, settings you changed, or whether it started after an update.
