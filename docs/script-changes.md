@@ -402,13 +402,18 @@ Fixed since, with no schema change (elanthia-online/scripts@fc9defdd for the poo
   before it now goes on, with its rest steps; a hunt cut by a flap of rest goes on without
   the reason it had stopped for.
 
-Fixed since, from the 2026-11-12 audit (elanthia-online/scripts@01a9f4dc, @a78d68ec), with no
-schema change:
+Fixed since, from the 2026-11-12 audit (elanthia-online/scripts@01a9f4dc, @a78d68ec, @c2d40f37),
+with no schema change:
 - Other players' speech, whispers and thoughts were read as the character's own game text,
   so a spoken "You gather the remaining N coins from inside your box" was box silver (and so
   for kills, bank totals, sales, the pool, bounty rewards and task offers). Each hook skips a
   line with a speech, whisper or thought preset, and the speech, thoughts or familiar streams
-  (`Overheard`). Over the 2026-11 logs no line any pattern reads is skipped.
+  (`Overheard`), and thoughts written as plain text (`[General]-GSIV:Name: "`). Over the
+  2026-11 logs no line any pattern reads is skipped. The logs have no ESP at all, so its
+  markup (a `thoughts` stream, a `thought` preset, or plain text) is assumed, not seen yet.
+- A line with bytes that aren't UTF-8 made every pattern raise, and with the filter ahead of
+  the hooks' rescue Lich would have dropped the hook; it is read without them, and every hook
+  hands the line on whatever happens. `maintenance stats` counts `combat_stats` and `pool_depth`.
 - Settings are checked as each file is read: a value of the wrong kind is reported and left
   out. The checks a setting turns on run apart from the cycle state update.
 - A death goes on across midnight (it was split, counting two); a rest carried over midnight
