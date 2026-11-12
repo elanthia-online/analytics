@@ -24,6 +24,13 @@ The figures were ported from `GS4Analytics::Dashboard` in analytics.lic
   - an offline character, the same name in two games, and a character with only
     old data
 - **Never** build fixtures from a real database. They're committed to a public repo.
+- The parity fixtures were seeded by `gen-fixtures.rb` with some values the script has never
+  written (offers `accepted`, snapshots `listing`, a `selling` rest step, `cull_assignment`)
+  and none it writes now (offers `open`/`removed`/`completed`/`expired`, `hunt stopped`,
+  `crashed`, coins off the `floor`, shop types from room tags, combat and pool rows). They stay
+  as they are, for the golden figures. `test/fixtures/script-written.db` covers the rest: a
+  four-day, two-character database written by analytics.lic itself (the 2026-11-13 audit's
+  seam probe), whose pages `test/script-written.test.js` checks against plain SQL.
 
 How they were generated (historical: the script no longer computes the figures, so this can't be run again):
 
