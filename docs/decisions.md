@@ -441,8 +441,8 @@ changes the image and rebuilds them at once.
 **Decision.** Figures stay in the browser's zone. Schema 9 records the zone Lich ran in
 (`metadata` `utc_offset` and `zone`, rewritten on every start), and the page warns when its
 own offset at that moment differs (`zoneWarning` in `data.js`). It doesn't convert: the
-warning says days can be a day off near midnight, and to open the file in a browser set to
-the same zone.
+warning says kills can show a day off (with zones hours apart, a whole day's worth of them),
+and to open the file in a browser set to the same zone.
 
 **Why.** The live source can only be the same computer, so its zone always matches. A file
 copied from another machine, or written by a Lich in WSL or a container on UTC, files kills

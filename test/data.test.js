@@ -96,6 +96,7 @@ test('a database written in another zone is flagged; the same zone, or no zone r
     db.run("UPDATE metadata SET value = '32400' WHERE key = 'utc_offset'");
     db.run("UPDATE metadata SET value = 'JST' WHERE key = 'zone'");
     assert.match(zoneWarning(conn), /Lich running at UTC\+9 \(JST\), and this browser is at UTC−5\./);
+    assert.match(zoneWarning(conn), /14 hours apart, so kills can show on the day before or after .* a whole day's worth/, 'kills can be a whole day off, not just near midnight (S7)');
     // a DST change since doesn't count: the offset is compared at the moment it was read
     const july = Math.floor(new Date(2026, 6, 1, 12).getTime() / 1000);
     db.run("UPDATE metadata SET value = '-14400', updated_at = ? WHERE key = 'utc_offset'", [july]);

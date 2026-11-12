@@ -55,7 +55,8 @@ allows.
 A file source has no such guarantee. `kill_stats.date` is the Lich process's own local
 date, written as text, while every timestamp is placed in the browser's zone. A `.db`
 copied from another machine, or written by a Lich running with a different `TZ` (a VPS,
-WSL or a container set to UTC), puts that day's kills a day off near midnight, and every
+WSL or a container set to UTC), files kills under that computer's dates: with zones hours apart, a whole day's kills can
+land on the next or previous day here (the kills keep only a date), and every
 day bucket shifts by the zone difference. Before schema 9 the database didn't record the
 zone it was written in, so the page couldn't know. From schema 9 the script records
 its offset and zone name in `metadata` on every start, and the page shows a warning when
