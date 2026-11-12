@@ -70,6 +70,8 @@ const VIEWS = [
     await page.click('#cmpTabs button[data-r="total"]');
     await page.click('#compare [data-sort="cmp-creatures"][data-col="3"]');
   }],
+  ['hunting with combat', `${live}#GS4%3AKarai/hunting`, '#detail .card-head'],
+  ['income with the locksmith pool', `${live}#GS4%3AKarai/income`, '#detail .card-head'],
   ['income, all time with bank checks', `${live}#GS4%3ASplinter/income`, '#detail .brows', async (page) => { await page.click('#tabs button[data-r="total"]'); }],
   ['progress with a target', `${live}#GS4%3ASplinter/progress`, '#targetForm', async (page) => {
     await page.fill('#targetValue', '90');

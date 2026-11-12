@@ -13,7 +13,7 @@ The page runs entirely in your browser. It opens your `analytics.db` with
 every figure locally. Your data is never uploaded anywhere.
 
 > **Status:** analytics.lic serves this page its database as of
-> elanthia-online/scripts@0b41f063, schema 10 as of d18ceec8, latest at bd01245a (PR
+> elanthia-online/scripts@0b41f063, schema 11 as of fcbb3c49 (combat) and 29181ae2 (the locksmith pool), latest at 431b0e94 (PR
 > elanthia-online/scripts#2556, not merged yet). The
 > script no longer has a dashboard of its own. What changed is in
 > [docs/script-changes.md](docs/script-changes.md).
@@ -62,7 +62,7 @@ fixture): seven made-up characters, served live by the mock API. Click one for t
   <tr>
     <td width="50%" valign="top">
       <a href="docs/images/income.png"><img src="docs/images/income-preview.png" width="100%" alt="A character's Income page for the week: silver by source, spending, best sellers, and time and silver at each shop"></a>
-      <br><b>Income</b>: where the silver came from, what was spent, the best sellers, and every shop stop by town.
+      <br><b>Income</b>: where the silver came from, what was spent, the best sellers, every shop stop by town, and the locksmith pool.
     </td>
     <td width="50%" valign="top">
       <a href="docs/images/progress.png"><img src="docs/images/progress-preview.png" width="100%" alt="A character's Progress page in dark mode: level and ascension milestones with ETAs, experience by day, and where it stands"></a>
@@ -71,8 +71,14 @@ fixture): seven made-up characters, served live by the mock API. Click one for t
   </tr>
   <tr>
     <td colspan="2" valign="top">
+      <a href="docs/images/hunting.png"><img src="docs/images/hunting-preview.png" width="100%" alt="A character's Hunting page for the week: kills by creature, every creature with its silver and boxes, and combat: damage and credited kills per kind of creature"></a>
+      <br><b>Hunting</b>: kills, silver and boxes by creature, and combat: the damage dealt and kills credited per kind of creature, per hour hunting.
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
       <a href="docs/images/compare.png"><img src="docs/images/compare-preview.png" width="100%" alt="The Compare page for the week: each character's income, shop stops with silver a minute, creatures and bounty types in sortable tables"></a>
-      <br><b>Compare</b>: every character side by side, from today to all time; sort any table by a column.
+      <br><b>Compare</b>: every character side by side, from today to all time, combat and the locksmith pool included; sort any table by a column.
     </td>
   </tr>
   <tr>
@@ -134,7 +140,7 @@ Needs Node 22 or newer. No other runtime dependencies.
 
 ```bash
 npm install                 # sql.js, for the tests
-npm test                    # parity with the Ruby dashboard + WAL reader (TZ is pinned by the script)
+npm test                    # every suite: parity with the Ruby dashboard, details, WAL reader, sample, UI (TZ is pinned by the script)
 npm run serve               # site/ on http://localhost:8000
 npm run mock -- --demo      # a stand-in analytics.lic API on 127.0.0.1:8080, data moved to "now"
 npm run e2e                 # Chromium against the mock: live, detail, file and error paths

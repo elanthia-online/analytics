@@ -17,7 +17,7 @@
 <meta property="og:image" content="https://analytics.elanthia.online/img/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="The GS4 Analytics dashboard showing five sample characters">
+<meta property="og:image:alt" content="The GS4 Analytics dashboard overview: today's silver, experience, bounties and kills for seven made-up characters">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
@@ -127,9 +127,9 @@
         <div class="scroll" tabindex="0" role="region" aria-label="Commands"><table class="ref">
           <thead><tr><th>Command</th><th>What it does</th></tr></thead>
           <tbody>
-            <tr><td><code>;analytics</code></td><td>Collect data for this character. Run it on each one.</td></tr>
+            <tr><td><code>;analytics</code></td><td>Collect data for this character. Run it on each one. <code>;analytics collect</code> is the same.</td></tr>
             <tr><td><code>;analytics --dashboard[=PORT]</code></td><td>Collect, and feed the <a href="#dashboard">web dashboard</a> live (port 8080 unless you give one).</td></tr>
-            <tr><td><code>;analytics serve [PORT]</code></td><td>Feed the dashboard without collecting, or start feeding it inside a running collector.</td></tr>
+            <tr><td><code>;analytics serve [PORT]</code></td><td>Feed the dashboard without collecting, or start feeding it inside a running collector. <code>;analytics dashboard</code> is the same.</td></tr>
             <tr><td><code>;analytics report &lt;name&gt; [range]</code></td><td>A <a href="#reports">text report</a> in the game window.</td></tr>
             <tr><td><code>;analytics status</code></td><td>What the collector is doing: state, cycle, scripts watched, the dashboard link, the database.</td></tr>
             <tr><td><code>;analytics maintenance &lt;task&gt;</code></td><td><code>compact</code>, <code>vacuum</code>, <code>stats</code> or <code>backup</code>. See <a href="#maintenance">Maintenance</a>.</td></tr>
@@ -141,7 +141,7 @@
 
       <section id="reports" class="card">
         <h2>Text reports</h2>
-        <p><code>;analytics report &lt;name&gt; [range]</code>. Ranges are <code>daily</code> (the default), <code>weekly</code>, <code>monthly</code>, <code>ytd</code> and <code>total</code>.</p>
+        <p><code>;analytics report &lt;name&gt; [range]</code>. Ranges are <code>daily</code> (the default), <code>weekly</code>, <code>monthly</code>, <code>ytd</code> and <code>total</code>; <code>today</code>, <code>week</code>, <code>month</code>, <code>year</code> and <code>all</code> work too. A plural report name works as well (<code>kills</code>, <code>bounties</code>, <code>cycles</code>, <code>characters</code>), <code>login</code> is <code>session</code>, and <code>;analytics report</code> alone is <code>character</code>.</p>
         <div class="scroll" tabindex="0" role="region" aria-label="Text reports"><table class="ref">
           <thead><tr><th>Report</th><th>Shows</th></tr></thead>
           <tbody>
@@ -159,8 +159,15 @@
       <section id="dashboard" class="card">
         <h2>The dashboard</h2>
         <p>The dashboard is this website: <a href="../">https://analytics.elanthia.online/</a>. It runs in your browser and reads your own database; it never uploads it.
-          It has an overview of every character (today's totals, each character's state and pace, the day's activity, alerts) and a page per character
-          (performance and trends by day, week or month; rests; mind and load; hunting grounds; bounties and task offers).</p>
+          It has an overview of every character, a page per character (Summary, Income, Hunting, Bounties, Progress and History), Compare and Settings.</p>
+
+        <h3 id="overview">The overview</h3>
+        <ul>
+          <li><b>Today across every character</b>: silver, with a bar of each character's share, and its rate an hour since midnight; experience, bounties completed, kills, hunting time and deaths.</li>
+          <li><b>A card per character</b>: what it's doing and for how long, the day's activity strip, its alerts, silver, experience and bounties today against its typical day by this time (an arrow and a percentage), the bounty in hand, and when it last killed something and finished a bounty. Star a card to keep it first, or hide it. Choose the card to open that character.</li>
+          <li><b>Activity today</b>: every character's day as a strip of hunting, resting, idle and dead; hover or tap a stretch for its times. <b>Experience by day</b> over the last four weeks, and <b>Side by side</b>, silver and experience today with each per hour.</li>
+          <li><b>Alerts</b>: every alert today, problems first. See <a href="#dashboard-alerts">Alerts on the dashboard</a>.</li>
+        </ul>
 
         <h3 id="connect">Live from analytics.lic</h3>
         <ol>
@@ -195,7 +202,7 @@
         </ul>
 
         <h3>Comparing characters</h3>
-        <p><b>Compare</b> in the menu puts every character (not only today's; hidden ones are left out) side by side for a range: income, each shop stop and town with its silver a minute, every creature, and every bounty type. Sort any table by a column to see, say, who makes the most silver a minute at the gem shop or which creature pays best. Each name opens that character's own page.</p>
+        <p><b>Compare</b> in the menu puts every character (not only today's; hidden ones are left out) side by side for a range: income, each shop stop and town with its silver a minute, the locksmith pool, every creature, combat (damage and kills by creature, with the party's total), and every bounty type. Sort any table by a column to see, say, who makes the most silver a minute at the gem shop or which creature pays best. Each name opens that character's own page.</p>
 
         <h3 id="dashboard-settings">Settings</h3>
         <p><b>Settings</b>, near the bottom of the menu, holds the dashboard's own choices. They're saved in this browser, like starred and hidden characters:</p>
@@ -268,11 +275,11 @@
         <div class="scroll" tabindex="0" role="region" aria-label="Hunt limits and recovery (off unless set)"><table class="ref">
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
-            <tr><td><code>max_hunt_minutes</code></td><td>off</td><td>Ask bigshot to rest after one hunt has lasted this long.</td></tr>
+            <tr><td><code>max_hunt_minutes</code></td><td>off</td><td>Ask bigshot to rest after one hunt has lasted this long. This sends <code>RELEASE</code> (any spell you have prepared) as bigshot rests.</td></tr>
             <tr><td><code>idle_warn_minutes</code></td><td><code>8</code></td><td>Alert after this long with none of your scripts running.</td></tr>
             <tr><td><code>idle_recover_minutes</code></td><td>off</td><td>After this long idle, walk to the room in <code>profile_room_map</code> and start <code>rest_script</code>. Needs a rest_script.</td></tr>
             <tr><td><code>profile_room_map</code></td><td>empty</td><td>Where idle recovery walks to, by bigshot profile name (with or without the leading <code>&lt;character&gt;_</code>):<br><code>profile_room_map: { crags: 1234, splinter_cliffs: 5678 }</code></td></tr>
-            <tr><td><code>weapon_loadout</code></td><td>off</td><td>A re-arm check while hunting. If your hands don't match, hunting pauses while it tries; after several failures you get an alert and a rest.<br><code>{ right: scepter, left: shield, gird: true, get_right: get my scepter, get_left: get my shield }</code></td></tr>
+            <tr><td><code>weapon_loadout</code></td><td>off</td><td>A re-arm check while hunting. If your hands don't match, hunting pauses while it tries: it stows what shouldn't be there, then sends your <code>get_right</code> and <code>get_left</code> lines (and <code>GIRD</code>). After several failures you get an alert and a rest.<br><code>{ right: scepter, left: shield, gird: true, get_right: get my scepter, get_left: get my shield }</code></td></tr>
           </tbody>
         </table></div>
 

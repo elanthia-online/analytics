@@ -27,11 +27,12 @@ The page polls `/api/meta` every 5 seconds and fetches `/api/db` only when the t
 has changed. `/` and `/index.html` redirect to the hosted page (see below), and anything
 else answers 404.
 
-Errors, all with the CORS headers below so the page can read them:
+Errors. From 404 on they carry the CORS headers below, so the page can read them; a refused
+request (400, 403) gets none, since there is nothing in it for that page to read:
 
 | Status | When | Body |
 |---|---|---|
-| `400` | A cut-off request line, a second `Host` or `Origin` header, more than 100 headers | `Bad request` |
+| `400` | A cut-off request line, a second `Host` or `Origin` header, 100 headers or more | `Bad request` |
 | `403` | A `Host` other than this computer, or an `Origin` not allowed | `Forbidden` |
 | `404` | Any other path | `Not found` |
 | `405` | Any method but `GET` (and the preflight `OPTIONS`) | `Method not allowed` |
@@ -44,8 +45,8 @@ Errors, all with the CORS headers below so the page can read them:
 {
   "app": "analytics",
   "api": 1,
-  "script_version": "1.1.0",
-  "schema_version": "9",
+  "script_version": "1.0.0",
+  "schema_version": "11",
   "token": "k3j2a1.42",
   "now": 1793997420,
   "db_bytes": 413696
@@ -120,7 +121,8 @@ A page served by the hosted site (`https://analytics.elanthia.online`) reads an 
   response from the page.
 - Allowed origins:
   - `https://analytics.elanthia.online`
-  - `http://localhost:<any port>`, `http://127.0.0.1:<any port>`, `http://[::1]:<any port>`
+  - `http://localhost:<port>`, `http://127.0.0.1:<port>`, `http://[::1]:<port>`, any port but
+    always written out (an origin with no port, a page on port 80, is refused)
     (development, and a copy of the site served on this computer)
   - anything the player adds in `analytics.yaml` (`dashboard.allowed_origins`), for a fork
     hosted elsewhere.
@@ -160,7 +162,8 @@ the browser, and CORS would not apply at all.
 
 ## `GET /` and `GET /index.html`
 
-`302` to `https://analytics.elanthia.online/?live=<port>`, so the URL the script
+`302` to the `dashboard.site_url` setting with `?live=<port>` (by default
+`https://analytics.elanthia.online/?live=<port>`), so the URL the script
 prints when it starts the server (and old bookmarks of `http://localhost:8080`) open the
 hosted page already connected.
 

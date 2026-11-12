@@ -25,11 +25,11 @@ Nothing here is promised or scheduled. When an item is picked up, open an issue 
 | Idea | Where | Notes |
 |---|---|---|
 | `;analytics report rest`: rest-step times and reasons per range | script | Or retire the text reports in favour of the site; see open-questions.md #10 |
-| Other spending: shop purchases, deed and resurrection costs | both | Locksmith, locksmith pool and priestess are recorded (`silver_events`, `source_category = 'expense'`) |
+| Other spending: deed and resurrection costs | both | Locksmith, locksmith pool, priestess, warehouse fees, town debts and shop purchases are recorded (`silver_events`, `source_category = 'expense'`) |
 | Locker notes, and a net worth beyond bank balances | both | |
 | Per-character Discord destinations | script | discordhook has one webhook |
 | Alerts for unexpected disconnects; a disarmed-weapon alert without `weapon_loadout` set up | script | |
-| Settings layered global -> game -> character, not only per character | script | |
+| A per-game layer of settings, between the global file and each character's | script | Global and per-character files exist (one with the defaults for every character, one per character for overrides) |
 | A data retention policy (pruning old rows), alongside `maintenance compact` and `backup` | script | Also the simplest answer to open-questions.md #8 (database size) |
 | Error counts and recent errors in `;analytics status` | script | |
 
@@ -55,4 +55,11 @@ These are the rest, which need more than that:
 - This Year and All Time on a character's pages and Compare; sortable tables
 - Bank checks: listings that found the banks off from the tracked total, on Income
 - Targets with ETAs on the Progress page (level, training points past the cap, ascension points)
+- Settings page: totals or per hour on the cards, the menu's figure, how each date range counts, and which alerts show (2026-11-07, 2026-11-08)
+- Alerts dismissed for the day; per-hour silver and experience on the overview
+- Settings in two files, global defaults and per-character overrides (script)
+- The player changelog, What's changed (2026-11-07)
+- Combat per creature kind, and the locksmith pool's depth (schema 11, 2026-11-10)
+- Save one card as an image (2026-11-11)
+- A 404 page, canonical URLs, share previews and a sitemap; phone fixes for the range tabs (2026-11-12)
 

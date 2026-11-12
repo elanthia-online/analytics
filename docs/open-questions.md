@@ -23,8 +23,9 @@ Things that need a decision or a check this repo can't do on its own. Move an it
    reads. Not yet tried on a real Windows install.
 4. **`serialize` on every Lich platform.** Verified with sqlite3 gem 2.10.2 on Linux.
    Check that the Windows and macOS Lich installers ship a gem with
-   `SQLite3::Database#serialize`. If not, the fallback is `VACUUM INTO`
-   ([script-changes.md](script-changes.md) §1).
+   `SQLite3::Database#serialize`. Without it the script
+   already falls back to `VACUUM INTO` a temporary file (`image_of`), so this only decides
+   which path a platform takes ([script-changes.md](script-changes.md) §1).
 
 ## Needs a decision
 

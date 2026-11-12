@@ -375,7 +375,7 @@ cycle's start (a potion can cure the sting before the dead cycle ends); Income h
 
 ## Schema 11 (2026-11-10)
 
-elanthia-online/scripts@29181ae2, from a player request: each character's damage and kills
+elanthia-online/scripts@fcbb3c49 (combat, which bumped the schema) and @29181ae2 (the pool), from a player request: each character's damage and kills
 per creature, for characters hunting together, and the locksmith pool's depth. Still before the
 first release.
 
@@ -392,7 +392,7 @@ first release.
 
 The page: a Combat card on Hunting, a Locksmith pool card on Income, and both sections on Compare.
 
-Fixed since, with no schema change (elanthia-online/scripts@431b0e94), from the 2026-11-11 logs:
+Fixed since, with no schema change (elanthia-online/scripts@fc9defdd for the pool's list, @431b0e94 for the split rests), from the 2026-11-11 logs:
 - The worker's list puts a blank line, and a mono-font tag, before each box, which ended the
   list before its first box: every `pool_depth` count read 0. Blank lines no longer end it. A
   database from `29181ae2` keeps its zero counts; `DELETE FROM pool_depth WHERE full = 0`, with

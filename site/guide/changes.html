@@ -17,7 +17,7 @@
 <meta property="og:image" content="https://analytics.elanthia.online/img/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="The GS4 Analytics dashboard showing five sample characters">
+<meta property="og:image:alt" content="The GS4 Analytics dashboard overview: today's silver, experience, bounties and kills for seven made-up characters">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
@@ -58,12 +58,22 @@
     <!-- Newest first. One section per release, id="v<version>" (script releases) or
          id="d<yyyy-mm-dd>" (a dashboard-only change). Mark each item Script or Dashboard.
          Write for players: what changed, and what to do about it, if anything. -->
+    <section id="d2026-11-12" class="card">
+      <h2>November 12, 2026 &middot; dashboard</h2>
+      <ul>
+        <li><span class="chip">Dashboard</span> On a phone, the range tabs (Today to All Time) scroll sideways: All Time ran off the edge of the screen and couldn't be tapped. Tabs, a character's page links and wide tables now fade at the side that has more to scroll to.</li>
+        <li><span class="chip">Dashboard</span> The <b>Activity today</b> chart fits each name on a phone, and keeps the game when a long name is cut, so two characters of one name stay apart.</li>
+        <li><span class="chip">Dashboard</span> A link to a character the database doesn't have names it as you'd write it (Splinter (GS4)), and a page that couldn't be read says so rather than that nothing was recorded.</li>
+        <li><span class="chip">Dashboard</span> A wrong address on this site gets a page with links back, not a blank one. A link to the guide or this page shows a preview when you share it, and the site's preview image no longer has the menu's buttons over its character list.</li>
+        <li><span class="chip">Dashboard</span> On a short window, the menu scrolls rather than its buttons at the bottom covering the last characters in the list.</li>
+      </ul>
+    </section>
     <section id="d2026-11-11" class="card">
       <h2>November 11, 2026 &middot; dashboard</h2>
       <ul>
         <li><span class="chip">Dashboard</span> Combat, on each character's <b>Hunting</b> page: the damage it dealt to each kind of creature, its credited kills and assists, damage per creature, per kill and per hit, and damage and kills per hour hunting. On <b>Compare</b>, every character side by side, with the party's total. See <a href="./#combat">Combat</a>.</li>
         <li><span class="chip">Dashboard</span> The locksmith pool, on each character's <b>Income</b> page: how many of its boxes the pool holds, how that changed over the range, the peak, and how many boxes a full pool turned away, by town. On <b>Compare</b>, every character side by side.</li>
-        <li>Both need the updated analytics.lic, whose database is schema 11: move an older test build's <code>analytics.db</code> aside so it starts a fresh one. Combat is recorded from Lich's own combat tracker, which the script turns on (the <code>combat</code> setting turns it off); the pool's count comes from the list the worker gives when <code>eloot</code> asks for returns.</li>
+        <li><span class="chip">Script</span> Both need the updated analytics.lic, whose database is schema 11: move an older test build's <code>analytics.db</code> aside so it starts a fresh one. Combat is recorded from Lich's own combat tracker, which the script turns on (the <code>combat</code> setting turns it off); the pool's count comes from the list the worker gives when <code>eloot</code> asks for returns.</li>
         <li><span class="chip">Dashboard</span> Save one card as an image: the arrow at the top right of each card (a character's card on the overview, or any table or chart on a page) saves just that card, titled with whose it is and the range. A wide table is saved whole, every column included. <b>Save image</b> in the menu still saves the whole view.</li>
       </ul>
     </section>
@@ -73,12 +83,18 @@
         <li><span class="chip">Dashboard</span> Choose how the range tabs count: today since midnight or the last 24 hours, the week and month as whole days, rolling to the minute or since they began (the week on a Monday or a Sunday), and the year since January 1 or the last 365 days. In <b>Settings</b>, under <b>Date ranges</b>. Nothing changes unless you pick something. See <a href="./#ranges">Date ranges</a>.</li>
       </ul>
     </section>
+    <section id="d2026-11-07" class="card">
+      <h2>November 7, 2026 &middot; dashboard</h2>
+      <ul>
+        <li><span class="chip">Dashboard</span> A <b>Settings</b> page in the menu. Under <b>Display</b>, choose whether each character's card shows silver and experience as today's total or per hour today, and which figure sits beside each character in the menu (silver or experience, today or per hour). Under <b>Alerts</b>, the alert settings that were at the foot of the Alerts card, and what you've dismissed today. Saved in this browser.</li>
+      </ul>
+    </section>
     <section id="v1.0.0" class="card">
       <h2>1.0.0 &middot; the first release</h2>
       <p class="note">Not released yet: this entry is the draft for the day it ships.</p>
       <ul>
         <li><span class="chip">Script</span> analytics.lic records each character's hunts, rests, deaths and idle time, kills, silver (bank balances, sales, boxes, coins off the floor, bounty rewards, and what you spend, shop purchases included),
-          bounties and every task offered, shop stops, and where each character stands (level, experience, ascension, training points, Death's Sting, Lumnis and your resources). It never sends a game command beyond one quiet <code>BANK ACCOUNT</code> per character.</li>
+          bounties and every task offered, shop stops, and where each character stands (level, experience, ascension, training points, Death's Sting, Lumnis and your resources). It sends no game command of its own beyond one quiet <code>BANK ACCOUNT</code> per character, unless you turn on <code>max_hunt_minutes</code>, <code>weapon_loadout</code> or <code>idle_recover_minutes</code>, which act for you (see <a href="./#settings">Settings</a>).</li>
         <li><span class="chip">Script</span> Text reports in the game window, alerts in the game and on Discord, and a daily digest.</li>
         <li><span class="chip">Script</span> Settings in two files: one for every character with the defaults, and one per character for overrides. See <a href="./#settings">Settings</a>.</li>
         <li><span class="chip">Dashboard</span> This site: an overview of every character, a page per character (Summary, Income, Hunting, Bounties, Progress, History) and Compare, reading your database in your browser.</li>

@@ -2,6 +2,61 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-12: Site basics: a 404 page, canonical URLs, share previews, phone strips that scroll
+
+**Decision.** `site/404.html`, which Pages serves for any missing path (so its links and
+files are from the site root), and `tools/dev-server.js` serves it with a 404 the same way.
+Every page has a canonical URL and a share preview (`og:*`, `twitter:card`); `robots.txt`
+and a three-page `sitemap.xml`. The guide pages' h1 is the page's title, not the brand in
+the header. On a phone the range tabs scroll sideways, and every strip or table that
+scrolls fades at the edge with more (`ui/edges.js`, a CSS mask keyed on `data-more`,
+removed from saved images).
+
+**Why.** An audit against a web checklist. A wrong link gave a blank page; a shared guide
+link had no preview; and on a 390px phone the range tabs ran off the screen with no
+scrolling, so All Time couldn't be reached, while a table's hidden columns gave no sign.
+
+**Rejected.** Wrapping the tabs onto two rows (a segmented control that breaks reads as
+two controls), and loading sql.js only once a source is chosen: the engine is fetched with
+the page, which makes connecting instant, and the first-visit page doesn't wait on it.
+
+## 2026-11-11: Save one card as an image
+
+**Decision.** Every card with a heading has a download arrow at its top right (a character's
+card on the overview, beside pin and hide), saving that card alone, titled with the view and
+the card. A table that scrolls sideways is saved whole, the image widened by what it hides.
+Settings cards have none. *Save image* in the menu still saves the view.
+
+**Why.** Players share one figure in Discord, and the whole view buried it.
+
+**Rejected.** A menu of cards to pick from (the arrow is where the card is).
+
+## 2026-11-10: The locksmith pool goes on Income
+
+**Decision.** The Locksmith pool card is on a character's Income page beside the shop stops,
+and on Compare after shops and towns.
+
+**Why.** It is where the locksmith spending and pool stops already are; it was first built
+on Hunting, next to boxes.
+
+## 2026-11-10: Combat from Lich's own recorder, summed per cycle
+
+**Decision.** Damage dealt and credited kills come from Lich's combat tracker and its
+`Combat::Recorder`, run by analytics.lic itself (no `combat_stats.lic`). The recorder writes
+every attack to its own file, `analytics-combat.db` in the character's data folder; the
+script sums it once a minute into `combat_stats`, one row per cycle and creature kind, and
+prunes the recorder's hunts three days after (every six hours, since a login can run for days). Schema 11.
+
+**Why.** Telling a kill from an assist needs other players' attacks on the creature, which
+only the recorder's `combat.attack` stream carries; its ownership rules (`attacks.ours`,
+flare ownership, the window and last-hit kill credit) are checked against real logs
+upstream, so they are reused, not copied. The page loads the whole database, so the
+per-attack rows stay in the recorder's file, and the sums are per cycle rather than per
+creature: about a hundred rows a day per character, against five thousand. A cycle's
+start places it in a range, which is fine-grained enough, since a cycle is an hour or less.
+The recorder names creatures as the game shows them, so the page files each under the
+searched `kill_stats` name it ends with.
+
 ## 2026-11-08: The range tabs are counted as the reader chooses
 
 **Decision.** Settings has a *Date ranges* card: today since midnight or the last 24 hours;
@@ -20,6 +75,45 @@ so a range starting mid-day counts its first day by the nearest midnight (`windo
 **Rejected.** Making the overview's today follow the choice (its pace and alerts would need
 a typical "last 24 hours" to compare with), and the same choice in the script's text reports
 (a reader's browser setting can't reach the script; it can be a script setting later).
+
+## 2026-11-07: A Settings page, and a player changelog
+
+**Decision.** Settings (`#settings`) is a page of its own, opened from the menu: Display
+(totals or per hour on the cards, the figure beside each character in the menu), Date ranges
+(2026-11-08), Alerts and what was dismissed today. `#alerts` opens it at Alerts. And
+`site/guide/changes.html`, *What's changed*: the script and the dashboard together, newest
+first, each item marked Script or Dashboard, with what to do; a player-visible change gets an
+entry in the same PR (AGENTS.md).
+
+**Why.** The alert settings were a panel at the bottom of the Alerts card that players
+missed, and the display choices needed a home. Players had no way to see what changed
+between versions without reading commits.
+
+**Rejected.** A panel per card for its settings, and the changelog in the scripts repo (this
+repo is the script's home).
+
+## 2026-11-07: Dashboard alerts are tuned and dismissed in the browser
+
+**Decision.** The overview's alerts can be turned off by kind, re-thresholded, and dismissed
+for the rest of the day. The choices live in `localStorage` (`gs4a-alerts`,
+`gs4a-dismissed`) and go into the aggregation as data (`buildOverview({ now, alerts,
+dismissed })`), with the Ruby dashboard's thresholds as `ALERT_DEFAULTS`.
+
+**Why.** Players asked for it. The page has no backend and never writes the database, so the
+browser is the only place to keep a reader's choice, as it already is for pins, hidden
+characters and targets. Built without settings, the overview is still the golden shape
+exactly, so parity holds. The script's own in-game and Discord alerts stay in its settings
+file; they're a different reader.
+
+## 2026-11-07: Schema 10, again before the first release
+
+**Decision.** The EXPERIENCE and RESOURCE readings the script stores are read from the game
+text, each as a row of its own, and RESOURCE adds seven `progress` columns. That needs a new
+schema version: a schema 9 file has no place for them.
+
+**Why.** A night of real play showed infomon's timestamps can't say when EXPERIENCE was typed
+(it stamps only values that changed), which lost every Death's Sting. The script's hook
+already sees the output; reading it there is exact and still sends no command.
 
 ## 2026-11-06: More sample characters, built on top of the fixture
 
@@ -372,45 +466,3 @@ reading; its level is the last reading between, or "not read".
 more, and the script has no migrations by design. Leaving old readings stamped on every row
 made "fame now" and the sting's end look known when they weren't. A death is the real start
 of a sting; the first reading that shows it can come hours later.
-
-## 2026-11-07: Dashboard alerts are tuned and dismissed in the browser
-
-**Decision.** The overview's alerts can be turned off by kind, re-thresholded, and dismissed
-for the rest of the day. The choices live in `localStorage` (`gs4a-alerts`,
-`gs4a-dismissed`) and go into the aggregation as data (`buildOverview({ now, alerts,
-dismissed })`), with the Ruby dashboard's thresholds as `ALERT_DEFAULTS`.
-
-**Why.** Players asked for it. The page has no backend and never writes the database, so the
-browser is the only place to keep a reader's choice, as it already is for pins, hidden
-characters and targets. Built without settings, the overview is still the golden shape
-exactly, so parity holds. The script's own in-game and Discord alerts stay in its settings
-file; they're a different reader.
-
-## 2026-11-07: Schema 10, again before the first release
-
-**Decision.** The EXPERIENCE and RESOURCE readings the script stores are read from the game
-text, each as a row of its own, and RESOURCE adds seven `progress` columns. That needs a new
-schema version: a schema 9 file has no place for them.
-
-**Why.** A night of real play showed infomon's timestamps can't say when EXPERIENCE was typed
-(it stamps only values that changed), which lost every Death's Sting. The script's hook
-already sees the output; reading it there is exact and still sends no command.
-
-## 2026-11-10: Combat from Lich's own recorder, summed per cycle
-
-**Decision.** Damage dealt and credited kills come from Lich's combat tracker and its
-`Combat::Recorder`, run by analytics.lic itself (no `combat_stats.lic`). The recorder writes
-every attack to its own file, `analytics-combat.db` in the character's data folder; the
-script sums it once a minute into `combat_stats`, one row per cycle and creature kind, and
-prunes the recorder's hunts three days after (every six hours, since a login can run for days). Schema 11.
-
-**Why.** Telling a kill from an assist needs other players' attacks on the creature, which
-only the recorder's `combat.attack` stream carries; its ownership rules (`attacks.ours`,
-flare ownership, the window and last-hit kill credit) are checked against real logs
-upstream, so they are reused, not copied. The page loads the whole database, so the
-per-attack rows stay in the recorder's file, and the sums are per cycle rather than per
-creature: about a hundred rows a day per character, against five thousand. A cycle's
-start places it in a range, which is fine-grained enough, since a cycle is an hour or less.
-The recorder names creatures as the game shows them, so the page files each under the
-searched `kill_stats` name it ends with.
-

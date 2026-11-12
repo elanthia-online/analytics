@@ -30,7 +30,7 @@ Read [docs/README.md](docs/README.md) first; it indexes the working docs.
 ## Commands
 
 ```bash
-npm test                 # always: parity + WAL suites (pins TZ=America/New_York)
+npm test                 # always: every test/*.test.js suite, parity and WAL included (pins TZ=America/New_York)
 npm run e2e              # after any change under site/ (Chromium + mock API)
 npm run a11y             # after any change under site/: axe-core on every view and theme, plus the colour tokens
 npm run vendor -- --check
@@ -100,7 +100,7 @@ verification.
   images (`docs/images/`) from those fixtures.
 - **The script's API is specified here.** `tools/mock-server.js` must match
   [docs/api.md](docs/api.md). Change the doc, the mock and the page together, and bump
-  `API_VERSION` (`data.js`, the mock, the doc) for anything incompatible.
+  `API_VERSION` (`data.js`, the mock's `API_VERSION`, the doc) for anything incompatible.
 - Keep `docs/` current: record decisions in `decisions.md` and unknowns in
   `open-questions.md`. Update `script-changes.md` whenever the API changes.
 
