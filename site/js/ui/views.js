@@ -26,10 +26,14 @@ function paceKpi(lab, m, shownValue) {
   return stat(lab, shownValue != null ? shownValue : short(m.so_far), sub);
 }
 
-// Per hour the script ran today (hunting, resting or idle), as the reports
-// count it; null under ten minutes of that, too little to divide by
-export function perHourToday(c, value) {
-  var ran = c.today.hunt_s + c.today.rest_s + c.today.idle_s;
+// Per hour the script ran today (hunting, resting or idle, the stretch still
+// going counted up to now, to the minute), the same as a Summary's per hour;
+// null under ten minutes of that, too little to divide by
+export function perHourToday(c, value, now) {
+  var at = Math.floor((now != null ? now : nowSrv()) / 60) * 60, st = c.state || {};
+  var midnight = new Date(at * 1000).setHours(0, 0, 0, 0) / 1000;
+  var open = st.since != null && (st.type === 'hunt' || st.type === 'rest' || st.type === 'idle') ? Math.max(0, at - Math.max(st.since, midnight)) : 0;
+  var ran = c.today.hunt_s + c.today.rest_s + c.today.idle_s + open;
   return ran >= 600 ? value * 3600 / ran : null;
 }
 var hourly = function (c, value) { var v = perHourToday(c, value); return v == null ? '--' : short(v); };
@@ -99,7 +103,7 @@ export var ALERT_GROUPS = [
   { title: 'Today so far', items: [
     { kind: 'deaths', label: 'Deaths', level: 'amber', hint: 'Any death today.' },
     { kind: 'item_rests', label: 'Rests for the item limit', level: 'amber', hint: 'Any rest today because the item limit was reached.' },
-    { kind: 'crashes', label: 'Crashes and idle recoveries', level: 'amber', hint: 'Any crash, or a rest started by idle recovery, today.' },
+    { kind: 'crashes', label: 'Crashes and idle recoveries', level: 'amber', hint: 'A hunt, rest or idle stretch cut off by Lich or the connection going down (found when the script next starts), or a rest started by idle recovery, today.' },
     { kind: 'bounty', label: 'A slow bounty', level: 'amber', hint: 'The bounty in hand has run more than twice as long as that kind usually takes.' },
     { kind: 'rest_reasons', label: 'Many rests for one reason', level: 'amber', hint: 'Three or more rests today for one reason, and more than twice the usual by now.' }] },
   { title: 'Starting hunts', note: 'From the average of today\'s hunts, once there are three.', items: [
@@ -370,7 +374,7 @@ export function detailHtml(c, range, width, section, data, filter, ui) {
       tile('brain', 'Mind at hunt end', mind.end_avg == null ? '--' : Math.round(mind.end_avg) + '%', plural(mind.samples, 'hunt')) +
       tile('rest', 'Absorbed per rest', mind.absorbed_per_rest == null ? '--' : num(mind.absorbed_per_rest), mind.absorbed_per_min == null ? 'field exp' : mind.absorbed_per_min + ' per minute of rest') +
       tile('bag', 'Encumbrance at start', enc.today == null ? '--' : Math.round(enc.today) + '%', enc.typical == null ? 'no baseline yet' : 'typical ' + Math.round(enc.typical) + '%') +
-    '</div><p class="small muted note-p">Mind percentages need mind capacity, recorded from this update on.</p></div></section>';
+    '</div>' + (mind.start_avg == null && mind.end_avg == null && c.today.hunt_s > 0 ? '<p class="small muted note-p">Mind percentages need mind capacity, which older hunts didn\'t record.</p>' : '') + '</div></section>';
 
   var grounds = c.grounds.length ? scroll('Hunting grounds') + '<table><thead><tr><th>Profile</th><th>Hours</th><th>Exp / hunt hr</th><th>Kills / hunt hr</th><th title="Silver from creatures per hour of hunting">Silver / hr</th><th>Deaths</th></tr></thead><tbody>' +
     c.grounds.map(function (g) {

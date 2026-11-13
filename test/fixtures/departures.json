@@ -1,0 +1,368 @@
+{
+ "why": "Deliberate departures from the Ruby dashboard's figures, each [Ruby, now]. See docs/porting-notes.md.",
+ "summary_per_hour": "silver_hr and exp_hr divide by the hours the script ran in the range (hunting, resting, idle, the stretch still going), not the hours since the range began (2026-11-12, audit S3)",
+ "afternoon": {
+  "GS3:April.daily.range_stats.silver_hr": [
+   3069,
+   21161
+  ],
+  "GS3:April.daily.range_stats.exp_hr": [
+   728,
+   5023
+  ],
+  "GS3:April.weekly.range_stats.silver_hr": [
+   3283,
+   25878
+  ],
+  "GS3:April.weekly.range_stats.exp_hr": [
+   886,
+   6985
+  ],
+  "GS3:April.monthly.range_stats.silver_hr": [
+   1117,
+   24648
+  ],
+  "GS3:April.monthly.range_stats.exp_hr": [
+   321,
+   7086
+  ],
+  "GS3:April.bogus.range_stats.silver_hr": [
+   3069,
+   21161
+  ],
+  "GS3:April.bogus.range_stats.exp_hr": [
+   728,
+   5023
+  ],
+  "GS3:Bebop.daily.range_stats.silver_hr": [
+   20173,
+   23278
+  ],
+  "GS3:Bebop.daily.range_stats.exp_hr": [
+   5956,
+   6873
+  ],
+  "GS3:Bebop.weekly.range_stats.silver_hr": [
+   1974,
+   23278
+  ],
+  "GS3:Bebop.weekly.range_stats.exp_hr": [
+   583,
+   6873
+  ],
+  "GS3:Bebop.monthly.range_stats.silver_hr": [
+   443,
+   23278
+  ],
+  "GS3:Bebop.monthly.range_stats.exp_hr": [
+   131,
+   6873
+  ],
+  "GS3:Bebop.bogus.range_stats.silver_hr": [
+   20173,
+   23278
+  ],
+  "GS3:Bebop.bogus.range_stats.exp_hr": [
+   5956,
+   6873
+  ],
+  "GS3:Leonardo.daily.range_stats.exp_hr": [
+   128,
+   3427
+  ],
+  "GS3:Leonardo.weekly.range_stats.silver_hr": [
+   320,
+   19771
+  ],
+  "GS3:Leonardo.weekly.range_stats.exp_hr": [
+   31401,
+   1940189
+  ],
+  "GS3:Leonardo.monthly.range_stats.silver_hr": [
+   72,
+   19771
+  ],
+  "GS3:Leonardo.monthly.range_stats.exp_hr": [
+   7043,
+   1940189
+  ],
+  "GS3:Leonardo.bogus.range_stats.exp_hr": [
+   128,
+   3427
+  ],
+  "GS3:Splinter.daily.range_stats.silver_hr": [
+   9851,
+   20197
+  ],
+  "GS3:Splinter.daily.range_stats.exp_hr": [
+   2862,
+   5868
+  ],
+  "GS3:Splinter.weekly.range_stats.silver_hr": [
+   4754,
+   20244
+  ],
+  "GS3:Splinter.weekly.range_stats.exp_hr": [
+   1634,
+   6958
+  ],
+  "GS3:Splinter.monthly.range_stats.silver_hr": [
+   4771,
+   21430
+  ],
+  "GS3:Splinter.monthly.range_stats.exp_hr": [
+   1587,
+   7128
+  ],
+  "GS3:Splinter.bogus.range_stats.silver_hr": [
+   9851,
+   20197
+  ],
+  "GS3:Splinter.bogus.range_stats.exp_hr": [
+   2862,
+   5868
+  ],
+  "GSF:Splinter.daily.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GSF:Splinter.daily.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GSF:Splinter.weekly.range_stats.silver_hr": [
+   1514,
+   22560
+  ],
+  "GSF:Splinter.weekly.range_stats.exp_hr": [
+   542,
+   8083
+  ],
+  "GSF:Splinter.monthly.range_stats.silver_hr": [
+   340,
+   22560
+  ],
+  "GSF:Splinter.monthly.range_stats.exp_hr": [
+   122,
+   8083
+  ],
+  "GSF:Splinter.bogus.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GSF:Splinter.bogus.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "gs3:splinter.daily.range_stats.silver_hr": [
+   9851,
+   20197
+  ],
+  "gs3:splinter.daily.range_stats.exp_hr": [
+   2862,
+   5868
+  ],
+  "gs3:splinter.weekly.range_stats.silver_hr": [
+   4754,
+   20244
+  ],
+  "gs3:splinter.weekly.range_stats.exp_hr": [
+   1634,
+   6958
+  ],
+  "gs3:splinter.monthly.range_stats.silver_hr": [
+   4771,
+   21430
+  ],
+  "gs3:splinter.monthly.range_stats.exp_hr": [
+   1587,
+   7128
+  ],
+  "gs3:splinter.bogus.range_stats.silver_hr": [
+   9851,
+   20197
+  ],
+  "gs3:splinter.bogus.range_stats.exp_hr": [
+   2862,
+   5868
+  ]
+ },
+ "after-midnight": {
+  "GS3:April.daily.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GS3:April.daily.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GS3:April.weekly.range_stats.silver_hr": [
+   3499,
+   27497
+  ],
+  "GS3:April.weekly.range_stats.exp_hr": [
+   1064,
+   8364
+  ],
+  "GS3:April.monthly.range_stats.silver_hr": [
+   1123,
+   25770
+  ],
+  "GS3:April.monthly.range_stats.exp_hr": [
+   343,
+   7875
+  ],
+  "GS3:April.bogus.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GS3:April.bogus.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GS3:Bebop.daily.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GS3:Bebop.daily.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GS3:Bebop.bogus.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GS3:Bebop.bogus.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GS3:Leonardo.daily.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GS3:Leonardo.daily.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GS3:Leonardo.weekly.range_stats.silver_hr": [
+   344,
+   19177
+  ],
+  "GS3:Leonardo.weekly.range_stats.exp_hr": [
+   34793,
+   1940558
+  ],
+  "GS3:Leonardo.monthly.range_stats.silver_hr": [
+   71,
+   19177
+  ],
+  "GS3:Leonardo.monthly.range_stats.exp_hr": [
+   7202,
+   1940558
+  ],
+  "GS3:Leonardo.bogus.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GS3:Leonardo.bogus.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GS3:Splinter.daily.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GS3:Splinter.daily.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GS3:Splinter.weekly.range_stats.silver_hr": [
+   4199,
+   19978
+  ],
+  "GS3:Splinter.weekly.range_stats.exp_hr": [
+   1500,
+   7137
+  ],
+  "GS3:Splinter.monthly.range_stats.silver_hr": [
+   4656,
+   21433
+  ],
+  "GS3:Splinter.monthly.range_stats.exp_hr": [
+   1558,
+   7172
+  ],
+  "GS3:Splinter.bogus.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GS3:Splinter.bogus.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GSF:Splinter.daily.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GSF:Splinter.daily.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "GSF:Splinter.weekly.range_stats.silver_hr": [
+   2117,
+   28163
+  ],
+  "GSF:Splinter.weekly.range_stats.exp_hr": [
+   609,
+   8102
+  ],
+  "GSF:Splinter.monthly.range_stats.silver_hr": [
+   438,
+   28163
+  ],
+  "GSF:Splinter.monthly.range_stats.exp_hr": [
+   126,
+   8102
+  ],
+  "GSF:Splinter.bogus.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "GSF:Splinter.bogus.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "gs3:splinter.daily.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "gs3:splinter.daily.range_stats.exp_hr": [
+   0,
+   null
+  ],
+  "gs3:splinter.weekly.range_stats.silver_hr": [
+   4199,
+   19978
+  ],
+  "gs3:splinter.weekly.range_stats.exp_hr": [
+   1500,
+   7137
+  ],
+  "gs3:splinter.monthly.range_stats.silver_hr": [
+   4656,
+   21433
+  ],
+  "gs3:splinter.monthly.range_stats.exp_hr": [
+   1558,
+   7172
+  ],
+  "gs3:splinter.bogus.range_stats.silver_hr": [
+   0,
+   null
+  ],
+  "gs3:splinter.bogus.range_stats.exp_hr": [
+   0,
+   null
+  ]
+ }
+}

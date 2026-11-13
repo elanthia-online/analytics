@@ -71,8 +71,23 @@ function diff(want, got, path) {
   return Object.is(want, got) ? null : `${path}: want ${JSON.stringify(want)}, got ${JSON.stringify(got)}`;
 }
 
+// Figures the site now counts differently from the Ruby dashboard, on
+// purpose: each path's [Ruby, now]. The golden JSON stays Ruby's.
+const departures = JSON.parse(readFileSync(fixture('departures.json'), 'utf8'));
+function depart(scenario, golden) {
+  for (const [path, [ruby, now]] of Object.entries(departures[scenario] || {})) {
+    const keys = path.match(/^([^.]+:[^.]+)\.(.*)$/);
+    const parts = [keys[1], ...keys[2].split('.')];
+    let at = golden.characters;
+    for (const k of parts.slice(0, -1)) at = at[k];
+    assert.equal(at[parts.at(-1)], ruby, `departures.json: ${scenario} ${path} is Ruby's ${ruby}`);
+    at[parts.at(-1)] = now;
+  }
+}
+
 for (const scenario of ['afternoon', 'after-midnight']) {
   const golden = JSON.parse(readFileSync(fixture(`${scenario}.json`), 'utf8'));
+  depart(scenario, golden);
   const db = new SQL.Database(readFileSync(fixture(`${scenario}.db`)));
   const conn = new Conn(db);
   const now = golden.now;
@@ -93,3 +108,26 @@ for (const scenario of ['afternoon', 'after-midnight']) {
 
   test.after(() => db.close());
 }
+
+// The overview's per hour today and the Summary's Today are the same figure,
+// counted two ways: in memory from the overview, in SQL for the Summary (S3)
+test('afternoon: each card\'s per hour today is its Summary\'s', async () => {
+  const { perHourToday } = await import('../site/js/ui/views.js');
+  const golden = JSON.parse(readFileSync(fixture('afternoon.json'), 'utf8'));
+  const db = new SQL.Database(readFileSync(fixture('afternoon.db')));
+  const conn = new Conn(db);
+  const ov = buildOverview(conn, { now: golden.now });
+  let compared = 0;
+  for (const c of ov.characters) {
+    const rs = buildCharacter(conn, ov, c.id, 'daily', { now: golden.now })?.range_stats;
+    if (!rs) continue;
+    for (const [metric, field] of [['silver', 'silver_hr'], ['exp', 'exp_hr']]) {
+      const card = perHourToday(c, c.pace[metric].so_far, golden.now);
+      if (metric === 'silver') assert.equal(c.pace.silver.so_far, rs.silver, `${c.id}: the same silver today`);
+      assert.equal(card == null ? null : Math.round(card), rs[field], `${c.id} ${field}`);
+      compared += card != null;
+    }
+  }
+  assert.ok(compared >= 6, `compared ${compared} figures`);
+  db.close();
+});

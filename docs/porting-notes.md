@@ -24,6 +24,13 @@ The figures were ported from `GS4Analytics::Dashboard` in analytics.lic
   - an offline character, the same name in two games, and a character with only
     old data
 - **Never** build fixtures from a real database. They're committed to a public repo.
+- The parity fixtures were seeded by `gen-fixtures.rb` with some values the script has never
+  written (offers `accepted`, snapshots `listing`, a `selling` rest step, `cull_assignment`)
+  and none it writes now (offers `open`/`removed`/`completed`/`expired`, `hunt stopped`,
+  `crashed`, coins off the `floor`, shop types from room tags, combat and pool rows). They stay
+  as they are, for the golden figures. `test/fixtures/script-written.db` covers the rest: a
+  four-day, two-character database written by analytics.lic itself
+  (`tools/script-written-db.rb`), whose pages `test/script-written.test.js` checks against plain SQL.
 
 How they were generated (historical: the script no longer computes the figures, so this can't be run again):
 
@@ -82,13 +89,33 @@ the goldens are unchanged; `test/details.test.js` covers each.
   counted an extra hour (and today looked behind), and on spring-forward one hour less.
   The page measures now on the wall clock too (`clockSeconds`). The repeated 01:00 hour on
   fall-back day stays ambiguous.
+- **Hourly buckets on DST days (declined, issue #36 N3).** The hour labels follow Ruby
+  (above): on a fall-back day the two real 01:00 hours share one bucket. On Lord Howe,
+  where the clocks move half an hour, the repeated half hour lands in a shared bucket in
+  the same way, and the audit's probe found that day's hourly figures short (23,000
+  against 24,000). Keying buckets by UTC hour would fix both, at the cost of hours that
+  no longer read as clock hours; one day a year doesn't justify it.
+- **The rolling "Last 24 Hours" chart on DST days.** Its 24 real hours are labelled by clock
+  hour, as the buckets are, so on a fall-back day two of them share a label. The label is
+  plotted once, with both hours in it, not twice (which counted that bucket twice).
 - **Date-keyed windows on the detail pages.** The week and month windows start an hour
   either side of midnight across DST (above). For `kill_stats`, keyed by date, that hour
   was a whole extra day: for six days after spring-forward "This Week" counted eight days
-  of kills. The detail pages (`details.js`) take the day the window means (`windowDay`).
-  The character summary's kills (`character.js`, a parity figure) still use the window's
-  own start, as Ruby did, so for those days the summary can count one day more than the
-  Hunting page.
+  of kills. The detail pages (`details.js`) and the character summary (`character.js`,
+  since the rolling ranges) take the day the window means (`windowDay`), so the two agree.
+  The summary's kills are a parity figure; the fixtures avoid DST days, so the goldens
+  didn't move.
+
+## Intentional differences in the figures
+
+- **Per hour on the Summary** (2026-11-12, from the second audit). Ruby's dashboard divided a range's silver
+  and experience by the hours since the range began, logged out or not; the overview's
+  cards and the guide divide by the hours the script ran in it (hunting, resting and idle,
+  the stretch still going counted up to now, to the minute). On the fixtures the two
+  differed up to 8 times over. The Summary now counts as the cards do, under ten minutes
+  of that shows `--`, and `test/fixtures/departures.json` lists each golden figure that
+  moved, as [Ruby, now]. `test/parity.test.js` checks that file still names Ruby's value,
+  and that each card's figure is its Summary's.
 
 ## Intentional differences from the script
 

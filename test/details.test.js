@@ -321,6 +321,54 @@ test('DST: on the fall-back day, pace compares the same wall-clock hours', async
   d.close();
 });
 
+test('DST: on the fall-back day the last 24 hours plot the repeated hour once (S10)', () => {
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  for (const [name] of d.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0].values) d.run(`DELETE FROM "${name}"`);
+  const at = Math.floor(new Date(2026, 10, 1, 15, 30).getTime() / 1000);   // Nov 1, the 25-hour day in New York
+  let exp = 0;
+  for (let t = at - 24 * 3600; t < at - 1800; t += 3600) {                 // a 20-minute hunt in each real hour, 1,000 exp each
+    d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, exp_total_start, exp_total_end) VALUES (?, 'GS3', 'April', 'hunt', ?, ?, 1200, ?, ?)",
+      [`c${t}`, t + 600, t + 1800, exp, exp += 1000]);
+  }
+  const c = new Conn(d);
+  const day = buildCharacter(c, buildOverview(c, { now: at }), 'GS3:April', 'daily', { now: at, ranges: { day: 'rolling' } });
+  const labels = day.trend.labels;
+  assert.equal(new Set(labels).size, labels.length, 'no hour label twice');
+  assert.equal(labels.filter((l) => l === '2026-11-01 01').length, 1);
+  const values = day.trends.exp.values;
+  assert.equal(values[labels.indexOf('2026-11-01 01')], 2000, 'both real 01:00 hours, in their one bucket');
+  // the hunts from the first label's hour up to the last full hour, each counted once
+  const first = Math.floor(new Date(labels[0].replace(' ', 'T') + ':00').getTime() / 1000);
+  const hunts = d.exec('SELECT COUNT(*) FROM cycles WHERE start_time >= ? AND start_time < ?', [first, at - at % 3600])[0].values[0][0];
+  assert.equal(values.reduce((a, v) => a + (v ?? 0), 0), hunts * 1000);
+  d.close();
+});
+
+test('DST: after spring-forward each page counts 7 and 30 days of kills, the Summary too (#32)', async (t) => {
+  // a day just after this zone's spring-forward, found rather than assumed
+  let day = null;
+  for (let d = new Date(2027, 0, 1); d.getFullYear() === 2027 && !day; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    if (new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1) - d < 24 * 3600e3) day = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 3);
+  }
+  if (!day) return t.skip('no clock change in this zone');
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  for (const [name] of d.exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'metadata'")[0].values) d.run(`DELETE FROM "${name}"`);
+  for (let k = 0; k < 40; k++) {
+    const noon = Math.floor(new Date(day.getFullYear(), day.getMonth(), day.getDate() - k, 12).getTime() / 1000);
+    d.run("INSERT INTO kill_stats (game, character, date, profile, creature, kill_count, total_silver, last_kill_at) VALUES ('GS3', 'Shredder', ?, 'p', 'rat', 1, 100, ?)", [dayStr(dayOf(noon)), noon]);
+  }
+  const at = Math.floor(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 15).getTime() / 1000);
+  d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds) VALUES ('h', 'GS3', 'Shredder', 'hunt', ?, ?, 600)", [at - 3600, at - 3000]);
+  const c = new Conn(d);
+  const ov = buildOverview(c, { now: at });
+  for (const [range, days] of [['weekly', 7], ['monthly', 30]]) {
+    assert.equal(buildHunting(c, 'GS3:Shredder', range, { now: at }).kills, days, `Hunting, ${range}`);
+    assert.equal(buildIncome(c, 'GS3:Shredder', range, { now: at }).sources.find((x) => x.key === 'creatures').amount, days * 100, `Income, ${range}`);
+    assert.equal(buildCharacter(c, ov, 'GS3:Shredder', range, { now: at }).range_stats.kills, days, `Summary, ${range}`);
+  }
+  d.close();
+});
+
 test('history: an open cycle past the stale cap ended at an unknown time (#31)', () => {
   const d = new SQL.Database();
   d.run('CREATE TABLE cycles (cycle_id TEXT, game TEXT, character TEXT, cycle_type TEXT, start_time INTEGER, end_time INTEGER, duration_seconds INTEGER, rest_reason TEXT, profile TEXT, exp_total_start INTEGER, exp_total_end INTEGER, fame_start INTEGER, fame_end INTEGER)');
@@ -349,6 +397,15 @@ test('a hunt stopped by hand is not a crash; the old unhandled exit still is (#2
   try {
     assert.equal(crashes('hunt stopped'), 0);
     assert.equal(crashes('unhandled exit'), 1);
+    assert.equal(crashes('crashed'), 1, 'a cycle the script closed at its next start (R11-4)');
+    // on rests, each is a crash
+    d.run('DELETE FROM cycles');
+    for (let i = 0; i < 4; i++) {
+      d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, rest_reason) VALUES (?, 'GS3', 'April', 'rest', ?, ?, 60, 'crashed')",
+        [`r${i}`, now - 3600 + i * 600, now - 3540 + i * 600]);
+    }
+    const april = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April');
+    assert.equal(april.crashes.length, 4);
   } finally {
     d.close();
   }
@@ -378,6 +435,7 @@ test('alerts: without settings the Ruby shape; with them each has a kind, can be
   assert.ok(!buildOverview(conn, { now, alerts: { idle_minutes: mins + 1 } }).alerts.some((a) => a.kind === 'idle' && a.id === idle.id));
   // only known keys of the right type are taken
   assert.deepEqual(alertSettings({ idle: 'no', idle_minutes: -3, bogus: true, mind_pct: 80 }), { ...ALERT_DEFAULTS, mind_pct: 80 });
+  assert.deepEqual(alertSettings({ idle_minutes: 0, no_kill_minutes: 2.5, mind_pct: 1 }), { ...ALERT_DEFAULTS, mind_pct: 1 }, 'whole numbers from 1, as Settings takes them');
 });
 
 test('offer labels: the taskmaster\'s words until the guard names the target, and an escort always by its destination', () => {

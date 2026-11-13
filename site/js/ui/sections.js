@@ -245,15 +245,15 @@ function targetHtml(p, ui) {
 }
 
 // RESOURCE output (schema 10): the profession's resource, and what else it shows
-function resourcesHtml(r) {
+export function resourcesHtml(r) {
   if (!r) {
     return '<section class="card">' + head('Resources') + '<p class="small muted note-p first">Your profession\'s resource, Voln favor and the rest show here once ' +
       '<code>RESOURCE</code> has been typed while analytics.lic runs (have your rest script type it).</p></section>';
   }
-  var read = 'read ' + ago(r.at);
-  var tiles = (r.name ? tile('spark', r.name + ' this week', r.weekly == null ? '--' : short(r.weekly) + ' / 50K', read) +
-      tile('layers', r.name + ' in total', r.total == null ? '--' : short(r.total) + ' / 200K', read) : '') +
-    (r.suffused != null ? tile('sparkles', 'Suffused' + (r.name ? ' ' + r.name : ''), num(r.suffused), read) : '') +
+  var read = 'read ' + ago(r.at), name = r.name ? esc(r.name) : '';
+  var tiles = (name ? tile('spark', name + ' this week', r.weekly == null ? '--' : short(r.weekly) + ' / 50K', read) +
+      tile('layers', name + ' in total', r.total == null ? '--' : short(r.total) + ' / 200K', read) : '') +
+    (r.suffused != null ? tile('sparkles', 'Suffused' + (name ? ' ' + name : ''), num(r.suffused), read) : '') +
     (r.voln_favor != null ? tile('shield', 'Voln favor', num(r.voln_favor), read) : '') +
     (r.covert_arts_charges != null ? tile('target', 'Covert arts charges', num(r.covert_arts_charges) + ' / 200', read) : '') +
     (r.shadow_essence != null ? tile('brain', 'Shadow essence', num(r.shadow_essence) + ' / 5', read) : '');

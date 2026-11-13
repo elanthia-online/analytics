@@ -2,6 +2,38 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-12: The locksmith pool is one pool, so its change crosses towns
+
+**Decision.** The pool's change, peak and first count are taken over every list in the
+range, whichever town it was listed in, and Compare's row is the character's whole pool.
+
+**Why.** The second audit (S9) read 96 in Icemule then 12 in Kraken's Fall as two pools and
+called the change of −84 a mix of towns. The pool is shared game-wide: a list in any town
+shows the same boxes, so −84 is what happened. The town on each list is only where it was
+read.
+
+**Rejected.** Adding up each town's own change (+4 and 0), which would count one pool as
+two.
+
+## 2026-11-12: A Summary's per hour is per hour the script ran, as on the cards
+
+**Decision.** A Summary's silver and experience per hour divide by the hours the script ran
+in the range (hunting, resting and idle, with the stretch still going counted up to now, to
+the minute), as the overview's cards do, and show `--` under ten minutes of that. The cards
+now count the stretch still going too.
+
+**Why.** The audit (S3) found the Summary dividing by the hours since the range began, so
+Today's figure on a character's page could be an eighth of the one on its card, and the
+guide's worked example matched only the card. The guide has always said time logged out
+doesn't count against you.
+
+**Rejected.** Relabelling the Summary's figure as per hour of the range: it would keep two
+"per hour" figures, and one that falls while you're logged out isn't a rate of play. The
+Ruby dashboard's figures are the parity baseline, so the change is listed in
+`test/fixtures/departures.json` rather than written into the golden files. The "this login"
+line keeps Ruby's count (every cycle since the login, time dead included), and the overview's
+headline figure is per hour since midnight, as it says.
+
 ## 2026-11-12: Site basics: a 404 page, canonical URLs, share previews, phone strips that scroll
 
 **Decision.** `site/404.html`, which Pages serves for any missing path (so its links and
@@ -441,8 +473,8 @@ changes the image and rebuilds them at once.
 **Decision.** Figures stay in the browser's zone. Schema 9 records the zone Lich ran in
 (`metadata` `utc_offset` and `zone`, rewritten on every start), and the page warns when its
 own offset at that moment differs (`zoneWarning` in `data.js`). It doesn't convert: the
-warning says days can be a day off near midnight, and to open the file in a browser set to
-the same zone.
+warning says kills can show a day off (with zones hours apart, a whole day's worth of them),
+and to open the file in a browser set to the same zone.
 
 **Why.** The live source can only be the same computer, so its zone always matches. A file
 copied from another machine, or written by a Lich in WSL or a container on UTC, files kills

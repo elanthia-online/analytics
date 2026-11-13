@@ -67,3 +67,18 @@ Things that need a decision or a check this repo can't do on its own. Move an it
       anchors would be tighter, if the logs show no line that needs the looseness.
     - A rest across midnight is one row a day, each with its reason, so an item-limit rest
       over midnight counts once on each day.
+13. **Left from the 2026-11-13 review (scripts#2556 round 11, and the site's audit).**
+    - Anchoring the unanchored readers (`DIRECT_RE`, `DEPOSIT_RE`, `REWARD_RE`, the offer
+      marks) as a second defence behind `Overheard`, now that the Voln channel is covered.
+      Needs each real line's shape from the logs (a prompt or a tag in front of it) first.
+    - Another player's RECITE across several lines: if the game opens a speech preset on
+      the first line and closes it on the last, the lines between reach the readers. One
+      captured RECITE by another player settles it.
+    - A crash during a rest that has a reason isn't marked `crashed` (the rest keeps why it
+      started), so it doesn't count among the day's crashes. A column of its own would need
+      a schema change.
+    - A crash-closed cycle that ended when its login was last seen, not at the next cycle's
+      start, has no end experience, so its gain counts on the Summary but not the overview.
+    - The review's release gate: the analytics ruleset lets admins bypass review, and every
+      site PR since round 10 merged that way. For the EO admins to decide before
+      scripts#2556 merges.

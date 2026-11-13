@@ -4,7 +4,7 @@
 import { toI, toF, rround, mean, percent, truthy, sortBy, autoMap } from './ruby.js';
 import { dayOf, addDays, midnight, dayStr, dateOf, hourLabel, hourOf, windowDay } from './time.js';
 import { rangeFromArg, rangeLabels, rangeRules, parseWho, shortProfile, bountyTarget, offerLabel, figures, loginFor } from './report.js';
-import { local, BASE_DAYS, DAY_HUNT, HOUR_HUNT, buildStatusFor } from './overview.js';
+import { local, BASE_DAYS, DAY_HUNT, HOUR_HUNT, STALE_OPEN, buildStatusFor } from './overview.js';
 
 export const RANGES = { daily: 'Today', weekly: 'This Week', monthly: 'This Month' };
 
@@ -41,8 +41,12 @@ function rangeFigures(conn, id, range, now, ranges) {
       `SUM(CASE WHEN ${restOk} THEN duration_seconds ELSE 0 END) AS rest_s, ` +
       `SUM(CASE WHEN ${restOk} THEN 1 ELSE 0 END) AS rest_n, ` +
       "SUM(CASE WHEN cycle_type = 'dead' THEN 1 ELSE 0 END) AS deaths, MIN(exp_total_start) AS exp_a, " +
+      // The time the script ran (as the overview's per hour counts it): hunts,
+      // rests and idle time, and the stretch still going up to now, to the minute
+      `SUM(CASE WHEN ${huntOk} OR ${restOk} OR (cycle_type = 'idle' AND end_time IS NOT NULL) THEN duration_seconds ` +
+      "WHEN end_time IS NULL AND cycle_type IN ('hunt', 'rest', 'idle') AND ? - start_time < ? THEN MAX(0, ? - start_time) ELSE 0 END) AS ran_s, " +
       'MAX(exp_total_end) AS exp_b FROM cycles WHERE game = ? AND character = ? AND start_time >= ? AND start_time <= ?',
-    ...who, from, now,
+    now, STALE_OPEN, now - (now % 60), ...who, from, now,
   );
   const silver = toI(conn.one(
     "SELECT SUM(delta_silver) AS t FROM bank_snapshots WHERE game = ? AND character = ? AND bank_name = '__total__' " +
@@ -81,15 +85,18 @@ function rangeFigures(conn, id, range, now, ranges) {
   const rs = toI(k.rest_s);
   const rn = toI(k.rest_n);
   const huntH = hs / 3600;
+  const ranH = toI(k.ran_s) / 3600;
+  // per hour the script ran; under ten minutes of that is too little to divide by
+  const perRan = (total) => (ranH >= 600 / 3600 ? rround(total / ranH) : null);
   const gain = k.exp_a != null && k.exp_b != null && toI(k.exp_b) > toI(k.exp_a) ? toI(k.exp_b) - toI(k.exp_a) : 0;
   const steps = {};
   if (covered) for (const [step, secs] of stepSecs) steps[step] = rround(secs / covered, 1);
   return {
     label, hours: rround(hours, 2),
     range_stats: {
-      silver, silver_hr: rround(silver / hours),
+      silver, silver_hr: perRan(silver),
       silver_hunt_hr: huntH > 0 ? rround(silver / huntH) : null,
-      exp: gain, exp_hr: rround(gain / hours), exp_hunt_hr: huntH > 0 ? rround(gain / huntH) : null,
+      exp: gain, exp_hr: perRan(gain), exp_hunt_hr: huntH > 0 ? rround(gain / huntH) : null,
       bounties: toI(done.n), bounties_hunt_hr: huntH > 0 ? rround(toI(done.n) / huntH, 2) : null,
       bounty_silver: toI(done.s), bounty_exp: toI(done.e),
       abandoned: toI(dropped.a), expired: toI(dropped.x),
@@ -199,7 +206,9 @@ function trendsFor(conn, who, range, now, from, rules) {
   let current;
   let baseKeys;
   if (hourly) {
-    labels = rules.day === 'rolling' ? Array.from({ length: 24 }, (_, i) => hourOf(now - (23 - i) * 3600)) : hours(today);
+    // The 24 real hours up to now, by clock label: on a fall-back day two of them
+    // share one (as the buckets do), and it's plotted once, not counted twice
+    labels = rules.day === 'rolling' ? [...new Set(Array.from({ length: 24 }, (_, i) => hourOf(now - (23 - i) * 3600)))] : hours(today);
     current = hourOf(now);
     baseKeys = Array.from({ length: baseDays }, (_, d) => hours(addDays(today, -(baseDays - 1 - d)))).flat();
   } else {

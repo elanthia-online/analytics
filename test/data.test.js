@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
-import { Dashboard } from '../site/js/data.js';
+import { Dashboard, LiveSource } from '../site/js/data.js';
+import http from 'node:http';
 
 const real = await initSqlJs();
 const fixture = new Uint8Array(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
@@ -33,6 +34,10 @@ test('a file that is not SQLite is refused plainly, and its database freed every
   }
   assert.equal(open(), 0, 'no database left open');
   assert.equal(junk.forgotten, 3, 'the source forgets an image that did not open');
+  // from the script's API it's not "that file": it says the script sent it and tries again
+  dash.setSource({ ...junk, live: true, kind: 'live' });
+  await assert.rejects(dash.refresh(), (e) => /analytics\.lic sent a copy .* isn't an SQLite database/.test(e.message) && !/That file/.test(e.message));
+  assert.equal(open(), 0);
   dash.setSource(source(fixture));
   await dash.refresh();
   assert.equal(open(), 1);
@@ -96,6 +101,7 @@ test('a database written in another zone is flagged; the same zone, or no zone r
     db.run("UPDATE metadata SET value = '32400' WHERE key = 'utc_offset'");
     db.run("UPDATE metadata SET value = 'JST' WHERE key = 'zone'");
     assert.match(zoneWarning(conn), /Lich running at UTC\+9 \(JST\), and this browser is at UTC−5\./);
+    assert.match(zoneWarning(conn), /14 hours apart, so kills can show on the day before or after .* a whole day's worth/, 'kills can be a whole day off, not just near midnight (S7)');
     // a DST change since doesn't count: the offset is compared at the moment it was read
     const july = Math.floor(new Date(2026, 6, 1, 12).getTime() / 1000);
     db.run("UPDATE metadata SET value = '-14400', updated_at = ? WHERE key = 'utc_offset'", [july]);
@@ -104,5 +110,48 @@ test('a database written in another zone is flagged; the same zone, or no zone r
     assert.equal(zoneWarning(conn), null, 'an older file without it: unknown, not a warning');
   } finally {
     db.close();
+  }
+});
+
+test('a load that fails after the source changed is thrown away too, not reported against the new one (#18)', async () => {
+  const { SQL } = counting();
+  const dash = new Dashboard(SQL);
+  const failing = { label: 'gone', live: true, kind: 'live', load: () => new Promise((_, reject) => setTimeout(() => reject(new Error('connection refused')), 40)) };
+  dash.setSource(failing);
+  const first = dash.refresh();
+  dash.setSource(source(fixture));
+  await assert.rejects(first, (e) => e.superseded === true, 'superseded, not "connection refused"');
+  await dash.refresh();
+  // and with no switch, the failure is the source's own
+  dash.setSource(failing);
+  await assert.rejects(dash.refresh(), /connection refused/);
+  dash.close();
+});
+
+test('a live image that didn\'t open is asked for again, though its token is unchanged (#37)', async () => {
+  const marked = (() => { const d = new real.Database(fixture); d.run("UPDATE cycles SET character = 'Krang' WHERE character = 'April'"); const b = d.export(); d.close(); return Buffer.from(b); })();
+  let token = 'T1', downloads = 0, corrupt = false;
+  const server = http.createServer((req, res) => {
+    const path = new URL(req.url, 'http://x').pathname;
+    if (path === '/api/meta') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ app: 'analytics', api: 1, token, now: 1 })); }
+    downloads++;
+    res.writeHead(200, { 'X-Analytics-Token': token });
+    if (token === 'T1') return res.end(Buffer.from(fixture));
+    if (corrupt) { corrupt = false; return res.end(Buffer.alloc(4096, 7)); }
+    return res.end(marked);
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const dash = new Dashboard(real);
+  try {
+    dash.setSource(new LiveSource(server.address().port));
+    await dash.refresh();
+    token = 'T2'; corrupt = true;
+    await assert.rejects(dash.refresh(), /isn't an SQLite database/);
+    await dash.refresh();
+    assert.equal(downloads, 3, 'the image after the bad one is downloaded again');
+    assert.ok(dash.conn.one("SELECT COUNT(*) AS n FROM cycles WHERE character = 'Krang'").n > 0, 'and shown');
+  } finally {
+    dash.close();
+    server.close();
   }
 });

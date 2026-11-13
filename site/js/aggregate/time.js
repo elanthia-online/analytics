@@ -24,10 +24,12 @@ export function clockSeconds(ts) {
   return t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
 }
 
-// The calendar day a window starting at +from+ stands for. The week and month
-// windows start whole multiples of 86,400 s before midnight, so across a DST
-// change they start an hour either side of the midnight they mean. The nearest
-// midnight's day is the one meant, for tables keyed by date (kill_stats).
+// The calendar day a window starting at +from+ stands for, for tables keyed by
+// date (kill_stats): the day from's in when most of that day is in the window,
+// else the next. Whole-day windows start whole multiples of 86,400 s before
+// midnight, so across a DST change they start an hour either side of the
+// midnight they mean, and this gives the day meant; a rolling window starts
+// at any minute, and a day it starts in counts if it starts before noon.
 export function windowDay(from) {
   return dateOf(from + 43_200);
 }

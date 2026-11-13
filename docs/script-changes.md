@@ -422,3 +422,21 @@ with no schema change:
 - The weapon check never drops an item and leaves an unset hand alone; the recorder's file
   is opened with Lich's busy handler; a failed start is stopped cleanly.
 
+Fixed since, from the 2026-11-13 review (scripts#2556 round 11; elanthia-online/scripts@688112d3
+to @6088896c), with no schema change:
+- The Order of Voln's channel (`voln` stream) was read as the character's own text: a Symbol of
+  Thought saying a deposit or a box's coins was recorded for every Voln member listening. It's
+  skipped like speech, and so are thoughts sent as one `<stream id="thoughts">` element.
+- A settings group given one value (`alerts: false`, `dashboard: 8080`) stopped the script; it's
+  reported and left out. A dashboard port outside 1 to 65535, or one the computer won't let
+  Lich listen on, is reported instead of ending the script.
+- Two characters starting on a fresh file: the switch to WAL is tried again for up to 2.5
+  seconds, so both open it (it failed about one start in eight).
+- A cycle left open by a crash is closed at the next start as `rest_reason = 'crashed'` (unless
+  it has a reason), and when it ends where the next cycle began, its end readings
+  (`exp_total_end`, `exp_regular_end`, `exp_asc_end`, `exp_field_end`, `fame_end`,
+  `encumbrance_end`) are that cycle's starting ones. The site counts `crashed` as a crash.
+- The session that loses the dashboard's port to another starting at the same moment says the
+  dashboard is already fed. A shop's town is the nearest town room by the map's fixed paths
+  (none that depend on the session, such as urchin guides), within 60 seconds, else the room's
+  own location.

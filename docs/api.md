@@ -188,8 +188,9 @@ only (decisions.md). The reasons it didn't carry over:
 
 - The hosted page is https. A fetch from it to `http://192.168.x.y:8080` is mixed content
   and is blocked, because only loopback addresses are exempt.
-- In LAN mode `/api/db` would hand the whole database to anyone on the network. Today
-  LAN mode exposes only the computed figures.
+- On the network `/api/db` would hand the whole database to anyone who can reach the
+  port. LAN mode, which served only the computed figures, went with the script's own
+  dashboard pages.
 
 To view another computer's data, copy its `analytics.db` (or a backup) and open it as a
 file.

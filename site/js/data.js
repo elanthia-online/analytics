@@ -202,8 +202,10 @@ export function zoneWarning(conn) {
   if (theirs === ours) return null;
   const utc = (s) => `UTC${s < 0 ? '\u2212' : '+'}${Math.floor(Math.abs(s) / 3600)}${Math.abs(s) % 3600 ? ':' + String(Math.abs(s) % 3600 / 60).padStart(2, '0') : ''}`;
   const name = conn.metadata('zone');
+  const apart = Math.abs(theirs - ours) / 3600;
   return `This database was written by a Lich running at ${utc(theirs)}${name ? ` (${name})` : ''}, and this browser is at ${utc(ours)}. ` +
-    'Days here are this browser\'s, and kills are filed under that computer\'s dates, so near midnight they can land on the next or previous day. ' +
+    `Days here are this browser's, but kills are kept by that computer's dates, ${apart} hour${apart === 1 ? '' : 's'} apart, ` +
+    'so kills can show on the day before or after the one they were made on, as much as a whole day\'s worth. ' +
     'Open it in a browser set to the same zone for exact days.';
 }
 
@@ -266,7 +268,9 @@ export class Dashboard {
         if (db && db !== this.db) db.close();
         source.forget?.();
         if (/not a database|file is encrypted|malformed/i.test(error.message)) {
-          throw new Error("That file isn't an analytics.lic database (it isn't an SQLite database at all).");
+          throw new Error(source.live
+            ? "analytics.lic sent a copy of its database that isn't readable (it isn't an SQLite database). It's tried again at the next refresh; if it keeps happening, restart the script."
+            : "That file isn't an analytics.lic database (it isn't an SQLite database at all).");
         }
         throw error;
       }

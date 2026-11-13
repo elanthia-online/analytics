@@ -30,7 +30,8 @@ export function alertSettings(saved) {
   for (const [key, value] of Object.entries(saved && typeof saved === 'object' ? saved : {})) {
     if (!Object.hasOwn(ALERT_DEFAULTS, key)) continue;
     if (typeof ALERT_DEFAULTS[key] === 'boolean' && typeof value === 'boolean') out[key] = value;
-    else if (typeof ALERT_DEFAULTS[key] === 'number' && Number.isFinite(value) && value >= 0) out[key] = value;
+    // whole numbers from 1 up, as Settings takes them (storage can be edited by hand)
+    else if (typeof ALERT_DEFAULTS[key] === 'number' && Number.isInteger(value) && value >= 1) out[key] = value;
   }
   return out;
 }
@@ -38,8 +39,15 @@ export const MIN_SAMPLES = 5;
 // The cycle each crash reason is recorded on. Up to schema 8 the script wrote
 // 'unhandled exit' on any hunt that went idle without a rest, a stop by hand
 // included; from schema 9 that is 'hunt stopped', which isn't a crash and
-// isn't listed. 'unhandled exit' stays for the golden figures.
+// isn't listed. 'unhandled exit' stays for the golden figures. From the
+// script's round-11 fixes (scripts#2556), a cycle it finds still open at its next start
+// (Lich or the connection went down mid-cycle) is closed as 'crashed', on
+// whatever kind of cycle it was.
 const CRASH_REASONS = { 'unhandled exit': 'hunt', 'idle recovery': 'rest' };
+const isCrash = (row) => {
+  const reason = String(row.rest_reason ?? '').trim().toLowerCase();
+  return reason === 'crashed' || CRASH_REASONS[reason] === row.cycle_type;
+};
 
 // ---- SQL fragments ---------------------------------------------------------
 export const local = (col) => `${col}, 'unixepoch', 'localtime'`;
@@ -226,7 +234,7 @@ function buildStatus(id, label, ctx, data) {
   const idleS = started.filter((row) => row.cycle_type === 'idle').reduce((a, row) => a + toI(row.duration_seconds), 0);
   const deaths = started.filter((row) => row.cycle_type === 'dead').length;
   const crashes = started
-    .filter((row) => CRASH_REASONS[String(row.rest_reason ?? '').trim().toLowerCase()] === row.cycle_type)
+    .filter(isCrash)
     .map((row) => ({ at: toI(row.start_time), reason: String(row.rest_reason ?? '') }));
   const itemRests = rests.filter((row) => /\bitems?\b/i.test(String(row.rest_reason ?? ''))).length;
 
@@ -339,12 +347,15 @@ function lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, b
   const reds = [];
   const ambers = [];
   const add = (list, kind, text) => { if (a[kind]) list.push({ kind, text }); };
-  const since = state.since != null ? now - state.since : 0;
+  // Counted to the wall-clock minute, like the hero figure, so every counter
+  // here turns over at once and a refresh within the minute changes nothing
+  const lag = now % 60;
+  const since = state.since != null ? now - lag - state.since : 0;
   const idleWarn = a.idle_minutes * 60, noKill = a.no_kill_minutes * 60;
   if (state.type === 'dead') add(reds, 'dead', `Dead for ${idiv(since, 60)} min`);
   if (state.type === 'idle' && since > idleWarn) add(since > idleWarn * 2 ? reds : ambers, 'idle', `Idle for ${idiv(since, 60)} min`);
-  if (state.type === 'hunt' && since > noKill && lastKill != null && now - lastKill > noKill) {
-    add(reds, 'no_kills', `No kills for ${idiv(now - lastKill, 60)} min while hunting`);
+  if (state.type === 'hunt' && since > noKill && lastKill != null && now - lag - lastKill > noKill) {
+    add(reds, 'no_kills', `No kills for ${idiv(now - lag - lastKill, 60)} min while hunting`);
   }
   if (huntS >= 3600) {
     for (const [metric, label] of [['silver', 'Silver'], ['exp', 'Exp']]) {
@@ -357,9 +368,10 @@ function lights(state, now, lastKill, huntS, pace, deaths, itemRests, crashes, b
   if (deaths > 0) add(ambers, 'deaths', `${deaths} death${deaths === 1 ? '' : 's'} today`);
   if (itemRests > 0) add(ambers, 'item_rests', `${itemRests} item limit rest${itemRests === 1 ? '' : 's'} today`);
   if (crashes.length) add(ambers, 'crashes', `${crashes.length} crash / idle recovery today`);
-  if (bounty && bounty.stuck) add(ambers, 'bounty', `Bounty running ${idiv(bounty.age, 60)} min (typical ${idiv(bounty.typical, 60)} min)`);
+  if (bounty && bounty.stuck) add(ambers, 'bounty', `Bounty running ${idiv(bounty.age - lag, 60)} min (typical ${idiv(bounty.typical, 60)} min)`);
   for (const row of reasonRows) {
-    if (row.reason === '(none)' || row.typical == null) continue;
+    // a crash has its own alert (crashes), however often it happens
+    if (row.reason === '(none)' || row.reason === 'crashed' || row.typical == null) continue;
     if (row.today >= 3 && row.today >= row.typical * 2 + 1) {
       add(ambers, 'rest_reasons', `${row.reason}: ${row.today} rests today (typical ${floatStr(row.typical)} by now)`);
     }

@@ -90,8 +90,16 @@ try {
   check(/^gs4-analytics-everyone-.*\.png$/.test(saved2), `export: the overview saves as a PNG (${saved2})`);
   // One card on its own: a character's card from its button (without opening the character)
   const download3 = page.waitForEvent('download', { timeout: 20_000 });
+  const cardBox = await page.$eval('.card[data-who="GS3:Bebop"]', (el) => { const r = el.getBoundingClientRect(); return { w: r.width, h: r.height }; });
   await page.click('.card[data-who="GS3:Bebop"] [data-save-card]');
   const saved3 = (await download3).suggestedFilename();
+  // The image is the card, not the view (a PNG's size is in its IHDR): the card's width
+  // plus a 28px margin each side, at a scale of 1 to 2, and its height plus the title bar
+  const png = readFileSync(await (await download3).path());
+  const [pw, ph] = [png.readUInt32BE(16), png.readUInt32BE(20)];
+  const scale = pw / (cardBox.w + 56), extra = ph / scale - cardBox.h;
+  check(png.toString('latin1', 1, 4) === 'PNG' && scale >= 0.99 && scale <= 2.01 && extra >= 30 && extra <= 160,
+    `export: the card's image is that card alone (${pw}x${ph} for a ${Math.round(cardBox.w)}x${Math.round(cardBox.h)} card)`);
   check(/^gs4-analytics-everyone-bebop-gs4-\d{8}-\d{4}\.png$/.test(saved3) && (await page.evaluate(() => location.hash)) === '',
     `export: a character's card saves on its own, and stays on the overview (${saved3})`);
   check(await page.getAttribute('.card[data-who="GS3:Bebop"] [data-save-card]', 'aria-label') === 'Save the Bebop (GS4) card as an image',
@@ -108,7 +116,14 @@ try {
   }
   // A refresh that brings nothing new must leave the view alone (a rewrite resets
   // hover, focus and selection). The boxes a view is written into are watched (#29).
-  const rewritesOf = (p, boxes, ms) => p.evaluate(([ids, wait]) => new Promise((resolve) => {
+  // Waits for the boxes to go 2 seconds without a change (the first load's redraws done)
+  const settled = (p, boxes) => p.evaluate((ids) => new Promise((resolve) => {
+    let timer = setTimeout(done, 2000);
+    const watch = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(done, 2000); });
+    function done() { watch.disconnect(); resolve(); }
+    for (const id of ids) { const el = document.querySelector(id); if (el) watch.observe(el, { childList: true }); }
+  }), boxes);
+  const rewritesOf = async (p, boxes, ms) => { await settled(p, boxes); return p.evaluate(([ids, wait]) => new Promise((resolve) => {
     let n = 0;
     const hour = new Date().getHours();
     const watch = new MutationObserver((list) => { n += list.length; });
@@ -117,7 +132,7 @@ try {
     // second (a stretch still going, the time hunted, per hour over a few minutes): each
     // refresh changes it, so a quiet page can't be told from one that redraws for nothing
     setTimeout(() => { watch.disconnect(); resolve({ rewrites: n, newHour: new Date().getHours() !== hour, newDay: hour === 0 || new Date().getHours() === 0 }); }, wait);
-  }), [boxes, ms]);
+  }), [boxes, ms]); };
   await page.click('.nav-ch[data-who="GSF:Splinter"]');
   await page.waitForFunction(() => document.querySelector('.sb-name')?.textContent.includes('GSF'));
   await page.waitForTimeout(1200);
@@ -138,6 +153,21 @@ try {
     await sp.waitForTimeout(1500);
     const ovq = await rewritesOf(sp, ['#overview', '#navChars'], 16_000);
     check(ovq.rewrites <= 2 || ovq.newDay, `live: refreshes with nothing new leave the overview and menu alone (${ovq.rewrites} rewrites in three refreshes)`);
+    // Compare redraws on Show by itself (#28): this source never changes, so no refresh can do it
+    await sp.evaluate(() => localStorage.setItem('gs4a-hidden', JSON.stringify(['GS3:Raphael'])));
+    await sp.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 2}#compare`);
+    await sp.reload();                                  // a new hash alone doesn't load the page
+    await sp.waitForSelector('#compare .cmp-hidden [data-unhide="GS3:Raphael"]');
+    await sp.click('#cmpTabs button[data-r="total"]');
+    await sp.waitForFunction(() => document.querySelector('#cmpTabs button.on')?.getAttribute('data-r') === 'total');
+    await sp.click('#compare [data-unhide="GS3:Raphael"]');
+    check(await sp.waitForFunction(() => !!document.querySelector('#compare a[data-who="GS3:Raphael"]'), null, { timeout: 2000 }).then(() => true, () => false),
+      'compare: Show redraws it at once, with nothing new from the source');
+    // A link cut off inside a percent escape opens the overview, not a blank page (#20)
+    await sp.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 2}#GS4%3ABebop%E0%A4%A`);
+    await sp.reload();
+    check(await sp.waitForSelector('#overview:not([hidden]) .card[data-who]', { timeout: 10_000 }).then(() => true, () => false),
+      'links: a hash cut off inside a percent escape opens the overview');
     await sp.close();
   } finally {
     still.kill();
@@ -299,6 +329,8 @@ try {
   await pg.waitForFunction(() => !!document.querySelector('#compare a[data-who="GS3:Raphael"]'));
   check(!(await pg.$('#compare .cmp-hidden')) && (await pg.evaluate(() => localStorage.getItem('gs4a-hidden'))) === null,
     'compare: Show brings it back at once, with no range tab clicked');
+  check(await pg.evaluate(() => document.activeElement?.matches('#compare a[data-who="GS3:Raphael"]')),
+    `compare: Show moves focus to the character shown again (${await pg.evaluate(() => document.activeElement?.outerHTML.slice(0, 60))})`);
   await pg.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT}`);
   await pg.waitForSelector('.card[data-who]');
   await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');
@@ -307,9 +339,17 @@ try {
   await pg.reload();
   await pg.waitForSelector('.card[data-who]');
   check(!(await pg.$('.card[data-who="GS3:Bebop"]')), 'hide: remembered after a reload');
+  await pg.click('.nav-hidden summary, .nav-hidden button[aria-expanded]').catch(() => {});
+  await pg.click('#navChars [data-unhide="GS3:Bebop"]');
+  await pg.waitForSelector('.card[data-who="GS3:Bebop"]');
+  check(await pg.evaluate(() => document.activeElement?.matches('#navChars > a.nav-ch[data-who="GS3:Bebop"]')),
+    `hide: Show in the menu moves focus to the character, now back in the menu's list (${await pg.evaluate(() => document.activeElement?.outerHTML.slice(0, 60))})`);
+  await pg.click('.card[data-who="GS3:Bebop"] [data-hide]');
+  await pg.waitForFunction(() => !document.querySelector('.card[data-who="GS3:Bebop"]'));
   await pg.click('[data-unhide-all]');
   await pg.waitForSelector('.card[data-who="GS3:Bebop"]');
   check(await pg.evaluate(() => localStorage.getItem('gs4a-hidden')) === null, 'hide: Show them brings everyone back');
+  check(await pg.evaluate(() => document.activeElement?.matches('#overview .card .ch-link')), 'hide: Show them moves focus to the first card');
   // The side-by-side table: per-hour figures beside the totals, no crashes or item rests
   const allHeads = await pg.$$eval('#overview table thead th', (ths) => ths.map((th) => th.textContent.trim()));
   const sideHeads = allHeads.slice(allHeads.indexOf('Character'));
