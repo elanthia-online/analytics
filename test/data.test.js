@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import initSqlJs from 'sql.js';
-import { Dashboard, LiveSource } from '../site/js/data.js';
+import { Dashboard, LiveSource, loopbackDenied } from '../site/js/data.js';
 import http from 'node:http';
 
 const real = await initSqlJs();
@@ -153,5 +153,27 @@ test('a live image that didn\'t open is asked for again, though its token is unc
   } finally {
     dash.close();
     server.close();
+  }
+});
+
+test('a browser that blocks reaching this computer is named as the cause, not the script', async () => {
+  const perms = (state) => ({ query: async ({ name }) => { assert.equal(name, 'loopback-network'); return { state }; } });
+  assert.equal(await loopbackDenied(perms('denied')), true);
+  assert.equal(await loopbackDenied(perms('granted')), false);
+  assert.equal(await loopbackDenied({ query: async () => { throw new TypeError('unknown permission'); } }), false, 'a browser without it');
+  assert.equal(await loopbackDenied(undefined), false);
+  // Nothing listens on the port: blocked says so; otherwise the usual message
+  const closed = http.createServer();
+  await new Promise((resolve) => closed.listen(0, '127.0.0.1', resolve));
+  const port = closed.address().port;
+  await new Promise((resolve) => closed.close(resolve));
+  const had = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  try {
+    Object.defineProperty(globalThis, 'navigator', { value: { permissions: perms('denied') }, configurable: true });
+    await assert.rejects(new LiveSource(port).load(), /browser is blocking this site/);
+    Object.defineProperty(globalThis, 'navigator', { value: { permissions: perms('prompt') }, configurable: true });
+    await assert.rejects(new LiveSource(port).load(), /Could not reach analytics\.lic/);
+  } finally {
+    if (had) Object.defineProperty(globalThis, 'navigator', had); else delete globalThis.navigator;
   }
 });

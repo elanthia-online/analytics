@@ -44,7 +44,7 @@ export class LiveSource {
       throw new Error(`analytics.lic speaks dashboard API ${meta.api}; this page speaks ${API_VERSION}. Update ${Number(meta.api) > API_VERSION ? 'this page (reload)' : 'the script'}.`);
     }
     if (meta.token === this.token && this.bytes) return { bytes: this.bytes, changed: false, asOf: meta.now, meta };
-    const response = await fetch(`${this.base}/api/db?token=${encodeURIComponent(meta.token)}`, { cache: 'no-store' });
+    const response = await fetch(`${this.base}/api/db?token=${encodeURIComponent(meta.token)}`, LOOPBACK);
     if (!response.ok) throw await answerError(response, 'for the database');
     this.bytes = new Uint8Array(await response.arrayBuffer());
     // The image can be newer than the token that asked for it; it says which it is
@@ -53,16 +53,36 @@ export class LiveSource {
   }
 }
 
+// The script is on this computer: saying so lets Chrome and Edge check that the
+// address really is (and refuse it if not). Other browsers ignore the option.
+const LOOPBACK = { cache: 'no-store', targetAddressSpace: 'loopback' };
+
+// Whether the reader told the browser not to let this site reach this computer.
+// Only Chrome and Edge know the permission; elsewhere the query throws, which
+// is "don't know". (Never query the old 'local-network-access' name: it can
+// crash older Chrome.)
+export async function loopbackDenied(permissions = globalThis.navigator?.permissions) {
+  if (!permissions?.query) return false;
+  try {
+    return (await permissions.query({ name: 'loopback-network' })).state === 'denied';
+  } catch {
+    return false;
+  }
+}
+
 async function getJson(url) {
   let response;
   try {
-    response = await fetch(url, { cache: 'no-store' });
+    response = await fetch(url, LOOPBACK);
   } catch {
-    // A refused local-network permission looks the same to the page as nothing listening
+    // A refused permission looks the same to the page as nothing listening, so ask the browser
+    if (await loopbackDenied()) {
+      throw new Error('This browser is blocking this site from reaching analytics.lic on this computer. In the site settings ' +
+        '(the icon left of the address), set Local network access to Allow, then connect again. See the guide: guide/#connect');
+    }
     throw new Error('Could not reach analytics.lic. Check that it is running with ;analytics --dashboard (or ;analytics serve), ' +
       'and that your browser let this site reach this computer: Chrome and Edge ask once, and the answer is under ' +
       'site settings, Local network access. See the guide: guide/#connect');
-
   }
   if (!response.ok) throw await answerError(response);
   return response.json();
