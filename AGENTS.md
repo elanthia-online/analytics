@@ -101,6 +101,9 @@ verification.
 - **The script's API is specified here.** `tools/mock-server.js` must match
   [docs/api.md](docs/api.md). Change the doc, the mock and the page together, and bump
   `API_VERSION` (`data.js`, the mock's `API_VERSION`, the doc) for anything incompatible.
+- Issues start from the forms in `.github/ISSUE_TEMPLATE/` (script bug, dashboard bug, wrong
+  figures, feature request, docs); keep their fields in step with what the script and the
+  page show (the version line, the data sources, the guide's anchors).
 - Keep `docs/` current: record decisions in `decisions.md` and unknowns in
   `open-questions.md`. Update `script-changes.md` whenever the API changes.
 

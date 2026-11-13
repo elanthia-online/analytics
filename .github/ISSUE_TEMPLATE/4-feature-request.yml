@@ -1,0 +1,47 @@
+name: Feature request
+description: Something new for the script, the dashboard or both - a figure, a report, a page, an alert, a setting.
+title: "[idea] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. The [roadmap](https://github.com/elanthia-online/analytics/blob/main/docs/roadmap.md) lists what's already planned: if yours is there, say so and add what you'd need from it.
+
+        Everything stays on your own computer, and the script only reads the game text: it doesn't send game commands unless you turn on a setting that does. Ideas that need either changed are still worth raising, just say why.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where it belongs
+      description: Best guess is fine.
+      options:
+        - The dashboard (the website)
+        - The script (what it records, its reports, alerts or settings)
+        - Both (something new to record and show)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to know or do
+      description: The question you're trying to answer, or the thing that's hard now. This matters more than the exact feature.
+      placeholder: We hunt with three characters together and want to know which one is pulling its weight on each creature.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What it could look like
+      description: A figure, a chart, a table, a report, an alert. Sketches and screenshots of something similar are welcome.
+  - type: textarea
+    id: data
+    attributes:
+      label: Where the information comes from in the game
+      description: If it's something new to record, the game text that shows it (a command's output, a message). Take out your account name and other players' names.
+      render: text
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How you do it now
+      description: Another script, a spreadsheet, by hand... or not at all.

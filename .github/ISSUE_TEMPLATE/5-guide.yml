@@ -1,0 +1,32 @@
+name: Guide or docs problem
+description: Something in the guide, What's changed or the README is wrong, out of date, missing or unclear.
+title: "[docs] "
+labels: [documentation]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page and section
+      description: A link to the section is best (the guide's contents at the top links to each one).
+      placeholder: "https://analytics.elanthia.online/guide/#settings"
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What's wrong with it
+      options:
+        - It's wrong (the script or dashboard does something else)
+        - It's out of date
+        - It's missing something
+        - It's hard to follow
+        - A broken link or a typo
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What it says, and what it should say
+      description: Quote the part, and say what actually happens or what you were looking for.
+    validations:
+      required: true
