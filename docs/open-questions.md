@@ -29,9 +29,7 @@ Things that need a decision or a check this repo can't do on its own. Move an it
 
 ## Needs a decision
 
-5. **License.** The repo has no license yet, so by default nobody may reuse it.
-   elanthia-online/lich-5 is GPL-2.0; elanthia-online/scripts has no license file at the
-   root. The vendored sql.js is MIT, and its license ships beside it either way.
+5. ~~License~~: settled, see decisions.md (BSD 3-Clause, as lich-5).
 6. ~~LAN mode~~: settled, see decisions.md (dropped).
 7. ~~Shared `elanthia-online.github.io` origin~~: settled, see decisions.md (own domain).
 8. **Database size.** `/api/db` re-sends the whole database after every change, which

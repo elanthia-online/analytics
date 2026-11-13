@@ -72,6 +72,7 @@
         <li><a href="#hooks">For script authors</a></li>
         <li><a href="#maintenance">Maintenance and backups</a></li>
         <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#privacy">Privacy</a></li>
         <li><a href="#faq">FAQ</a></li>
       </ol>
       <p class="toc-more"><a href="changes.html">What's changed</a></p>
@@ -432,11 +433,23 @@ end</code></pre>
         </dl>
       </section>
 
+      <section id="privacy" class="card">
+        <h2>Privacy</h2>
+        <p>There are no accounts, no cookies, no analytics and no ads, and nothing you record is sent to us.</p>
+        <ul>
+          <li><b>The script</b> writes what it records about your own characters to <code>analytics.db</code> and its settings files, in Lich's data folder on your computer. It reads your game text and leaves out what other players say, whisper or think. It sends nothing over the internet itself. Its <a href="#dashboard">dashboard feed</a> answers only this computer, and gives the database only to this site, pages on this computer, and any you name in <code>dashboard.allowed_origins</code>.</li>
+          <li><b>Discord</b>: with <code>discord</code> on (see <a href="#alerts">Alerts</a>), alerts and the daily digest go through discordhook to the Discord channel you set it up for: your character's name and the alert's figures. Turn <code>discord</code> off to send nothing.</li>
+          <li><b>This site</b> is hosted on GitHub Pages. GitHub keeps logs of visits (your IP address among them) under its own privacy statement. The pages load nothing from anywhere else, and their security policy stops them from doing so.</li>
+          <li><b>The dashboard</b> reads your database inside your browser, from the script, a folder or a file you choose. It's never uploaded. The browser keeps your choices for this site: the theme, settings and alert settings, pinned and hidden characters, dismissed alerts, targets, and which source you used (for a folder, the browser's permission to read it again).</li>
+        </ul>
+        <p><b>To delete it all</b>: delete <code>analytics.db</code> (and its <code>-wal</code> and <code>-shm</code> files) with the script stopped, and the <code>analytics.yaml</code> files if you like; then, in your browser's settings for this site, clear its data.</p>
+      </section>
+
       <section id="faq" class="card">
         <h2>FAQ</h2>
         <dl class="qa">
           <dt>Is my data sent anywhere?</dt>
-          <dd>No. The database stays on your computer. The dashboard page is downloaded from this site, but it reads your data inside your browser.</dd>
+          <dd>No. The database stays on your computer. The dashboard page is downloaded from this site, but it reads your data inside your browser. Discord alerts, if you turn them on, are the one exception. See <a href="#privacy">Privacy</a>.</dd>
           <dt>Can I run it on several characters at once?</dt>
           <dd>Yes, one copy per Lich session, all sharing one database. Feed the dashboard from any one of them.</dd>
           <dt>Does it work in Shattered?</dt>
@@ -448,7 +461,7 @@ end</code></pre>
     </div>
   </div>
   </main>
-  <footer class="foot"><a href="../">Dashboard</a> &middot; <a href="changes.html">What's changed</a> &middot; <a href="https://github.com/elanthia-online/analytics">Source</a> &middot; <a href="https://github.com/elanthia-online/analytics/blob/main/docs/roadmap.md">Roadmap</a></footer>
+  <footer class="foot"><a href="../">Dashboard</a> &middot; <a href="changes.html">What's changed</a> &middot; <a href="https://github.com/elanthia-online/analytics">Source</a> &middot; <a href="https://github.com/elanthia-online/analytics/blob/main/docs/roadmap.md">Roadmap</a> &middot; <a href="#privacy">Privacy</a><span class="foot-note">Fan-made and unofficial: not affiliated with or endorsed by Simutronics. GemStone IV is a trademark of Simutronics Corp.</span></footer>
 </div>
 </body>
 </html>

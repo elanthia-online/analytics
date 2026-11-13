@@ -2,6 +2,21 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-12: BSD 3-Clause, a privacy section, and an unofficial-tool line
+
+**Decision.** The repo is BSD 3-Clause licensed (`LICENSE`, `package.json`), copyright
+Elanthia Online. The guide has a Privacy section: what the script keeps and where, that
+Discord alerts are the one thing sent off the computer, GitHub Pages' visit logs, what the
+browser keeps, and how to delete it all. Every page's footer links it and says the tool is
+fan-made and not affiliated with Simutronics, whose trademark GemStone IV is.
+
+**Why.** A launch checklist. With no license nobody could reuse the code; the site said
+nothing on privacy beyond a FAQ line; and "GS4" in the name could read as official.
+
+**Rejected.** GPL 2.0: lich-5 was GPL until it moved to BSD 3-Clause (elanthia-online/lich-5#1173, Feb 2026),
+and matching it keeps the ecosystem on one license. A separate privacy policy page: there
+are no accounts or tracking to describe, and the guide is where players look.
+
 ## 2026-11-12: The locksmith pool is one pool, so its change crosses towns
 
 **Decision.** The pool's change, peak and first count are taken over every list in the
