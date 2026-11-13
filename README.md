@@ -175,5 +175,7 @@ well, not with a `CNAME` file: an Actions deploy ignores one. DNS is a CNAME rec
 
 ## License
 
-Not chosen yet. See [docs/open-questions.md](docs/open-questions.md). The vendored sql.js is
-MIT licensed (`site/vendor/sql.js/LICENSE`).
+BSD 3-Clause, as lich-5 is: see [LICENSE](LICENSE). The vendored sql.js is MIT licensed
+(`site/vendor/sql.js/LICENSE`).
+
+Fan-made and unofficial: not affiliated with or endorsed by Simutronics. GemStone IV is a trademark of Simutronics Corp.

@@ -1,6 +1,7 @@
 {
   "name": "analytics-dashboard",
   "private": true,
+  "license": "BSD-3-Clause",
   "description": "Static web dashboard for the analytics.lic hunting database",
   "type": "module",
   "engines": {
