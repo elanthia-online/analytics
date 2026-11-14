@@ -446,7 +446,7 @@ checked by `test/parity.test.js` against output generated from the real script.
 
 ## 2026-11-06: Vendor sql.js, no CDN, no build step
 
-**Decision.** `site/vendor/sql.js/` holds sql.js 1.15.2's browser build, with its MIT
+**Decision.** `site/vendor/sql.js/` holds sql.js's browser build (the version in `package.json`), with its MIT
 license and checksums (`VERSION`). `npm run vendor` refreshes it, and
 `npm run vendor -- --check` (CI) proves it matches `package.json`.
 
