@@ -127,7 +127,7 @@ site/                 the published site, served as is (no build step)
   js/wal.js           rebuilds a live database from analytics.db + analytics.db-wal
   js/db.js            row access over sql.js
   js/aggregate/       every figure: a port of the script's Ruby dashboard
-  vendor/sql.js/      sql.js 1.15.2 browser build, MIT, with checksums
+  vendor/sql.js/      sql.js 1.16.0 browser build, MIT, with checksums
 test/                 node --test suites and the parity fixtures
 tools/                dev server, mock analytics.lic API, e2e and a11y checks, screenshots,
                       the sample builder, and the fixture generator and schema converters
