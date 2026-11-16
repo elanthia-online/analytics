@@ -1,7 +1,7 @@
 // A database written by analytics.lic itself, not seeded: two characters over
 // four days, played through the script's own managers by
 // tools/script-written-db.rb (from the 2026-11-13 audit), run on analytics.lic
-// 6088896c in TZ=America/New_York (5d5aaa8a writes the same); run it again, as its header says, after a
+// 4873f5ba in TZ=America/New_York; run it again, as its header says, after a
 // change to what the script writes. It carries the values the script writes today,
 // which the parity fixtures predate: offers open, removed, completed and
 // expired, 'hunt stopped' and 'crashed', coins off the floor, shop types from
@@ -89,4 +89,14 @@ test('the crash the script found shows on that day, as a crash only', () => {
   assert.equal(char.crashes.length, 1);
   assert.equal(char.light.reasons.filter((r) => /crash/.test(r.text)).length, 1);
   assert.deepEqual(char.crashes.map((x) => x.reason), ['crashed']);
+});
+
+test('on the crash day, experience adds up the same on the card and the Summary (scripts#2556 R12-5)', () => {
+  // the hunt Lich went down in ends with the readings at the next start, so its gain counts
+  const crash = conn.one("SELECT character, start_time, exp_total_end FROM cycles WHERE rest_reason = 'crashed' AND cycle_type = 'hunt'");
+  assert.ok(crash.exp_total_end != null, 'the crashed hunt has its end readings');
+  const at = crash.start_time + 3 * 3600, id = `GS3:${crash.character}`;
+  const ov = buildOverview(conn, { now: at });
+  const card = ov.characters.find((c) => c.id === id).pace.exp.so_far;
+  assert.equal(card, buildCharacter(conn, ov, id, 'daily', { now: at }).range_stats.exp);
 });
