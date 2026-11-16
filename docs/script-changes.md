@@ -440,3 +440,12 @@ to @6088896c), with no schema change:
   dashboard is already fed. A shop's town is the nearest town room by the map's fixed paths
   (none that depend on the session, such as urchin guides), within 60 seconds, else the room's
   own location.
+
+Fixed since, from the analytics10 audit (elanthia-online/scripts@6088896c to @ee7ac50e), with
+no schema change:
+- A `progress` row for an EXPERIENCE or RESOURCE reading takes the experience shown when the
+  reading was taken: EXPERIENCE's own `Experience` and `Ascension Exp` figures, and for RESOURCE
+  (which shows none) the progress bar as its block ended. The row was written by the next
+  minute's check, which read the bar then, so its `exp` or `ascension_exp` could be up to a
+  minute newer than its `timestamp` (on the audited database by a median of 40 to 118, at most
+  1,913). Readings typed together, in one second, are one row, the EXPERIENCE figures winning.
