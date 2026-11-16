@@ -1,7 +1,7 @@
 // A database written by analytics.lic itself, not seeded: two characters over
 // four days, played through the script's own managers by
 // tools/script-written-db.rb (from the 2026-11-13 audit), run on analytics.lic
-// 6088896c in TZ=America/New_York (ee7ac50e writes the same); run it again, as its header says, after a
+// 6088896c in TZ=America/New_York (5d5aaa8a writes the same); run it again, as its header says, after a
 // change to what the script writes. It carries the values the script writes today,
 // which the parity fixtures predate: offers open, removed, completed and
 // expired, 'hunt stopped' and 'crashed', coins off the floor, shop types from

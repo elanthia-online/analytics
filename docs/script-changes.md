@@ -441,7 +441,7 @@ to @6088896c), with no schema change:
   (none that depend on the session, such as urchin guides), within 60 seconds, else the room's
   own location.
 
-Fixed since, from the analytics10 audit (elanthia-online/scripts@6088896c to @ee7ac50e), with
+Fixed since, from the analytics10 audit (elanthia-online/scripts@6088896c to @5d5aaa8a), with
 no schema change:
 - A `progress` row for an EXPERIENCE or RESOURCE reading takes the experience shown when the
   reading was taken: EXPERIENCE's own `Experience` and `Ascension Exp` figures, and for RESOURCE
@@ -449,3 +449,10 @@ no schema change:
   minute's check, which read the bar then, so its `exp` or `ascension_exp` could be up to a
   minute newer than its `timestamp` (on the audited database by a median of 40 to 118, at most
   1,913). Readings typed together, in one second, are one row, the EXPERIENCE figures winning.
+- Two kinds of kill Lich's combat recorder credits to no one count as this character's when it
+  attacked the creature and no one else did (`attacks` with `ours = 0` that aren't inbound,
+  unowned or orphan): a death that fell in a bleed's tick (an `unowned` attack), and one it
+  recorded no damage for (`killed_by_attack_id` NULL; tremors, a cold snap). On the audited
+  database they were 1.5 to 4% of the characters' kills. The recorder's side is
+  elanthia-online/lich-5#2415. A recorder file without those columns is summed as the recorder
+  credited it.
