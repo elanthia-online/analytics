@@ -65,7 +65,7 @@ function corsHeaders(origin) {
 }
 
 const BASE_HEADERS = {
-  'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'cross-origin',
+  'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'same-origin',
   'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'", Connection: 'close',
 };
 const API_VERSION = 1; // data.js and docs/api.md say the same
@@ -82,6 +82,10 @@ const server = http.createServer((req, res) => {
   if (origin && !ALLOWED_ORIGINS.some((re) => re.test(origin))) return reply(403, 'text/plain', 'Forbidden');
 
   const url = new URL(req.url, 'http://127.0.0.1');
+  // Another site's no-cors load (an image, a no-cors fetch): refused before anything is built
+  if (req.headers['sec-fetch-site'] === 'cross-site' && !origin && url.pathname.startsWith('/api/')) {
+    return reply(403, 'text/plain', 'Forbidden');
+  }
   if (req.method === 'OPTIONS') {
     // Only older Chromium sends this (Private Network Access); simple GETs need no preflight
     return reply(204, 'text/plain', '', {
