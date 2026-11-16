@@ -102,10 +102,13 @@ test('daily fame: each day\'s last EXPERIENCE reading less the last one before i
       'duration_seconds INTEGER, exp_total_start INTEGER, exp_total_end INTEGER, fame_start INTEGER, fame_end INTEGER)');
     const at = (day, hour) => Math.floor(new Date(`2027-03-${day}T${hour}:00:00`).getTime() / 1000);
     const read = (t, fame) => d.run("INSERT INTO progress VALUES ('GS3', 'Rocksteady', ?, ?)", [t, fame]);
+    read(at('08', '20'), null); // a heartbeat row before any reading: no base of 0
     read(at('08', '22'), 400);  // before the window's last three days: the base for none of them
+    read(at('09', '12'), 300);  // a bad reading (fame only rises): neither a drop nor the 10th's base
     read(at('10', '10'), 500);
     read(at('10', '15'), null); // a heartbeat row: no reading
     read(at('10', '20'), 650);
+    read(at('10', '23'), null); // the day ends on a heartbeat row (#63)
     // the 11th: no reading
     read(at('12', '09'), 700);
     read(at('12', '23'), 900);
@@ -390,7 +393,9 @@ test('DST: after spring-forward each page counts 7 and 30 days of kills, the Sum
   for (const [range, days] of [['weekly', 7], ['monthly', 30]]) {
     assert.equal(buildHunting(c, 'GS3:Shredder', range, { now: at }).kills, days, `Hunting, ${range}`);
     assert.equal(buildIncome(c, 'GS3:Shredder', range, { now: at }).sources.find((x) => x.key === 'creatures').amount, days * 100, `Income, ${range}`);
-    assert.equal(buildCharacter(c, ov, 'GS3:Shredder', range, { now: at }).range_stats.kills, days, `Summary, ${range}`);
+    const summary = buildCharacter(c, ov, 'GS3:Shredder', range, { now: at });
+    assert.equal(summary.range_stats.kills, days, `Summary, ${range}`);
+    assert.equal(summary.trend.labels.length, days, `the Summary's trend, ${range} (#61)`);
   }
   d.close();
 });
@@ -432,6 +437,30 @@ test('a hunt stopped by hand is not a crash; the old unhandled exit still is (#2
     }
     const april = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April');
     assert.equal(april.crashes.length, 4);
+    // a rest bigshot started keeps its reason after the mark (scripts#2556 R12-4): a crash, and still a rest for that reason
+    d.run("UPDATE cycles SET rest_reason = 'crashed (wounded.)' WHERE cycle_id IN ('r0', 'r1')");
+    const marked = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April');
+    assert.equal(marked.crashes.length, 4);
+    assert.deepEqual(marked.rest_reasons.map((r) => [r.reason, r.today]), [['crashed', 2], ['wounded', 2]]);
+  } finally {
+    d.close();
+  }
+});
+
+test('crashes have their own alert: a day of them is never also an unusual rest reason (#61)', async () => {
+  const { buildOverview } = await import('../site/js/aggregate/index.js');
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  try {
+    const mid = midnight(dayOf(now));
+    let n = 0;
+    const rest = (t, reason) => d.run("INSERT INTO cycles (cycle_id, game, character, cycle_type, start_time, end_time, duration_seconds, rest_reason) VALUES (?, 'GS3', 'April', 'rest', ?, ?, 60, ?)",
+      [`x${n++}`, t, t + 60, reason]);
+    // one on each earlier day, four today: as often as that is unusual for any other reason
+    for (let k = 1; k <= 14; k++) rest(mid - k * 86400 + 3600, 'crashed');
+    for (let i = 0; i < 4; i++) rest(mid + 3600 + i * 600, 'crashed');
+    const texts = buildOverview(new Conn(d), { now }).characters.find((c) => c.id === 'GS3:April').light.reasons.map((r) => r.text);
+    assert.ok(texts.some((t) => /crash \/ idle recovery today/.test(t)), texts.join('; '));
+    assert.ok(!texts.some((t) => /^crashed\b/.test(t)), texts.join('; '));
   } finally {
     d.close();
   }

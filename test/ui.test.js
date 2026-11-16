@@ -70,3 +70,27 @@ test('per hour today divides by the time the script ran, the stretch still going
   assert.equal(perHourToday(c(0, 0, 0, { type: 'rest', since: midnight - 3600 }), 15 * 3600, now), 3600);
   assert.equal(perHourToday(c(3600, 0, 0, { type: 'dead', since: now - 600 }), 7200, now), 7200, 'time dead isn\'t time run');
 });
+
+test('the mind note shows only when mind percentages are missing from hunting today (#61)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const initSqlJs = (await import('sql.js')).default;
+  const { Conn } = await import('../site/js/db.js');
+  const { buildOverview, buildCharacter } = await import('../site/js/aggregate/index.js');
+  const { detailHtml } = await import('../site/js/ui/views.js');
+  const SQL = await initSqlJs();
+  const d = new SQL.Database(readFileSync(new URL('fixtures/afternoon.db', import.meta.url)));
+  try {
+    const conn = new Conn(d);
+    const { now } = JSON.parse(readFileSync(new URL('fixtures/afternoon.json', import.meta.url)));
+    const ov = buildOverview(conn, { now });
+    const noted = (id) => {
+      const c = buildCharacter(conn, ov, id, 'daily', { now });
+      return JSON.stringify(detailHtml(c, 'daily', 900, 'summary', {}, {}, {})).includes('Mind percentages need mind capacity');
+    };
+    assert.equal(noted('GS3:April'), false, 'mind known: no note');
+    assert.equal(noted('GS3:Leonardo'), true, 'hunted, but no capacity recorded: the note');
+    assert.equal(noted('GSF:Splinter'), false, 'no hunting today: nothing to explain');
+  } finally {
+    d.close();
+  }
+});

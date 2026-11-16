@@ -352,11 +352,14 @@ export function buildDaily(conn, ids, { now, days = 28 }) {
       for (const r of conn.all('SELECT timestamp, fame FROM progress WHERE game = ? AND character = ? AND fame IS NOT NULL ' +
         'AND timestamp <= ? ORDER BY timestamp', ...who, now)) {
         const day = dateOf(toI(r.timestamp)), f = toI(r.fame);
+        // Fame only rises in play: a lower reading is a bad one, left out so it
+        // neither shows as a drop nor becomes the next day's base
+        if (prev != null && f < prev) continue;
         if (!base.has(day)) base.set(day, prev ?? f);
         last.set(day, f);
         prev = f;
       }
-      labels.forEach((l, i) => { if (last.has(l)) fame[i] = Math.max(0, last.get(l) - base.get(l)); });
+      labels.forEach((l, i) => { if (last.has(l)) fame[i] = last.get(l) - base.get(l); });
     }
     series[id] = { exp, ascension: split ? asc : null, regular: split ? exp.map((v, i) => Math.max(0, v - asc[i])) : null, fame, hunt_s: hunt };
   }

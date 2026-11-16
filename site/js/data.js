@@ -58,9 +58,9 @@ export class LiveSource {
 const LOOPBACK = { cache: 'no-store', targetAddressSpace: 'loopback' };
 
 // Whether the reader told the browser not to let this site reach this computer.
-// Only Chrome and Edge know the permission; elsewhere the query throws, which
-// is "don't know". (Never query the old 'local-network-access' name: it can
-// crash older Chrome.)
+// Only Chrome and Edge ask about it; Firefox and Safari answer 'prompt', and a
+// browser that doesn't know the name throws: both are "don't know". (Never
+// query the old 'local-network-access' name: it can crash older Chrome.)
 export async function loopbackDenied(permissions = globalThis.navigator?.permissions) {
   if (!permissions?.query) return false;
   try {
