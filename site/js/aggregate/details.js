@@ -289,7 +289,7 @@ export function buildHistory(conn, id, range, { now, ranges, limit = 400 }) {
   const who = parseWho(id);
   const { label, from } = window(range, now, ranges);
   const rows = conn.all('SELECT cycle_id, cycle_type, start_time, end_time, duration_seconds, rest_reason, profile, ' +
-    'exp_total_start, exp_total_end, fame_start, fame_end FROM cycles WHERE game = ? AND character = ? ' +
+    'exp_total_start, exp_total_end FROM cycles WHERE game = ? AND character = ? ' +
     'AND start_time >= ? AND start_time <= ? ORDER BY start_time DESC LIMIT ?', ...who, from, now, limit);
   const silver = new Map();
   if (rows.length && hasColumn(conn, 'bank_snapshots', 'cycle_id')) {
@@ -308,7 +308,7 @@ export function buildHistory(conn, id, range, { now, ranges, limit = 400 }) {
       stale: r.end_time == null && now - toI(r.start_time) >= STALE_OPEN,
       seconds: r.end_time != null ? toI(r.duration_seconds) : now - toI(r.start_time) >= STALE_OPEN ? null : Math.max(0, now - toI(r.start_time)),
       reason: r.rest_reason || null, profile: r.profile ? shortProfile(r.profile, who[1]) : null,
-      exp: gain(r.exp_total_start, r.exp_total_end), fame: gain(r.fame_start, r.fame_end),
+      exp: gain(r.exp_total_start, r.exp_total_end),
       silver: silver.has(r.cycle_id) ? silver.get(r.cycle_id) : null,
     })),
     truncated: rows.length >= limit,
@@ -319,11 +319,16 @@ export function buildHistory(conn, id, range, { now, ranges, limit = 400 }) {
 
 // Experience gained per local day for the last +days+ days, per character.
 // A cycle's gain counts on the day it started (cycles never span midnight).
+// Fame comes from the EXPERIENCE readings instead: it rises as experience is
+// absorbed, resting too, so a cycle's fame is known only when a reading was
+// typed at both its ends, and rest scripts don't. A day's fame is its last
+// reading less the last one before it (or its first, with none before).
 export function buildDaily(conn, ids, { now, days = 28 }) {
   const today = dayOf(now);
   const first = addDays(today, -(days - 1));
   const from = midnight(first);
   const split = hasColumn(conn, 'cycles', 'exp_asc_start');
+  const readings = hasColumn(conn, 'progress', 'fame');
   const labels = [];
   for (let i = 0; i < days; i++) labels.push(dayStr(addDays(first, i)));
   const index = new Map(labels.map((l, i) => [l, i]));
@@ -331,7 +336,7 @@ export function buildDaily(conn, ids, { now, days = 28 }) {
   for (const id of ids) {
     const who = parseWho(id);
     const exp = new Array(days).fill(0), asc = new Array(days).fill(0), fame = new Array(days).fill(0), hunt = new Array(days).fill(0);
-    const rows = conn.all('SELECT cycle_type, start_time, duration_seconds, exp_total_start, exp_total_end, fame_start, fame_end' +
+    const rows = conn.all('SELECT cycle_type, start_time, duration_seconds, exp_total_start, exp_total_end' +
       (split ? ', exp_asc_start, exp_asc_end' : '') + ' FROM cycles WHERE game = ? AND character = ? AND start_time >= ? AND start_time <= ?',
     ...who, from, now);
     for (const r of rows) {
@@ -339,8 +344,19 @@ export function buildDaily(conn, ids, { now, days = 28 }) {
       if (i == null) continue;
       if (r.exp_total_start != null && r.exp_total_end != null) exp[i] += Math.max(0, toI(r.exp_total_end) - toI(r.exp_total_start));
       if (split && r.exp_asc_start != null && r.exp_asc_end != null) asc[i] += Math.max(0, toI(r.exp_asc_end) - toI(r.exp_asc_start));
-      if (r.fame_start != null && r.fame_end != null) fame[i] += Math.max(0, toI(r.fame_end) - toI(r.fame_start));
       if (r.cycle_type === 'hunt') hunt[i] += toI(r.duration_seconds);
+    }
+    if (readings) {
+      const base = new Map(), last = new Map();
+      let prev = null;
+      for (const r of conn.all('SELECT timestamp, fame FROM progress WHERE game = ? AND character = ? AND fame IS NOT NULL ' +
+        'AND timestamp <= ? ORDER BY timestamp', ...who, now)) {
+        const day = dateOf(toI(r.timestamp)), f = toI(r.fame);
+        if (!base.has(day)) base.set(day, prev ?? f);
+        last.set(day, f);
+        prev = f;
+      }
+      labels.forEach((l, i) => { if (last.has(l)) fame[i] = Math.max(0, last.get(l) - base.get(l)); });
     }
     series[id] = { exp, ascension: split ? asc : null, regular: split ? exp.map((v, i) => Math.max(0, v - asc[i])) : null, fame, hunt_s: hunt };
   }

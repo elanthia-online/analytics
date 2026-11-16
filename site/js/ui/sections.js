@@ -291,6 +291,11 @@ export function progressHtml(d, width, ui) {
     : [{ name: 'Experience', values: s.exp, color: '--k1' }];
   var chart = '<section class="card">' + head('Experience by day', 'last ' + dl.labels.length + ' days' + (dl.split ? ' ' + DOT + ' regular and ascension' : '')) +
     barChart('progress-daily', dl.labels, series, short, width, 'Experience by day') + '</section>';
+  // From the EXPERIENCE readings: a day with none shows nothing
+  if (s.fame.some(function (v) { return v > 0; })) {
+    chart += '<section class="card">' + head('Fame by day', 'last ' + dl.labels.length + ' days ' + DOT + ' from EXPERIENCE readings') +
+      barChart('progress-fame', dl.labels, [{ name: 'Fame', values: s.fame, color: '--k3' }], short, width, 'Fame by day') + '</section>';
+  }
   var stings = p.stings.length ? '<section class="card">' + head('Death\'s Sting', 'last 30 days') + scroll('Death\'s Sting') +
     '<table><thead><tr><th>From</th><th class="l">Level</th><th>Lasted</th></tr></thead><tbody>' + p.stings.map(function (x) {
       return '<tr><td>' + stamp(x.from) + '</td><td class="l">' + (x.level == null ? '<span class="muted">not read</span>' : esc(x.level)) + '</td><td>' + (x.to ? dur(x.seconds) : dur(x.seconds) + ' so far') + '</td></tr>';
@@ -299,12 +304,12 @@ export function progressHtml(d, width, ui) {
 }
 
 // ---- history ------------------------------------------------------------------
-// Which columns have anything in them (an older database has no fame or per-cycle silver)
+// Which columns have anything in them (an older database has no per-cycle silver)
 export function historyCols(cycles) {
-  return { fame: cycles.some(function (c) { return c.fame != null; }), silver: cycles.some(function (c) { return c.silver != null; }) };
+  return { silver: cycles.some(function (c) { return c.silver != null; }) };
 }
 export function historyRows(cycles, filter) {
-  var cols = historyCols(cycles), span = 5 + (cols.fame ? 1 : 0) + (cols.silver ? 1 : 0);
+  var cols = historyCols(cycles), span = 5 + (cols.silver ? 1 : 0);
   var q = String(filter.q || '').toLowerCase();
   var shown = cycles.filter(function (c) {
     if (filter.type !== 'all' && c.type !== filter.type) return false;
@@ -314,7 +319,7 @@ export function historyRows(cycles, filter) {
   return { count: shown.length, html: shown.map(function (c) {
     return '<tr><td>' + stamp(c.start) + '</td><td class="l"><span class="state st-' + esc(c.type) + '"><i style="background:' + css(STATE_COL[c.type] || '--gray') + '"></i>' +
       esc(STATE_NAME[c.type] || c.type) + '</span></td><td>' + (c.stale ? '<span class="muted">ended, time unknown</span>' : c.end == null ? dur(c.seconds) + ' so far' : dur(c.seconds)) + '</td><td class="l wrapcell">' +
-      esc(c.reason || c.profile || '') + '</td><td>' + (c.exp == null ? '--' : short(c.exp)) + '</td>' + (cols.fame ? '<td>' + (c.fame == null ? '--' : short(c.fame)) + '</td>' : '') +
+      esc(c.reason || c.profile || '') + '</td><td>' + (c.exp == null ? '--' : short(c.exp)) + '</td>' +
       (cols.silver ? '<td>' + (c.silver == null ? '--' : short(c.silver)) + '</td>' : '') + '</tr>';
   }).join('') };
 }
@@ -328,7 +333,7 @@ export function historyHtml(d, filter) {
       opt('dead', 'Deaths') + opt('idle', 'Idle') + '</select></label>' +
     '<label class="fl grow"><span>Search reasons and profiles</span><input id="histQ" type="search" autocomplete="off" value="' + esc(filter.q || '') + '" placeholder="e.g. encumbered"></label>' +
     '<span class="fl-count" id="histCount" role="status">' + plural(rows.count, 'row') + (d.truncated ? ' (the newest ' + d.cycles.length + ')' : '') + '</span></div>' +
-    scroll('Every hunt and rest') + '<table><thead><tr><th>Started</th><th class="l">What</th><th>Length</th><th class="l">Reason or profile</th><th>Exp</th>' + (cols.fame ? '<th>Fame</th>' : '') + (cols.silver ? '<th>Silver</th>' : '') + '</tr></thead>' +
+    scroll('Every hunt and rest') + '<table><thead><tr><th>Started</th><th class="l">What</th><th>Length</th><th class="l">Reason or profile</th><th>Exp</th>' + (cols.silver ? '<th>Silver</th>' : '') + '</tr></thead>' +
     '<tbody id="histBody">' + rows.html + '</tbody></table></div></section>';
 }
 

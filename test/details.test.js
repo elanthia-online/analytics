@@ -93,6 +93,32 @@ test('daily: 28 days ending today, adding up to the cycles that started in them'
   assert.ok(d.series[ID].regular.every((v, i) => v + d.series[ID].ascension[i] === d.series[ID].exp[i]));
 });
 
+test('daily fame: each day\'s last EXPERIENCE reading less the last one before it, not the cycles', () => {
+  const d = new SQL.Database();
+  try {
+    d.run('CREATE TABLE progress (game TEXT, character TEXT, timestamp INTEGER, fame INTEGER)');
+    // cycle fame the script wrote from stale readings: not used
+    d.run('CREATE TABLE cycles (cycle_id TEXT, game TEXT, character TEXT, cycle_type TEXT, start_time INTEGER, end_time INTEGER, ' +
+      'duration_seconds INTEGER, exp_total_start INTEGER, exp_total_end INTEGER, fame_start INTEGER, fame_end INTEGER)');
+    const at = (day, hour) => Math.floor(new Date(`2027-03-${day}T${hour}:00:00`).getTime() / 1000);
+    const read = (t, fame) => d.run("INSERT INTO progress VALUES ('GS3', 'Rocksteady', ?, ?)", [t, fame]);
+    read(at('08', '22'), 400);  // before the window's last three days: the base for none of them
+    read(at('10', '10'), 500);
+    read(at('10', '15'), null); // a heartbeat row: no reading
+    read(at('10', '20'), 650);
+    // the 11th: no reading
+    read(at('12', '09'), 700);
+    read(at('12', '23'), 900);
+    d.run("INSERT INTO cycles VALUES ('c1', 'GS3', 'Rocksteady', 'rest', ?, ?, 600, 0, 0, 100, 99999)", [at('12', '10'), at('12', '10') + 600]);
+    const now = at('12', '23') + 1800;
+    const f = buildDaily(new Conn(d), ['GS3:Rocksteady'], { now, days: 5 }).series['GS3:Rocksteady'].fame;
+    // the 8th: 400 with none before; the 10th: 650 - 400; the 12th: 900 - 650
+    assert.deepEqual(f, [0, 0, 250, 0, 250]);
+  } finally {
+    d.close();
+  }
+});
+
 test('progress, before the cap: level and the share of it done, from the last row', () => {
   const p = buildProgress(conn, ID, { now });
   const last = one('SELECT level, exp FROM progress WHERE game = ? AND character = ? ORDER BY timestamp DESC LIMIT 1', ...W);
