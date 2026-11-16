@@ -32,8 +32,8 @@ request (400, 403) gets none, since there is nothing in it for that page to read
 
 | Status | When | Body |
 |---|---|---|
-| `400` | A cut-off request line, a second `Host` or `Origin` header, 100 headers or more | `Bad request` |
-| `403` | A `Host` other than this computer, or an `Origin` not allowed | `Forbidden` |
+| `400` | A cut-off request line, a second `Host`, `Origin` or `Sec-Fetch-Site` header, 100 headers or more | `Bad request` |
+| `403` | A `Host` other than this computer, an `Origin` not allowed, or an `/api/` request the browser marks `Sec-Fetch-Site: cross-site` with no `Origin` | `Forbidden` |
 | `404` | Any other path | `Not found` |
 | `405` | Any method but `GET` (and the preflight `OPTIONS`) | `Method not allowed` |
 | `500` | An error in the script while answering; it is logged in the game window | `Internal error` |
@@ -129,6 +129,12 @@ A page served by the hosted site (`https://analytics.elanthia.online`) reads an 
 - A request with an `Origin` header that is not allowed gets `403`. Browsers send
   `Origin` on cross-origin fetches, so a page on any other site can't read the
   database or even get a 200 from it.
+- A page can also load a URL without CORS (an `<img>`, a `no-cors` fetch). The browser
+  sends no `Origin` then, and the answer is unreadable to the page, but the script would
+  still build and send the whole database. So an `/api/` request marked
+  `Sec-Fetch-Site: cross-site` with no `Origin` gets `403` before anything is built. The
+  page's own fetch carries an `Origin`; `curl` and an address typed in the browser send no
+  `Sec-Fetch-Site` (or `none`), and `/` still redirects whoever links to it.
 - The site has its own domain on purpose. `https://elanthia-online.github.io` is shared by
   every Pages site in the organisation; allowing it would let any of them read the API.
   It now only redirects to the custom domain, so it is **not** allowed. A fork hosted
@@ -171,8 +177,9 @@ hosted page already connected.
 
 - `Cache-Control: no-store`
 - `X-Content-Type-Options: nosniff`
-- `Cross-Origin-Resource-Policy: cross-origin`, so the responses stay readable if the page
-  ever turns on cross-origin isolation
+- `Cross-Origin-Resource-Policy: same-origin`: no other site may load a response without
+  CORS. The page reads the API with CORS, which this header doesn't touch (cross-origin
+  isolation, if the page ever turns it on, accepts a CORS response too)
 - `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, since the API
   serves no page any more
 - `Connection: close`, as today
