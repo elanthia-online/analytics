@@ -456,7 +456,8 @@ def recorder_for(who)
       CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, character TEXT, source TEXT, started_at REAL NOT NULL, ended_at REAL);
       CREATE TABLE IF NOT EXISTS creatures (id INTEGER PRIMARY KEY, session_id INTEGER, exist_id INTEGER, noun TEXT, name TEXT, first_seen REAL,
                               last_seen REAL, killed_at REAL, killed_by_attack_id INTEGER, kill_credit TEXT);
-      CREATE TABLE IF NOT EXISTS attacks (id INTEGER PRIMARY KEY, session_id INTEGER, creature_id INTEGER, ours INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE IF NOT EXISTS attacks (id INTEGER PRIMARY KEY, session_id INTEGER, creature_id INTEGER, ours INTEGER NOT NULL DEFAULT 0,
+                              inbound INTEGER NOT NULL DEFAULT 0, unowned INTEGER NOT NULL DEFAULT 0, orphan INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS flares (id INTEGER PRIMARY KEY, attack_id INTEGER, ours INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS resolutions (id INTEGER PRIMARY KEY, attack_id INTEGER);
       CREATE TABLE IF NOT EXISTS hits (id INTEGER PRIMARY KEY, attack_id INTEGER, flare_id INTEGER, session_id INTEGER, creature_id INTEGER, damage INTEGER);

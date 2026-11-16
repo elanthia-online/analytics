@@ -2,6 +2,24 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-16: Fame by day from the readings, and no fame per cycle
+
+**Decision.** History has no Fame column. `buildDaily`'s `fame` comes from the `progress`
+EXPERIENCE readings, not the cycles: a day's fame is its last reading less the last reading
+before it (its first, with none before), and the Progress page charts it. The script still
+writes `cycles.fame_start`/`fame_end`; the page doesn't read them.
+
+**Why.** The analytics10 audit (two characters, three days): fame rises as experience is
+absorbed, resting too (Tysong +128 fame in 31 s of resting, no bounty), and a cycle took
+fame only from a reading in the two minutes before its boundary. Rest scripts type
+EXPERIENCE as a rest starts, so a hunt never had an end reading and most rests had no start;
+daily fame from cycles came to 0.1 to 3.4% of the real change. A reading at both ends of
+every cycle is the only exact per-cycle figure, and the script sends no commands.
+
+**Rejected.**
+- Backfilling a boundary from the reading just after it: a rest's end still has none.
+- Putting fame from one rest start to the next on the hunt: it includes the rest's.
+
 ## 2026-11-12: BSD 3-Clause, a privacy section, and an unofficial-tool line
 
 **Decision.** The repo is BSD 3-Clause licensed (`LICENSE`, `package.json`), copyright
@@ -241,8 +259,8 @@ so the new pages add two more of them (bars by day, labelled bars) instead.
 **Rejected.**
 - Refreshing a page while the reader types in its filter. The History filter redraws only
   its table, and `write()` puts focus and the caret back after a live refresh.
-- Showing per-cycle fame and silver columns when no row has them. They appear only when
-  the data does.
+- Showing a per-cycle silver column when no row has it. It appears only when the data
+  does. (Per-cycle fame is gone: see 2026-11-16.)
 
 ## 2026-11-06: Accessibility pass, and a high-contrast mode
 
