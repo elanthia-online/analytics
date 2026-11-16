@@ -2,6 +2,28 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-17: Third audit: crash marks, fame readings, the API's no-cors answer
+
+**Decision.**
+- A crashed cycle with a reason is `crashed (<reason>)` (the script); the site counts it as
+  a crash and files the rest under the reason in "Rest reasons today".
+- Fame only rises in play (the owner, 2026-11-17), so fame by day skips a reading lower than
+  an earlier one; the clamp at 0 it replaces could never fire then, and is gone.
+- The API refuses another site's no-cors load (`Sec-Fetch-Site: cross-site`, no `Origin`)
+  and answers `Cross-Origin-Resource-Policy: same-origin`; the page reads it with CORS.
+- The quiet-refresh e2e check watches 61 seconds (allowing one minute turnover's two redraws)
+  instead of 16, which a regression could pass.
+
+**Why.** MahtraDR's round-3 audit (issues #60–#68) and scripts#2556 round 12. Plain
+`crashed` on a rest would lose the reason from Rest reasons; keeping the reason without the
+mark kept the crash off the tile. A bad fame reading clamped to 0 still became the next
+day's base.
+
+**Rejected.**
+- Walking a town gate's fixed time for a shop's town (script): it walks portals too.
+- A tolerance between EXPERIENCE's text and the progress bar (script): they matched on all
+  1,711 blocks read, so the text was dropped instead.
+
 ## 2026-11-16: Fame by day from the readings, and no fame per cycle
 
 **Decision.** History has no Fame column. `buildDaily`'s `fame` comes from the `progress`

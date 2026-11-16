@@ -5,6 +5,7 @@
 //   node tools/dev-server.js [--port 8000]
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import { extname, normalize, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -39,6 +40,7 @@ export function startDevServer(port = PORT) {
   return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve(server)));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Run directly, through any symlink on the way (macOS's /var is /private/var)
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   startDevServer().then(() => console.log(`site/ on http://localhost:${PORT}`));
 }

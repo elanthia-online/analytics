@@ -42,11 +42,13 @@ export const MIN_SAMPLES = 5;
 // isn't listed. 'unhandled exit' stays for the golden figures. From the
 // script's round-11 fixes (scripts#2556), a cycle it finds still open at its next start
 // (Lich or the connection went down mid-cycle) is closed as 'crashed', on
-// whatever kind of cycle it was.
+// whatever kind of cycle it was; from round 12, one that had a reason keeps it
+// after the mark ('crashed (wounded)', a rest bigshot started).
 const CRASH_REASONS = { 'unhandled exit': 'hunt', 'idle recovery': 'rest' };
+const CRASHED_RE = /^crashed(?: \((.*)\))?$/;
 const isCrash = (row) => {
   const reason = String(row.rest_reason ?? '').trim().toLowerCase();
-  return reason === 'crashed' || CRASH_REASONS[reason] === row.cycle_type;
+  return CRASHED_RE.test(reason) || CRASH_REASONS[reason] === row.cycle_type;
 };
 
 // ---- SQL fragments ---------------------------------------------------------
@@ -148,7 +150,8 @@ function overviewData(conn, ctx) {
       `AND ${tod('start_time')} < ? GROUP BY 1, 2, 3`,
     baseFrom, now, todNow,
   )) {
-    const reason = String(row.reason ?? '').replace(/[.!]+$/, '');
+    // a crashed rest is still a rest for its reason: 'crashed (wounded.)' is filed under wounded
+    const reason = String(row.reason ?? '').replace(CRASHED_RE, (all, why) => why ?? all).replace(/[.!]+$/, '');
     const perDayMap = reasons.fetch(row.who).fetch(String(row.d ?? ''));
     const key = reason === '' ? '(none)' : reason;
     perDayMap.set(key, perDayMap.fetch(key) + toI(row.n));

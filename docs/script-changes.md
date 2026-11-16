@@ -441,18 +441,45 @@ to @6088896c), with no schema change:
   (none that depend on the session, such as urchin guides), within 60 seconds, else the room's
   own location.
 
-Fixed since, from the analytics10 audit (elanthia-online/scripts@6088896c to @5d5aaa8a), with
-no schema change:
-- A `progress` row for an EXPERIENCE or RESOURCE reading takes the experience shown when the
-  reading was taken: EXPERIENCE's own `Experience` and `Ascension Exp` figures, and for RESOURCE
-  (which shows none) the progress bar as its block ended. The row was written by the next
-  minute's check, which read the bar then, so its `exp` or `ascension_exp` could be up to a
-  minute newer than its `timestamp` (on the audited database by a median of 40 to 118, at most
-  1,913). Readings typed together, in one second, are one row, the EXPERIENCE figures winning.
-- Two kinds of kill Lich's combat recorder credits to no one count as this character's when it
-  attacked the creature and no one else did (`attacks` with `ours = 0` that aren't inbound,
-  unowned or orphan): a death that fell in a bleed's tick (an `unowned` attack), and one it
-  recorded no damage for (`killed_by_attack_id` NULL; tremors, a cold snap). On the audited
-  database they were 1.5 to 4% of the characters' kills. The recorder's side is
-  elanthia-online/lich-5#2415. A recorder file without those columns is summed as the recorder
-  credited it.
+Fixed since, from the analytics10 audit and round 12 of the review (scripts#2556;
+elanthia-online/scripts@6088896c to @4873f5ba), with no schema change:
+- A `progress` row for an EXPERIENCE or RESOURCE reading takes the progress bar (`exp`,
+  `ascension_exp`, `level`, `until_next`) as it stood when the reading's output ended. The row
+  was written by the next minute's check, which read the bar then, so its experience could be
+  up to a minute newer than its `timestamp` (on the audited database by a median of 40 to 118,
+  at most 1,913). An earlier fix read the EXPERIENCE text instead; another player's indented
+  RECITE lines could forge that, and on 1,711 blocks the bar matched the text every time.
+  Readings in one second are one row, each value as the later reading left it (a sting that
+  faded just after the EXPERIENCE that showed it is `None`). A RESOURCE paired with an
+  EXPERIENCE whose row the minute's check already wrote leaves that row's experience alone.
+- Kills Lich's combat recorder credits to no one (`killed_by_attack_id` NULL: tremors, a cold
+  snap, a death the room only showed), or to a tick (`unowned`: a bleed, but also a nearby
+  player's curse or poison), count as this character's when it attacked the creature (and,
+  for a tick, dealt it damage), and nothing else could have made the kill: no other player's
+  attack on it (`ours = 0`, not inbound, unowned or orphan), and during its life no other
+  player's spell with no target (`foreign_caster = 1`, an area spell) and no damage the
+  recorder couldn't attribute (`orphan = 1`, which may be ours or a groupmate's). Those two
+  aren't tied to the creature or the room, so they lean toward crediting no one. Our own
+  spell on a target the recorder couldn't place (no target, `target_kind = 'foreign'`, not an
+  orphan or another player's) doesn't block a kill. On the audited database the rule
+  recovered 1.5 to 4% of the characters' kills. The recorder's side is
+  elanthia-online/lich-5#2415.
+- A cycle a crash left open is `crashed`, or `crashed (<reason>)` when it had one (a rest
+  bigshot started: `crashed (wounded.)`). `hunt stopped` stays. The site counts both forms as
+  a crash and files the second under its reason in "Rest reasons today".
+- The cycle Lich went down in (its login's last, with nothing after it) ends with the readings
+  at the next start, when the crash was within the hour, the game has sent experience, and
+  they're no less than its own start's. Offline absorption (15 exp per 10 minutes on a paid
+  account, `FLAG OFFLINEEXP`, on by default) lands on it, at most 90 at the plain rate.
+- A crumbled corpse's coins (its search said it crumbled, melted or dissolved, and the game
+  didn't gather them) picked up later with a fossil charm or with GET COINS count once, with
+  the kill. An ordinary corpse's silver goes to the purse, so a pile the same size is floor
+  silver.
+- A shop's town walk takes no gate or portal (the comment says so); "the hamlet of" is
+  trimmed like "the village of".
+- `dashboard.port` must be a whole number from 1 to 65535: a fraction ended the script.
+- The API answers `Cross-Origin-Resource-Policy: same-origin` and refuses an `/api/` request
+  marked `Sec-Fetch-Site: cross-site` with no `Origin` (another site's `<img>` or no-cors
+  fetch), before building the database. See [api.md](api.md).
+- A `</stream>` ends only a `<stream id>` element: one arriving inside another player's
+  multi-line thought no longer lets the rest of it be read as this character's.

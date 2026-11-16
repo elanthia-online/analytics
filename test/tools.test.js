@@ -35,9 +35,26 @@ test('the dev server and the mock API serve from a path with a space (#33)', asy
     assert.equal((await fetch(`http://localhost:${port}/no-such-page`)).status, 404);
     const meta = await (await fetch(`http://127.0.0.1:${port + 1}/api/meta`, { headers: { Origin: `http://localhost:${port}` } })).json();
     assert.equal(meta.app, 'analytics');
+    // as from the script: another site's no-cors load is refused, a typed address isn't (docs/api.md)
+    assert.equal((await fetch(`http://127.0.0.1:${port + 1}/api/db`, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
+    assert.equal((await fetch(`http://127.0.0.1:${port + 1}/api/meta`, { headers: { 'Sec-Fetch-Site': 'none' } })).status, 200);
   } finally {
     site.kill();
     api.kill();
     rmSync(join(dir, '..', '..'), { recursive: true, force: true });
+  }
+});
+
+test('the dev server starts through a symlinked path, as from macOS\'s /var (#60)', async () => {
+  const base = mkdtempSync(join(tmpdir(), 'gs4a-'));
+  const link = join(base, 'linked');
+  symlinkSync(repo, link);
+  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const site = await serve(join(link, 'tools', 'dev-server.js'), ['--port', String(port)]);
+  try {
+    assert.equal((await fetch(`http://localhost:${port}/`)).status, 200);
+  } finally {
+    site.kill();
+    rmSync(base, { recursive: true, force: true });
   }
 });

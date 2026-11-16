@@ -14,7 +14,7 @@
 //   Bebop and Leonardo get the week before the fixture's own days, ending where they start
 // and, for those days, schema 11's combat_stats (damage, kills and assists per hunt and creature) and
 // pool_depth (boxes waiting at the locksmith pool).
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import initSqlJs from 'sql.js';
 import { EXP_FOR_LEVEL, CAP_EXP, levelOf } from '../site/js/aggregate/details.js';
@@ -303,7 +303,8 @@ export function buildSample(SQL, fixture, now) {
 }
 
 // Run from the command line
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Run directly, through any symlink on the way (macOS's /var is /private/var)
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   if (process.env.TZ !== 'America/New_York') {
     console.error('run with TZ=America/New_York (npm run sample does), the fixture\'s time zone');
     process.exit(1);

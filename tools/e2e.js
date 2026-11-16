@@ -151,8 +151,10 @@ try {
     await sp.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 2}`);
     await sp.waitForSelector('.card[data-who]', { timeout: 15_000 });
     await sp.waitForTimeout(1500);
-    const ovq = await rewritesOf(sp, ['#overview', '#navChars'], 16_000);
-    check(ovq.rewrites <= 2 || ovq.newDay, `live: refreshes with nothing new leave the overview and menu alone (${ovq.rewrites} rewrites in three refreshes)`);
+    // a minute's worth and more: at most one turn of the minute, which may redraw each once;
+    // drawn on every refresh instead, it's 4 or more (#62)
+    const ovq = await rewritesOf(sp, ['#overview', '#navChars'], 61_000);
+    check(ovq.rewrites <= 2 || ovq.newDay, `live: refreshes with nothing new leave the overview and menu alone (${ovq.rewrites} rewrites in twelve refreshes)`);
     // Compare redraws on Show by itself (#28): this source never changes, so no refresh can do it
     await sp.evaluate(() => localStorage.setItem('gs4a-hidden', JSON.stringify(['GS3:Raphael'])));
     await sp.goto(`http://localhost:${SITE_PORT}/?live=${API_PORT + 2}#compare`);
