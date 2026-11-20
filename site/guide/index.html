@@ -289,6 +289,7 @@
           <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
           <tbody>
             <tr><td><code>alerts.no_kill_minutes</code></td><td><code>10</code></td><td>Alert after hunting this long with no kills.</td></tr>
+            <tr><td><code>alerts.long_rest_minutes</code></td><td><code>20</code></td><td>Alert when one rest lasts this long (a normal rest takes a few minutes).</td></tr>
             <tr><td><code>alerts.silver_drop_pct</code></td><td><code>50</code></td><td>Alert when today's silver per hunting hour is this many percent below the last seven days' average...</td></tr>
             <tr><td><code>alerts.silver_check_after_hours</code></td><td><code>2</code></td><td>...once you've hunted this many hours today.</td></tr>
             <tr><td><code>alerts.daily_digest</code></td><td><code>true</code></td><td>Send yesterday's summary once a day.</td></tr>
@@ -317,6 +318,7 @@ alerts:                                # in-game and Discord alerts
           (with its webhook set up as that script describes) before <code>;analytics</code>. With discordhook not running, alerts appear in the game only.</p>
         <ul>
           <li><b>No kills</b> for <code>alerts.no_kill_minutes</code> while hunting.</li>
+          <li><b>Long rest</b>: one rest has gone on for <code>alerts.long_rest_minutes</code>, which usually means it's stuck (still encumbered, so the hunt stops again as soon as it starts, or a rest script looping). It says which rest step is running.</li>
           <li><b>Silver drop</b>: today's silver per hunting hour well below the last seven days' average.</li>
           <li><b>Idle</b> for <code>idle_warn_minutes</code>, and <b>idle recovery</b> starting a rest.</li>
           <li><b>Death.</b></li>

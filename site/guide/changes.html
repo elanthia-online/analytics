@@ -58,6 +58,13 @@
     <!-- Newest first. One section per release, id="v<version>" (script releases) or
          id="d<yyyy-mm-dd>" (a dashboard-only change). Mark each item Script or Dashboard.
          Write for players: what changed, and what to do about it, if anything. -->
+<section id="d2026-11-20-audit" class="card">
+  <h2>November 20, 2026 &middot; script, from the fourth audit</h2>
+  <ul>
+    <li><span class="chip">Script</span> A <b>long rest</b> alert: one rest lasting <code>alerts.long_rest_minutes</code> (20 by default) usually means it's stuck. Examples are a character still encumbered, so the hunt stops again as soon as it starts, or a bounty script looping on its own. Testers had rests of 2 to 12 hours with no kills. The alert says which rest step is running, and comes once per rest.</li>
+    <li><span class="chip">Script</span> No more "database busy" errors when two characters share the database. A write now waits for the other character's to finish, as it was always meant to. Nothing had been lost: each write was tried again.</li>
+  </ul>
+</section>
     <section id="d2026-11-17-audit" class="card">
       <h2>November 17, 2026 &middot; dashboard, from the third audit</h2>
       <ul>
