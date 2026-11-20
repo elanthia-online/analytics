@@ -2,6 +2,22 @@
 
 Newest first. Each entry: the decision, why, and what was rejected.
 
+## 2026-11-20: A long-rest alert in the script, and writes that wait for the lock
+
+**Decision.** The script alerts once per rest that lasts `alerts.long_rest_minutes` (default
+20), naming the rest step running. Its queued writes begin `IMMEDIATE`. The dashboard's own
+alerts are unchanged.
+
+**Why.** In the analytics11 audit, five rests ran 2.4 to 12.6 hours with no kills. In some, the
+character stayed encumbered and bigshot stopped again each time it started, which the cycles
+count as one rest. In others, ebounty looped on its own. No alert covered a rest. In every
+tester database, a normal rest was at most 10 minutes, so 20 doesn't fire on them. The
+"database busy" errors came from deferred transactions that read before writing: SQLite fails
+that write at once rather than waiting, when the other character's session holds the lock or
+has written since. `IMMEDIATE` takes the lock at `BEGIN`, where the busy wait applies.
+Reproduced with two processes, the deferred write failed in 0.5 s and the immediate one
+committed after waiting.
+
 ## 2026-11-17: Third audit: crash marks, fame readings, the API's no-cors answer
 
 **Decision.**

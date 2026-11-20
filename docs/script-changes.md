@@ -483,3 +483,15 @@ elanthia-online/scripts@6088896c to @4873f5ba), with no schema change:
   fetch), before building the database. See [api.md](api.md).
 - A `</stream>` ends only a `<stream id>` element: one arriving inside another player's
   multi-line thought no longer lets the rest of it be read as this character's.
+
+Fixed since, from the analytics11 audit (elanthia-online/scripts@4873f5ba to @2ed7206a), with no
+schema change:
+- Queued writes begin `IMMEDIATE`. A write that read before it wrote ran deferred, and its first
+  write failed at once, without the busy wait, when the other character's session held the lock
+  (`SQLITE_BUSY`) or had written since the read (`SQLITE_BUSY_SNAPSHOT`, Sequel's
+  `SerializationFailure`). That was the source of the "database busy" errors, one or two a day per
+  character, all retried.
+- `alerts.long_rest_minutes` (default 20) alerts once per rest that lasts that long, naming the rest
+  step running. A rest is timed from its start, which a flap back into it and the midnight split
+  both keep. On the audited database, normal rests were at most 10 minutes; stuck ones ran 2.4 to
+  12.6 hours.
